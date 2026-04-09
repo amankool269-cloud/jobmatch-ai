@@ -231,8 +231,14 @@ app.post('/signup', upload.single('resume'), async (req, res) => {
         const profile = await parseResume(buffer, file.originalname || file.filename);
         console.log('Profile extracted:', profile);
 
-        // 2. Save to Airtable
-        await saveToAirtable(name, email, phone, profile, schedule);
+        // 2. Save to Airtable (non-blocking — don't fail if Airtable errors)
+        try {
+            await saveToAirtable(name, email, phone, profile, schedule);
+            console.log('Airtable: user saved successfully');
+        } catch (airtableErr) {
+            console.warn('Airtable save failed (non-fatal):', airtableErr.message);
+            // Continue anyway — user still gets job results
+        }
 
         // 3. Send welcome email
         sendWelcomeEmail(name, email, schedule).catch(console.error);
