@@ -181,6 +181,40 @@ app.get('/', (req, res) => res.sendFile('index.html', { root: '.' }));
 
 app.get('/health', (req, res) => res.json({ status: 'ok', version: '2.0.0' }));
 
+// Temporary debug endpoint — remove after fixing
+app.get('/debug', async (req, res) => {
+    const baseId = AIRTABLE_BASE_ID || 'MISSING';
+    const token = AIRTABLE_TOKEN ? AIRTABLE_TOKEN.slice(0, 20) + '...' : 'MISSING';
+    const tableId = 'tblJtDvebLwnXvV9i';
+    const url = `https://api.airtable.com/v0/${baseId}/${tableId}`;
+
+    let airtableStatus = 'not tested';
+    try {
+        const r = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` }
+        });
+        airtableStatus = `HTTP ${r.status}`;
+        if (!r.ok) {
+            const body = await r.text();
+            airtableStatus += ` — ${body.slice(0, 200)}`;
+        }
+    } catch (e) {
+        airtableStatus = `fetch error: ${e.message}`;
+    }
+
+    res.json({
+        env: {
+            AIRTABLE_BASE_ID: baseId,
+            AIRTABLE_TOKEN: token,
+            APIFY_ACTOR_ID: APIFY_ACTOR_ID || 'MISSING',
+            SMTP_USER: SMTP_USER || 'MISSING',
+            ANTHROPIC_API_KEY: ANTHROPIC_API_KEY ? 'SET' : 'MISSING',
+        },
+        airtableUrl: url,
+        airtableStatus,
+    });
+});
+
 // Signup + trigger
 app.post('/signup', upload.single('resume'), async (req, res) => {
     const { name, email, phone, schedule } = req.body;
