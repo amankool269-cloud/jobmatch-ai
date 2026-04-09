@@ -83,7 +83,12 @@ File content (may be garbled for binary files — do your best): ${fileBuffer.to
 
 // ─── Save user to Airtable ────────────────────────────────────────────────────
 async function saveToAirtable(name, email, phone, profile, schedule) {
-    const resp = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Users`, {
+    // Use table ID directly — never fails regardless of table name
+    const tableId = process.env.AIRTABLE_TABLE || 'tblJtDvebLwnXvV9i';
+    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${tableId}`;
+    console.log(`Saving to Airtable: ${url}`);
+
+    const resp = await fetch(url, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
