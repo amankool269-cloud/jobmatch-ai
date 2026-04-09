@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JobMatch AI — Your AI-powered job hunt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0d0d12;
+  --ink2: #2a2a35;
+  --muted: #6b6b80;
+  --line: #e8e8f0;
+  --accent: #5b4fff;
+  --accent2: #ff5b7f;
+  --green: #00c48c;
+  --amber: #ffb800;
+  --bg: #fafaf8;
+  --card: #ffffff;
+  --r: 16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;overflow-x:hidden}
+
+/* ── NAV ── */
+nav{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 2.5rem;border-bottom:1px solid var(--line);background:rgba(250,250,248,.92);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100}
+.nav-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.25rem;color:var(--ink);letter-spacing:-.02em}
+.nav-logo span{color:var(--accent)}
+.nav-badge{font-size:.7rem;font-weight:600;background:var(--accent);color:#fff;padding:.2rem .6rem;border-radius:20px;letter-spacing:.04em}
+
+/* ── HERO ── */
+.hero{padding:5rem 2.5rem 3rem;max-width:760px;margin:0 auto;text-align:center}
+.hero-tag{display:inline-flex;align-items:center;gap:.5rem;font-size:.78rem;font-weight:500;color:var(--accent);border:1.5px solid rgba(91,79,255,.2);background:rgba(91,79,255,.06);padding:.35rem .85rem;border-radius:20px;margin-bottom:1.5rem}
+.hero-tag::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:blink 1.5s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+h1{font-family:'Syne',sans-serif;font-size:clamp(2.2rem,5vw,3.5rem);font-weight:800;line-height:1.1;letter-spacing:-.03em;color:var(--ink);margin-bottom:1.25rem}
+h1 em{color:var(--accent);font-style:normal}
+.hero-sub{font-size:1.05rem;color:var(--muted);line-height:1.7;max-width:520px;margin:0 auto 2.5rem}
+
+/* ── UPLOAD CARD ── */
+.upload-section{max-width:640px;margin:0 auto;padding:0 1.5rem 4rem}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:24px;padding:2.5rem;box-shadow:0 8px 40px rgba(0,0,0,.05)}
+
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+@media(max-width:520px){.form-row{grid-template-columns:1fr}}
+.form-group{display:flex;flex-direction:column;gap:.4rem;margin-bottom:1rem}
+.form-group label{font-size:.8rem;font-weight:600;color:var(--ink2);letter-spacing:.02em;text-transform:uppercase}
+.form-group input{padding:.75rem 1rem;border:1.5px solid var(--line);border-radius:10px;font-size:.95rem;font-family:'DM Sans',sans-serif;color:var(--ink);background:#fff;outline:none;transition:border .15s}
+.form-group input:focus{border-color:var(--accent)}
+
+/* Drop zone */
+.drop-zone{border:2px dashed var(--line);border-radius:14px;padding:2.5rem 1.5rem;text-align:center;cursor:pointer;transition:all .2s;position:relative;background:#fafaf8;margin-bottom:1.25rem}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--accent);background:rgba(91,79,255,.04)}
+.drop-zone.has-file{border-color:var(--green);border-style:solid;background:rgba(0,196,140,.04)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.drop-icon{font-size:2.5rem;margin-bottom:.75rem;display:block}
+.drop-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--ink);margin-bottom:.3rem}
+.drop-sub{font-size:.82rem;color:var(--muted)}
+.drop-sub strong{color:var(--accent);cursor:pointer}
+.file-name{font-size:.85rem;font-weight:600;color:var(--green);margin-top:.5rem}
+
+/* Schedule toggle */
+.schedule-row{display:flex;align-items:center;justify-content:space-between;background:#f5f4ff;border:1.5px solid rgba(91,79,255,.15);border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.5rem}
+.schedule-label{font-size:.88rem;font-weight:500;color:var(--ink2)}
+.schedule-label span{font-size:.78rem;color:var(--muted);display:block;margin-top:.15rem}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:#ddd;border-radius:24px;cursor:pointer;transition:.2s}
+.slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.toggle input:checked + .slider{background:var(--accent)}
+.toggle input:checked + .slider::before{transform:translateX(20px)}
+
+/* Submit button */
+.btn-submit{width:100%;padding:1rem;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-family:'Syne',sans-serif;font-weight:700;letter-spacing:.01em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.6rem;transition:all .2s}
+.btn-submit:hover{background:#4a3ef0;transform:translateY(-1px)}
+.btn-submit:disabled{background:#a5a0ff;cursor:not-allowed;transform:none}
+.btn-submit .btn-arrow{font-size:1.1rem;transition:transform .2s}
+.btn-submit:hover .btn-arrow{transform:translateX(4px)}
+
+/* Progress */
+.progress-wrap{display:none;margin-top:2rem}
+.progress-wrap.show{display:block}
+.progress-steps{display:flex;flex-direction:column;gap:.75rem}
+.p-step{display:flex;align-items:center;gap:.85rem;padding:.75rem 1rem;border-radius:10px;font-size:.88rem;color:var(--muted);background:#f8f8fc;transition:all .3s}
+.p-step.active{background:rgba(91,79,255,.08);color:var(--ink)}
+.p-step.done{background:rgba(0,196,140,.08);color:var(--green)}
+.p-step.error{background:rgba(255,91,127,.08);color:var(--accent2)}
+.step-dot{width:28px;height:28px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0;transition:all .3s}
+.p-step.active .step-dot{border-color:var(--accent);background:var(--accent);color:#fff;animation:pulse-ring .8s ease-in-out infinite}
+.p-step.done .step-dot{border-color:var(--green);background:var(--green);color:#fff}
+.p-step.error .step-dot{border-color:var(--accent2);background:var(--accent2);color:#fff}
+@keyframes pulse-ring{0%,100%{box-shadow:0 0 0 0 rgba(91,79,255,.4)}50%{box-shadow:0 0 0 6px rgba(91,79,255,0)}}
+
+/* Results */
+.results-section{display:none;margin-top:2rem}
+.results-section.show{display:block}
+.results-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.results-title{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;color:var(--ink)}
+.results-count{font-size:.78rem;background:var(--accent);color:#fff;padding:.2rem .7rem;border-radius:20px;font-weight:600}
+.job-card{border:1.5px solid var(--line);border-radius:14px;padding:1.25rem;margin-bottom:.75rem;background:#fff;animation:slideUp .3s ease forwards;opacity:0;transition:border-color .2s}
+.job-card:hover{border-color:var(--accent)}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.job-top{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:.6rem}
+.job-title{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;color:var(--ink)}
+.job-co{font-size:.82rem;color:var(--muted);margin-top:.2rem}
+.score-ring{width:48px;height:48px;flex-shrink:0;position:relative}
+.score-ring svg{transform:rotate(-90deg)}
+.score-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:.72rem;font-weight:800;color:var(--ink)}
+.job-pills{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.7rem}
+.pill{font-size:.7rem;padding:.2rem .65rem;border-radius:20px;font-weight:500}
+.pill-source{background:#f0f0ff;color:#5b4fff}
+.pill-date{background:#f5f5f5;color:var(--muted)}
+.pill-fit{color:#fff;font-weight:600}
+.pill-fit.strong{background:var(--green)}
+.pill-fit.good{background:#5b4fff}
+.pill-fit.partial{background:var(--amber);color:var(--ink)}
+.pill-fit.weak{background:#e0e0e0;color:var(--muted)}
+.job-verdict{font-size:.82rem;color:var(--ink2);line-height:1.55;margin-bottom:.75rem}
+.job-actions{display:flex;gap:.6rem;flex-wrap:wrap}
+.job-btn{font-size:.78rem;padding:.4rem .9rem;border-radius:8px;border:1.5px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;text-decoration:none;display:inline-flex;align-items:center;gap:.3rem;transition:all .15s}
+.job-btn:hover{border-color:var(--accent);color:var(--accent)}
+.job-btn.apply{background:var(--accent);color:#fff;border-color:var(--accent)}
+.job-btn.apply:hover{background:#4a3ef0}
+
+/* Schedule confirm */
+.schedule-confirm{display:none;margin-top:1.25rem;background:rgba(0,196,140,.08);border:1.5px solid rgba(0,196,140,.3);border-radius:12px;padding:1rem 1.25rem;font-size:.85rem;color:#00a070;line-height:1.6}
+.schedule-confirm.show{display:block}
+
+/* How it works */
+.how-section{background:#fff;border-top:1px solid var(--line);padding:4rem 2.5rem}
+.how-inner{max-width:760px;margin:0 auto}
+.section-label{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:.75rem}
+.section-title{font-family:'Syne',sans-serif;font-size:clamp(1.5rem,3vw,2rem);font-weight:800;color:var(--ink);margin-bottom:2.5rem;letter-spacing:-.02em}
+.steps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1.5rem}
+.how-step{padding:1.5rem;border-radius:16px;background:var(--bg);border:1.5px solid var(--line)}
+.how-num{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--line);margin-bottom:.75rem}
+.how-step h3{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;color:var(--ink);margin-bottom:.4rem}
+.how-step p{font-size:.82rem;color:var(--muted);line-height:1.6}
+
+/* Footer */
+footer{text-align:center;padding:2rem;font-size:.8rem;color:var(--muted);border-top:1px solid var(--line)}
+
+/* Error banner */
+.error-banner{display:none;margin-top:1rem;background:rgba(255,91,127,.08);border:1.5px solid rgba(255,91,127,.3);border-radius:10px;padding:.85rem 1rem;font-size:.84rem;color:var(--accent2)}
+.error-banner.show{display:block}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">Job<span>Match</span> AI</div>
+  <div class="nav-badge">BETA · FREE</div>
+</nav>
+
+<section class="hero">
+  <div class="hero-tag">Powered by Claude AI + Live Job Scraping</div>
+  <h1>Your resume.<br><em>Matched to real jobs.</em><br>Instantly.</h1>
+  <p class="hero-sub">Upload your resume, get AI-scored job matches from LinkedIn, Naukri and Indeed in under 60 seconds. Schedule daily updates and never miss a relevant opening.</p>
+</section>
+
+<section class="upload-section">
+  <div class="card">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Full name</label>
+        <input type="text" id="name" placeholder="Aman Khandelwal" required>
+      </div>
+      <div class="form-group">
+        <label>Email address</label>
+        <input type="email" id="email" placeholder="you@gmail.com" required>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Upload your resume</label>
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="resumeFile" accept=".pdf,.doc,.docx">
+        <span class="drop-icon">📄</span>
+        <div class="drop-title">Drop your resume here</div>
+        <div class="drop-sub">or <strong>browse files</strong> · PDF, DOC, DOCX · Max 5MB</div>
+        <div class="file-name" id="fileName"></div>
+      </div>
+    </div>
+
+    <div class="schedule-row">
+      <div class="schedule-label">
+        Send me daily job alerts
+        <span>New matches emailed every morning at 8am</span>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="scheduleToggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="error-banner" id="errorBanner"></div>
+
+    <button class="btn-submit" id="submitBtn" onclick="startSearch()">
+      Find my matching jobs <span class="btn-arrow">→</span>
+    </button>
+
+    <!-- Progress steps -->
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-steps">
+        <div class="p-step" id="step1">
+          <div class="step-dot">1</div>
+          <span>Reading your resume with Claude AI...</span>
+        </div>
+        <div class="p-step" id="step2">
+          <div class="step-dot">2</div>
+          <span>Searching LinkedIn, Naukri and Indeed...</span>
+        </div>
+        <div class="p-step" id="step3">
+          <div class="step-dot">3</div>
+          <span>Scoring jobs against your profile...</span>
+        </div>
+        <div class="p-step" id="step4">
+          <div class="step-dot">4</div>
+          <span>Preparing your personalised digest...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="results-section" id="resultsSection">
+      <div class="results-header">
+        <div class="results-title">Your matches</div>
+        <div class="results-count" id="resultsCount">0 jobs</div>
+      </div>
+      <div id="jobsList"></div>
+      <div class="schedule-confirm" id="scheduleConfirm">
+        ✓ Daily digest scheduled — you'll receive fresh matches every morning at 8am IST. Check your inbox for a confirmation email.
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="how-section">
+  <div class="how-inner">
+    <div class="section-label">How it works</div>
+    <div class="section-title">60 seconds to your next opportunity</div>
+    <div class="steps-grid">
+      <div class="how-step">
+        <div class="how-num">01</div>
+        <h3>Upload resume</h3>
+        <p>Drop your PDF or DOCX. Claude reads every line — experience, skills, domain, seniority.</p>
+      </div>
+      <div class="how-step">
+        <div class="how-num">02</div>
+        <h3>AI generates queries</h3>
+        <p>Claude creates 5 smart search queries tailored to your exact background — not generic keywords.</p>
+      </div>
+      <div class="how-step">
+        <div class="how-num">03</div>
+        <h3>Live job scraping</h3>
+        <p>We scan LinkedIn, Naukri and Indeed simultaneously for jobs posted in the last 7 days.</p>
+      </div>
+      <div class="how-step">
+        <div class="how-num">04</div>
+        <h3>AI scoring</h3>
+        <p>Every job gets a match score 0–100, a verdict, and a personalised outreach pitch written for you.</p>
+      </div>
+      <div class="how-step">
+        <div class="how-num">05</div>
+        <h3>Daily alerts</h3>
+        <p>Toggle on daily updates. Fresh matches land in your inbox every morning — no manual searching ever.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  JobMatch AI · Built with Claude + Apify · Free during beta · amankool269@gmail.com
+</footer>
+
+<script>
+// ⚠️ Replace with your actual Render.com API URL after deployment
+const API_URL = 'https://jobmatch-api.onrender.com';
+
+// File upload handling
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('resumeFile');
+const fileName = document.getElementById('fileName');
+
+fileInput.addEventListener('change', () => {
+  const f = fileInput.files[0];
+  if (f) {
+    dropZone.classList.add('has-file');
+    fileName.textContent = '✓ ' + f.name;
+  }
+});
+
+['dragover','dragenter'].forEach(e => dropZone.addEventListener(e, ev => {
+  ev.preventDefault(); dropZone.classList.add('drag');
+}));
+['dragleave','drop'].forEach(e => dropZone.addEventListener(e, ev => {
+  ev.preventDefault(); dropZone.classList.remove('drag');
+}));
+dropZone.addEventListener('drop', ev => {
+  const f = ev.dataTransfer.files[0];
+  if (f) { fileInput.files = ev.dataTransfer.files; dropZone.classList.add('has-file'); fileName.textContent = '✓ ' + f.name; }
+});
+
+function setStep(n, state) {
+  const el = document.getElementById('step' + n);
+  el.className = 'p-step ' + state;
+  if (state === 'done') el.querySelector('.step-dot').textContent = '✓';
+  if (state === 'error') el.querySelector('.step-dot').textContent = '✗';
+}
+
+function scoreColor(s) {
+  if (s >= 80) return '#00c48c';
+  if (s >= 65) return '#5b4fff';
+  if (s >= 50) return '#ffb800';
+  return '#e0e0e0';
+}
+
+function fitLabel(s) {
+  if (s >= 80) return ['Strong fit','strong'];
+  if (s >= 65) return ['Good fit','good'];
+  if (s >= 50) return ['Partial fit','partial'];
+  return ['Weak fit','weak'];
+}
+
+function renderJob(job, index) {
+  const [fl, fc] = fitLabel(job.matchScore);
+  const c = scoreColor(job.matchScore);
+  const circumference = 2 * Math.PI * 18;
+  const offset = circumference - (job.matchScore / 100) * circumference;
+  const div = document.createElement('div');
+  div.className = 'job-card';
+  div.style.animationDelay = (index * 0.08) + 's';
+  div.innerHTML = `
+    <div class="job-top">
+      <div>
+        <div class="job-title">${job.title}</div>
+        <div class="job-co">${job.company} · ${job.location}</div>
+      </div>
+      <div class="score-ring">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <circle cx="24" cy="24" r="18" fill="none" stroke="#f0f0f0" stroke-width="4"/>
+          <circle cx="24" cy="24" r="18" fill="none" stroke="${c}" stroke-width="4"
+            stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round"/>
+        </svg>
+        <div class="score-num">${job.matchScore}%</div>
+      </div>
+    </div>
+    <div class="job-pills">
+      <span class="pill pill-fit ${fc}">${fl}</span>
+      <span class="pill pill-source">${job.source || 'LinkedIn'}</span>
+      <span class="pill pill-date">${job.postedAt || 'Recently'}</span>
+    </div>
+    <div class="job-verdict">${job.verdict || ''}</div>
+    <div class="job-actions">
+      ${job.jobUrl ? `<a class="job-btn apply" href="${job.jobUrl}" target="_blank">Apply →</a>` : ''}
+      ${job.pitch ? `<button class="job-btn" onclick="copyPitch(this, \`${job.pitch.replace(/`/g,"'")}\`)">Copy outreach pitch</button>` : ''}
+    </div>`;
+  return div;
+}
+
+function copyPitch(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const o = btn.textContent; btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = o, 2000);
+  });
+}
+
+async function startSearch() {
+  const name = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const file = fileInput.files[0];
+  const schedule = document.getElementById('scheduleToggle').checked;
+  const errBanner = document.getElementById('errorBanner');
+  errBanner.classList.remove('show');
+
+  if (!name || !email) { errBanner.textContent = 'Please enter your name and email.'; errBanner.classList.add('show'); return; }
+  if (!file) { errBanner.textContent = 'Please upload your resume (PDF or DOCX).'; errBanner.classList.add('show'); return; }
+  if (file.size > 5 * 1024 * 1024) { errBanner.textContent = 'File too large. Max 5MB.'; errBanner.classList.add('show'); return; }
+
+  // UI state
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('progressWrap').classList.add('show');
+  document.getElementById('resultsSection').classList.remove('show');
+  document.getElementById('jobsList').innerHTML = '';
+
+  setStep(1, 'active');
+
+  try {
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('email', email);
+    formData.append('resume', file);
+    formData.append('schedule', schedule ? '1' : '0');
+
+    const resp = await fetch(`${API_URL}/signup`, { method: 'POST', body: formData });
+    if (!resp.ok) {
+      const e = await resp.json();
+      throw new Error(e.error || 'Server error — please try again');
+    }
+
+    setStep(1, 'done'); setStep(2, 'active');
+    await new Promise(r => setTimeout(r, 1500));
+    setStep(2, 'done'); setStep(3, 'active');
+    await new Promise(r => setTimeout(r, 2000));
+    setStep(3, 'done'); setStep(4, 'active');
+
+    const data = await resp.json();
+
+    // Poll for results if runId provided
+    if (data.apifyRunId) {
+      await pollForResults(data.apifyRunId, email);
+    } else if (data.jobs) {
+      renderResults(data.jobs, schedule);
+    } else {
+      // Fallback — results will arrive by email
+      setStep(4, 'done');
+      renderFallbackSuccess(name, email, schedule);
+    }
+
+  } catch (err) {
+    setStep(1, 'error');
+    errBanner.textContent = err.message;
+    errBanner.classList.add('show');
+    document.getElementById('submitBtn').disabled = false;
+  }
+}
+
+async function pollForResults(runId, email, attempts = 0) {
+  if (attempts > 20) { setStep(4, 'done'); renderFallbackSuccess('', email, document.getElementById('scheduleToggle').checked); return; }
+  try {
+    const resp = await fetch(`${API_URL}/results?runId=${runId}&email=${encodeURIComponent(email)}`);
+    const data = await resp.json();
+    if (data.status === 'ready' && data.jobs?.length > 0) {
+      setStep(4, 'done');
+      renderResults(data.jobs, document.getElementById('scheduleToggle').checked);
+    } else {
+      await new Promise(r => setTimeout(r, 4000));
+      await pollForResults(runId, email, attempts + 1);
+    }
+  } catch {
+    await new Promise(r => setTimeout(r, 4000));
+    await pollForResults(runId, email, attempts + 1);
+  }
+}
+
+function renderResults(jobs, schedule) {
+  setStep(4, 'done');
+  const section = document.getElementById('resultsSection');
+  const list = document.getElementById('jobsList');
+  document.getElementById('resultsCount').textContent = jobs.length + ' jobs';
+  jobs.forEach((job, i) => list.appendChild(renderJob(job, i)));
+  section.classList.add('show');
+  if (schedule) document.getElementById('scheduleConfirm').classList.add('show');
+  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('submitBtn').disabled = false;
+}
+
+function renderFallbackSuccess(name, email, schedule) {
+  const section = document.getElementById('resultsSection');
+  const list = document.getElementById('jobsList');
+  list.innerHTML = `
+    <div style="text-align:center;padding:2rem 1rem">
+      <div style="font-size:2.5rem;margin-bottom:.75rem">🎯</div>
+      <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;color:var(--ink);margin-bottom:.5rem">Your search is running!</div>
+      <div style="font-size:.88rem;color:var(--muted);line-height:1.7">We're scanning LinkedIn, Naukri and Indeed for your matches right now.<br>Results will arrive in your inbox at <strong>${email}</strong> within 10 minutes.</div>
+    </div>`;
+  document.getElementById('resultsCount').textContent = 'Processing...';
+  section.classList.add('show');
+  if (schedule) document.getElementById('scheduleConfirm').classList.add('show');
+  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('submitBtn').disabled = false;
+}
+</script>
+</body>
+</html>
