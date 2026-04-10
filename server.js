@@ -16,9 +16,9 @@ const {
     ANTHROPIC_API_KEY,
     AIRTABLE_TOKEN,
     AIRTABLE_BASE_ID,
-    AIRTABLE_TABLE,
+    AIRTABLE_TABLE = 'tblJtDvebLwnXvV9i',
     APIFY_TOKEN,
-    APIFY_ACTOR_ID,
+    APIFY_ACTOR_ID = 'B5gdDkzPedfOBCXkZ',
     SMTP_USER,
     SMTP_PASS,
     PORT = 3000,
@@ -105,8 +105,7 @@ async function saveToAirtable(name, email, phone, profile, schedule) {
                     'Location': profile.location || 'Bengaluru',
                     'Experience': profile.experience || '',
                     'Domain': profile.domain || '',
-                    'Status': schedule === '1' ? 'Active' : 'One-time',
-                    'Joined': new Date().toISOString().split('T')[0],
+                    'Status': 'Active',
                 }
             }]
         })
@@ -138,24 +137,32 @@ async function sendWelcomeEmail(name, email, schedule) {
 
 // ─── Trigger Apify actor ──────────────────────────────────────────────────────
 async function triggerApify(name, email, profile, schedule) {
-    const resp = await fetch(
-        `https://api.apify.com/v2/acts/${APIFY_ACTOR_ID}/runs?token=${APIFY_TOKEN}`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                airtableToken: AIRTABLE_TOKEN,
-                airtableBaseId: AIRTABLE_BASE_ID,
-                smtpUser: SMTP_USER,
-                smtpPass: SMTP_PASS,
-                anthropicApiKey: ANTHROPIC_API_KEY,
-                maxResultsPerSource: 8,
-                filterEmail: email,
-            })
-        }
-    );
-    if (!resp.ok) throw new Error(`Apify trigger: ${resp.status}`);
-    const data = await resp.json();
+    const apifyToken = process.env.APIFY_TOKEN;
+    if (!apifyToken) throw new Error('APIFY_TOKEN not set');
+
+    // Use the correct Apify REST API format
+    const url = `https://api.apify.com/v2/acts/${APIFY_ACTOR_ID}/runs`;
+    console.log(`Triggering Apify: ${url}`);
+
+    const resp = await fetch(`${url}?token=${apifyToken}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            airtableToken: AIRTABLE_TOKEN,
+            airtableBaseId: AIRTABLE_BASE_ID,
+            smtpUser: SMTP_USER,
+            smtpPass: process.env.SMTP_PASS,
+            anthropicApiKey: ANTHROPIC_API_KEY,
+            maxResultsPerSource: 6,
+            filterEmail: email,
+        })
+    });
+
+    const responseText = await resp.text();
+    console.log(`Apify response: ${resp.status} — ${responseText.slice(0, 200)}`);
+
+    if (!resp.ok) throw new Error(`Apify trigger: ${resp.status} — ${responseText.slice(0, 100)}`);
+    const data = JSON.parse(responseText);
     return data.data?.id;
 }
 
