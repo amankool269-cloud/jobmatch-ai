@@ -141,7 +141,11 @@ async function triggerApify(name, email, profile, resumeText) {
     const apifyToken = process.env.APIFY_TOKEN;
     if (!apifyToken) throw new Error('APIFY_TOKEN not set');
 
-    const url = `https://api.apify.com/v2/acts/${APIFY_ACTOR_ID}/runs`;
+    // Use username~actorname format — reliable across builds
+    const actorId = APIFY_ACTOR_ID?.includes('/') 
+        ? APIFY_ACTOR_ID.replace('/', '~') 
+        : APIFY_ACTOR_ID;
+    const url = `https://api.apify.com/v2/acts/${actorId}/runs`;
     console.log(`Triggering Apify: ${url}`);
 
     const resp = await fetch(`${url}?token=${apifyToken}`, {
