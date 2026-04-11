@@ -196,6 +196,13 @@ footer{text-align:center;padding:2rem;font-size:.8rem;color:var(--muted);border-
       </label>
     </div>
 
+    <div style="display:flex;align-items:flex-start;gap:.75rem;margin-bottom:1.25rem;padding:1rem;background:#f8f8fc;border-radius:10px">
+      <input type="checkbox" id="consentCheck" style="margin-top:3px;flex-shrink:0;width:16px;height:16px;cursor:pointer;accent-color:#5b4fff">
+      <label for="consentCheck" style="font-size:.82rem;color:#4a4a5a;line-height:1.6;cursor:pointer">
+        I agree to the <a href="/privacy.html" target="_blank" style="color:#5b4fff">Privacy Policy</a>. I understand my resume will be read by Claude AI to extract my profile, and my email will be used to send job match results. My data will not be sold or shared with third parties.
+      </label>
+    </div>
+
     <div class="error-banner" id="errorBanner"></div>
 
     <button class="btn-submit" id="submitBtn" onclick="startSearch()">
@@ -274,12 +281,12 @@ footer{text-align:center;padding:2rem;font-size:.8rem;color:var(--muted);border-
 </section>
 
 <footer>
-  JobMatch AI · Built with Claude + Apify · Free during beta · amankool269@gmail.com
+  JobMatch AI · Built with Claude + Apify · Free during beta · <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="42232f232c292d2d2e70747b02252f232b2e6c212d2f">[email&#160;protected]</a>
 </footer>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ⚠️ Replace with your actual Render.com API URL after deployment
-const API_URL = 'https://jobmatch-ai-z19k.onrender.com';
+const API_URL = 'https://jobmatch-api.onrender.com';
 
 // File upload handling
 const dropZone = document.getElementById('dropZone');
@@ -403,12 +410,20 @@ async function startSearch() {
     }
 
     setStep(1, 'done'); setStep(2, 'active');
-    await new Promise(r => setTimeout(r, 1500));
-    setStep(2, 'done'); setStep(3, 'active');
-    await new Promise(r => setTimeout(r, 2000));
-    setStep(3, 'done'); setStep(4, 'active');
-
     const data = await resp.json();
+    await new Promise(r => setTimeout(r, 800));
+    setStep(2, 'done'); setStep(3, 'active');
+    await new Promise(r => setTimeout(r, 800));
+    setStep(3, 'done'); setStep(4, 'active');
+    await new Promise(r => setTimeout(r, 500));
+    setStep(4, 'done');
+
+    if (data.jobs?.length > 0) {
+      renderResults(data.jobs, schedule);
+    } else {
+      renderFallbackSuccess(formData.get('name').split(' ')[0], formData.get('email'), schedule);
+    }
+    console.log(`Results loaded in ${data.totalTime}ms`);
 
     // Poll for results if runId provided
     if (data.apifyRunId) {
@@ -430,7 +445,24 @@ async function startSearch() {
 }
 
 async function pollForResults(runId, email, attempts = 0) {
-  if (attempts > 20) { setStep(4, 'done'); renderFallbackSuccess('', email, document.getElementById('scheduleToggle').checked); return; }
+  // After 8 attempts (40 seconds) show fallback — don't make user wait forever
+  if (attempts > 8) {
+    setStep(4, 'done');
+    renderFallbackSuccess('', email, document.getElementById('scheduleToggle').checked);
+    return;
+  }
+
+  // Update step 4 text to show it's still working
+  const messages = [
+    'Preparing your personalised digest...',
+    'Scanning LinkedIn for matches...',
+    'Claude is scoring jobs against your profile...',
+    'Almost ready — ranking your top matches...',
+    'Finalising your digest...',
+  ];
+  const el = document.getElementById('step4');
+  if (el) el.querySelector('span').textContent = messages[Math.min(attempts, messages.length - 1)];
+
   try {
     const resp = await fetch(`${API_URL}/results?runId=${runId}&email=${encodeURIComponent(email)}`);
     const data = await resp.json();
@@ -438,11 +470,11 @@ async function pollForResults(runId, email, attempts = 0) {
       setStep(4, 'done');
       renderResults(data.jobs, document.getElementById('scheduleToggle').checked);
     } else {
-      await new Promise(r => setTimeout(r, 4000));
+      await new Promise(r => setTimeout(r, 5000));
       await pollForResults(runId, email, attempts + 1);
     }
   } catch {
-    await new Promise(r => setTimeout(r, 4000));
+    await new Promise(r => setTimeout(r, 5000));
     await pollForResults(runId, email, attempts + 1);
   }
 }
@@ -470,10 +502,4 @@ function renderFallbackSuccess(name, email, schedule) {
     </div>`;
   document.getElementById('resultsCount').textContent = 'Processing...';
   section.classList.add('show');
-  if (schedule) document.getElementById('scheduleConfirm').classList.add('show');
-  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  document.getElementById('submitBtn').disabled = false;
-}
-</script>
-</body>
-</html>
+ 

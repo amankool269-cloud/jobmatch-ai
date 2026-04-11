@@ -3,11 +3,10 @@ import multer from 'multer';
 import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
 import nodemailer from 'nodemailer';
-import { readFileSync } from 'fs';
+import { readFileSync, unlinkSync } from 'fs';
 
 const app = express();
 const upload = multer({ dest: '/tmp/uploads/', limits: { fileSize: 5 * 1024 * 1024 } });
-
 app.use(cors());
 app.use(express.json());
 app.use(express.static('.'));
@@ -18,283 +17,171 @@ const {
     AIRTABLE_BASE_ID,
     AIRTABLE_TABLE = 'tblJtDvebLwnXvV9i',
     APIFY_TOKEN,
-    APIFY_ACTOR_ID = 'B5gdDkzPedfOBCXkZ',
+    APIFY_ACTOR_ID = 'flexible_transaction/my-actor',
     SMTP_USER,
     SMTP_PASS,
     PORT = 3000,
 } = process.env;
 
-// In-memory store for run results (use Redis in production)
-const runResults = new Map();
+const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
-// ─── Parse resume with Claude ─────────────────────────────────────────────────
-async function parseResume(fileBuffer, filename) {
-    const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+async function parseResume(buffer, filename) {
     const isDocx = filename?.endsWith('.docx') || filename?.endsWith('.doc');
-
-    let content;
-    if (isDocx) {
-        // For DOCX, send as plain text extraction prompt
-        content = [{
-            type: 'text',
-            text: `This is a resume file. Extract the key information and return ONLY valid JSON:
-{
-  "targetRole": "most recent job title or target role",
-  "location": "city preference (default Bengaluru if unclear)",
-  "experience": "total years as string",
-  "domain": "primary industry",
-  "currentCompany": "current or last company",
-  "skills": "top skills comma separated"
-}
-
-File content (may be garbled for binary files — do your best): ${fileBuffer.toString('utf8', 0, 3000)}`
-        }];
-    } else {
-        // PDF — send as document
-        const base64 = fileBuffer.toString('base64');
-        content = [
-            {
-                type: 'document',
-                source: { type: 'base64', media_type: 'application/pdf', data: base64 },
-            },
-            {
-                type: 'text',
-                text: `Extract from this resume and return ONLY valid JSON (no markdown):
-{
-  "targetRole": "most recent job title or target role (e.g. Senior Manager Partnerships)",
-  "location": "preferred city (e.g. Bengaluru)",
-  "experience": "total years as string (e.g. 9 years)",
-  "domain": "primary industry (e.g. Fintech, NBFC, HR, IT, SaaS)",
-  "currentCompany": "current or most recent company",
-  "skills": "top 4 skills comma separated"
-}`
-            }
+    const content = isDocx
+        ? [{ type: 'text', text: `Extract from this resume, return ONLY JSON:\n{"targetRole":"","location":"Bengaluru","experience":"","domain":"","skills":""}\n\nResume: ${buffer.toString('utf8', 0, 3000)}` }]
+        : [
+            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: buffer.toString('base64') } },
+            { type: 'text', text: 'Extract from this resume, return ONLY valid JSON (no markdown):\n{"targetRole":"job title","location":"city","experience":"X years","domain":"industry","skills":"top skills"}' }
         ];
-    }
-
-    const message = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 800,
-        messages: [{ role: 'user', content }],
-    });
-
-    const raw = message.content[0].text.replace(/```json|```/g, '').trim();
-    return JSON.parse(raw);
+    const msg = await client.messages.create({ model: 'claude-haiku-4-5-20251001', max_tokens: 500, messages: [{ role: 'user', content }] });
+    return JSON.parse(msg.content[0].text.replace(/```json|```/g, '').trim());
 }
 
-// ─── Save user to Airtable ────────────────────────────────────────────────────
-async function saveToAirtable(name, email, phone, profile, schedule) {
-    // Use table ID directly — never fails regardless of table name
-    const tableId = process.env.AIRTABLE_TABLE || 'tblJtDvebLwnXvV9i';
-    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${tableId}`;
-    console.log(`Saving to Airtable: ${url}`);
+async function generateQueries(profile) {
+    const msg = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001', max_tokens: 300,
+        messages: [{ role: 'user', content: `Generate 3 specific LinkedIn job search queries for this candidate. Return ONLY a JSON array of strings.\nProfile: ${JSON.stringify(profile)}\nRules: Use their exact domain terms. Each query 3-5 words. Target ${profile.location || 'Bengaluru'}.` }]
+    });
+    try { return JSON.parse(msg.content[0].text.replace(/```json|```/g, '').trim()); }
+    catch { return [`${profile.targetRole} ${profile.location}`, `${profile.domain} ${profile.targetRole}`]; }
+}
 
+async function scrapeLinkedIn(query, location, limit = 10) {
+    try {
+        const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(query)}&location=${encodeURIComponent(location || 'Bengaluru')}&f_TPR=r604800&start=0&count=${limit}`;
+        const resp = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'text/html', 'Accept-Language': 'en-US,en;q=0.9' } });
+        if (!resp.ok) return [];
+        const html = await resp.text();
+        const titles = [...html.matchAll(/class="base-search-card__title"[^>]*>\s*([^<\n]+)/g)];
+        const companies = [...html.matchAll(/class="base-search-card__subtitle"[^>]*>[\s\S]*?<a[^>]*>\s*([^<\n]+)/g)];
+        const locations = [...html.matchAll(/class="job-search-card__location"[^>]*>\s*([^<\n]+)/g)];
+        const links = [...html.matchAll(/href="(https:\/\/[^"]*\/jobs\/view\/[^"?]+)/g)];
+        const times = [...html.matchAll(/datetime="([^"]+)"/g)];
+        const jobs = [];
+        for (let i = 0; i < Math.min(titles.length, limit); i++) {
+            const title = titles[i]?.[1]?.trim();
+            if (!title) continue;
+            jobs.push({ title, company: companies[i]?.[1]?.trim() || 'Unknown', location: locations[i]?.[1]?.trim() || location, jobUrl: links[i]?.[1] || '', postedAt: times[i]?.[1] || 'Recently', source: 'LinkedIn', description: `${title} at ${companies[i]?.[1]?.trim()}` });
+        }
+        return jobs;
+    } catch (e) { console.error('LinkedIn error:', e.message); return []; }
+}
+
+async function scoreJobs(jobs, profile) {
+    if (!jobs.length) return [];
+    const msg = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001', max_tokens: 4000,
+        messages: [{ role: 'user', content: `Score these jobs for this candidate. Return ONLY a JSON array — no markdown.\nCandidate: Role=${profile.targetRole}, Domain=${profile.domain}, Exp=${profile.experience}, Location=${profile.location}\nJobs: ${JSON.stringify(jobs.map((j,i) => ({id:i,title:j.title,company:j.company,location:j.location})))}\nFormat: [{"id":0,"matchScore":85,"fitLabel":"Strong fit","verdict":"One sentence.","pitch":"2-sentence outreach pitch."}]\nRules: 80+ only if role directly matches domain and seniority. Be strict and honest.` }]
+    });
+    let scores = [];
+    try { scores = JSON.parse(msg.content[0].text.replace(/```json|```/g,'').trim()); } catch {}
+    const map = {};
+    scores.forEach(s => map[s.id] = s);
+    return jobs.map((j,i) => ({ ...j, matchScore: map[i]?.matchScore ?? 50, fitLabel: map[i]?.fitLabel ?? 'Unscored', verdict: map[i]?.verdict ?? '', pitch: map[i]?.pitch ?? '' })).sort((a,b) => b.matchScore - a.matchScore);
+}
+
+async function saveToAirtable(name, email, profile) {
+    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
+    const check = await fetch(`${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`, { headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` } });
+    const cd = await check.json();
+    if (cd.records?.[0]) { console.log(`${email} already in Airtable`); return; }
     const resp = await fetch(url, {
         method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            records: [{
-                fields: {
-                    'Name': name,
-                    'Email': email,
-                    'Target role': profile.targetRole || '',
-                    'Location': profile.location || 'Bengaluru',
-                    'Experience': profile.experience || '',
-                    'Domain': profile.domain || '',
-                    'Status': 'Active',
-                }
-            }]
-        })
+        headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ records: [{ fields: { 'Name': name, 'Email': email, 'Target role': profile.targetRole||'', 'Location': profile.location||'Bengaluru', 'Experience': profile.experience||'', 'Domain': profile.domain||'', 'Status': 'Active' } }] })
     });
-    const responseText = await resp.text();
-    console.log(`Airtable response: ${resp.status} — ${responseText}`);
-    if (!resp.ok) throw new Error(`Airtable: ${resp.status} — ${responseText}`);
-    const data = JSON.parse(responseText);
-    return data.records[0].id;
+    console.log(`Airtable save: ${resp.status}`);
 }
 
-// ─── Send welcome email ───────────────────────────────────────────────────────
-async function sendWelcomeEmail(name, email, schedule) {
-    if (!SMTP_USER || !SMTP_PASS) return;
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user: SMTP_USER, pass: SMTP_PASS },
-    });
-    await transporter.sendMail({
-        from: `JobMatch AI <${SMTP_USER}>`,
-        to: email,
-        subject: `Welcome ${name} — your job search is running!`,
-        html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:2rem;color:#1a1a2e">
-  <h2 style="color:#5b4fff;margin-bottom:.5rem">Your AI job search is live 🎯</h2>
-  <p style="color:#6b6b80;margin-bottom:1.5rem">Hi ${name}, we're scanning LinkedIn, Naukri and Indeed right now. Your personalised matches will arrive in this inbox within 10 minutes.</p>
-  ${schedule === '1' ? '<p style="background:#f0f0ff;padding:1rem;border-radius:8px;color:#5b4fff;font-size:.9rem">✓ Daily digest scheduled — fresh matches every morning at 8am IST</p>' : ''}
-  <p style="margin-top:2rem;font-size:.8rem;color:#aaa">JobMatch AI · Free during beta</p>
-</div>`
-    });
+async function sendEmail(name, email, jobs) {
+    if (!SMTP_USER || !SMTP_PASS) { console.log('SMTP missing — skip email'); return; }
+    const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user: SMTP_USER, pass: SMTP_PASS } });
+    const scoreColor = s => s >= 80 ? '#00c48c' : s >= 65 ? '#5b4fff' : '#888';
+    const rows = jobs.slice(0,15).map(j => `
+      <tr style="border-bottom:1px solid #f0f0f0">
+        <td style="padding:14px 12px">
+          <div style="font-weight:600;font-size:14px;color:#1a1a2e">${j.title}</div>
+          <div style="font-size:12px;color:#666;margin-top:3px">${j.company} · ${j.location}</div>
+          ${j.verdict ? `<div style="font-size:12px;color:#555;margin-top:6px">${j.verdict}</div>` : ''}
+          ${j.pitch ? `<div style="font-size:12px;color:#444;margin-top:6px;padding:8px;background:#f9f9f9;border-left:3px solid #ddd"><strong>Outreach:</strong> ${j.pitch}</div>` : ''}
+        </td>
+        <td style="padding:14px 12px;text-align:center;min-width:60px">
+          <div style="font-size:24px;font-weight:800;color:${scoreColor(j.matchScore)}">${j.matchScore}%</div>
+          <div style="font-size:10px;color:#999">${j.fitLabel}</div>
+        </td>
+        <td style="padding:14px 12px;text-align:center">
+          ${j.jobUrl ? `<a href="${j.jobUrl}" style="background:#5b4fff;color:#fff;padding:7px 14px;border-radius:6px;text-decoration:none;font-size:12px">Apply →</a>` : ''}
+        </td>
+      </tr>`).join('');
+    const html = `<div style="font-family:sans-serif;max-width:700px;margin:0 auto;padding:20px">
+<div style="border-bottom:2px solid #5b4fff;padding-bottom:12px;margin-bottom:20px"><h2 style="margin:0;color:#5b4fff">JobMatch AI 🎯</h2><p style="margin:4px 0 0;color:#666;font-size:13px">Hi ${name} — your personalised job matches · ${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'})}</p></div>
+<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8f8ff"><th style="padding:8px 12px;text-align:left;font-size:12px;color:#666">Role</th><th style="padding:8px;font-size:12px;color:#666">Match</th><th style="padding:8px;font-size:12px;color:#666">Apply</th></tr></thead><tbody>${rows}</tbody></table>
+<div style="margin-top:20px;padding:12px;background:#f0f0ff;border-radius:8px;font-size:12px;color:#5b4fff">✓ Fresh job matches will arrive every morning at 8am IST — only roles you haven't seen before.</div>
+</div>`;
+    await transporter.sendMail({ from: `JobMatch AI <${SMTP_USER}>`, to: email, subject: `${jobs.filter(j=>j.matchScore>=75).length} strong matches found — JobMatch AI`, html });
+    console.log(`Email sent to ${email}`);
 }
 
-// ─── Trigger Apify actor ──────────────────────────────────────────────────────
-async function triggerApify(name, email, profile, resumeText) {
-    const apifyToken = process.env.APIFY_TOKEN;
-    if (!apifyToken) throw new Error('APIFY_TOKEN not set');
-
-    // Use username~actorname format — reliable across builds
-    const actorId = APIFY_ACTOR_ID?.includes('/') 
-        ? APIFY_ACTOR_ID.replace('/', '~') 
-        : APIFY_ACTOR_ID;
-    const url = `https://api.apify.com/v2/acts/${actorId}/runs`;
-    console.log(`Triggering Apify: ${url}`);
-
-    const resp = await fetch(`${url}?token=${apifyToken}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            airtableToken: AIRTABLE_TOKEN,
-            airtableBaseId: AIRTABLE_BASE_ID,
-            smtpUser: SMTP_USER,
-            smtpPass: process.env.SMTP_PASS,
-            anthropicApiKey: ANTHROPIC_API_KEY,
-            maxResultsPerSource: 6,
-            filterEmail: email,
-            resumeText: resumeText || '', // pass full resume text for better matching
-        })
-    });
-
-    const responseText = await resp.text();
-    console.log(`Apify response: ${resp.status} — ${responseText.slice(0, 200)}`);
-    if (!resp.ok) throw new Error(`Apify trigger: ${resp.status} — ${responseText.slice(0, 100)}`);
-    const data = JSON.parse(responseText);
-    return data.data?.id;
+function triggerApifyAsync(email) {
+    if (!APIFY_TOKEN) return;
+    const actorId = (APIFY_ACTOR_ID || '').replace('/', '~');
+    fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${APIFY_TOKEN}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ airtableToken: AIRTABLE_TOKEN, airtableBaseId: AIRTABLE_BASE_ID, smtpUser: SMTP_USER, smtpPass: SMTP_PASS, anthropicApiKey: ANTHROPIC_API_KEY, maxResultsPerSource: 6, filterEmail: email })
+    }).then(r => console.log(`Apify trigger: ${r.status}`)).catch(e => console.log(`Apify skipped: ${e.message}`));
 }
 
-// ─── Poll Apify run results ───────────────────────────────────────────────────
-async function pollApifyResults(runId) {
-    for (let i = 0; i < 30; i++) {
-        await new Promise(r => setTimeout(r, 5000));
-        const runResp = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_TOKEN}`);
-        const runData = await runResp.json();
-        const status = runData?.data?.status;
-        if (status === 'SUCCEEDED') {
-            const datasetId = runData.data.defaultDatasetId;
-            const itemsResp = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}`);
-            const items = await itemsResp.json();
-            return Array.isArray(items) ? items : [];
-        }
-        if (status === 'FAILED' || status === 'ABORTED') return [];
-    }
-    return [];
-}
+app.get('/health', (req, res) => res.json({ status: 'ok', version: '3.0.0' }));
 
-// ─── Routes ───────────────────────────────────────────────────────────────────
-app.get('/', (req, res) => res.sendFile('index.html', { root: '.' }));
-
-app.get('/health', (req, res) => res.json({ status: 'ok', version: '2.0.0' }));
-
-// Temporary debug endpoint — remove after fixing
 app.get('/debug', async (req, res) => {
-    const baseId = AIRTABLE_BASE_ID || 'MISSING';
-    const token = AIRTABLE_TOKEN ? AIRTABLE_TOKEN.slice(0, 20) + '...' : 'MISSING';
-    const tableId = 'tblJtDvebLwnXvV9i';
-    const url = `https://api.airtable.com/v0/${baseId}/${tableId}`;
-
     let airtableStatus = 'not tested';
-    try {
-        const r = await fetch(url, {
-            headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` }
-        });
-        airtableStatus = `HTTP ${r.status}`;
-        if (!r.ok) {
-            const body = await r.text();
-            airtableStatus += ` — ${body.slice(0, 200)}`;
-        }
-    } catch (e) {
-        airtableStatus = `fetch error: ${e.message}`;
-    }
-
-    res.json({
-        env: {
-            AIRTABLE_BASE_ID: baseId,
-            AIRTABLE_TOKEN: token,
-            APIFY_ACTOR_ID: APIFY_ACTOR_ID || 'MISSING',
-            SMTP_USER: SMTP_USER || 'MISSING',
-            ANTHROPIC_API_KEY: ANTHROPIC_API_KEY ? 'SET' : 'MISSING',
-        },
-        airtableUrl: url,
-        airtableStatus,
-    });
+    try { const r = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`, { headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` } }); airtableStatus = `HTTP ${r.status}`; } catch (e) { airtableStatus = e.message; }
+    res.json({ env: { ANTHROPIC_API_KEY: ANTHROPIC_API_KEY ? 'SET' : 'MISSING', AIRTABLE_TOKEN: AIRTABLE_TOKEN ? 'SET' : 'MISSING', AIRTABLE_BASE_ID: AIRTABLE_BASE_ID || 'MISSING', APIFY_ACTOR_ID: APIFY_ACTOR_ID, SMTP_USER: SMTP_USER || 'MISSING' }, airtableStatus });
 });
 
-// Signup + trigger
 app.post('/signup', upload.single('resume'), async (req, res) => {
-    const { name, email, phone, schedule } = req.body;
+    const { name, email, schedule } = req.body;
     const file = req.file;
-
-    console.log(`\nNew signup: ${name} (${email}) schedule=${schedule}`);
-
+    console.log(`\n[${new Date().toISOString()}] Signup: ${name} (${email})`);
     if (!name || !email) return res.status(400).json({ error: 'Name and email required.' });
-    if (!file) return res.status(400).json({ error: 'Resume file required.' });
-
+    if (!file) return res.status(400).json({ error: 'Resume required.' });
+    const cleanup = () => { try { unlinkSync(file.path); } catch {} };
     try {
-        // 1. Parse resume
+        const t0 = Date.now();
+        console.log('Parsing resume...');
         const buffer = readFileSync(file.path);
         const profile = await parseResume(buffer, file.originalname || file.filename);
-        console.log('Profile extracted:', profile);
+        cleanup();
+        console.log(`Profile: ${JSON.stringify(profile)} (${Date.now()-t0}ms)`);
 
-        // Extract raw text for richer Apify matching
-        const resumeText = buffer.toString('utf8', 0, 5000).replace(/[^\x20-\x7E\n]/g, ' ').trim();
+        console.log('Generating queries...');
+        const queries = await generateQueries(profile);
+        console.log(`Queries: ${queries} (${Date.now()-t0}ms)`);
 
-        // 2. Save to Airtable (non-blocking)
-        try {
-            await saveToAirtable(name, email, phone, profile, schedule);
-            console.log('Airtable: user saved successfully');
-        } catch (airtableErr) {
-            console.warn('Airtable save failed (non-fatal):', airtableErr.message);
-        }
+        console.log('Scraping LinkedIn...');
+        const results = await Promise.all(queries.slice(0,3).map(q => scrapeLinkedIn(q, profile.location || 'Bengaluru', 10)));
+        const seen = new Set();
+        let jobs = results.flat().filter(j => { const k = `${j.title?.toLowerCase()}__${j.company?.toLowerCase()}`; if(seen.has(k)) return false; seen.add(k); return true; });
+        console.log(`${jobs.length} unique jobs (${Date.now()-t0}ms)`);
 
-        // 3. Send welcome email
-        sendWelcomeEmail(name, email, schedule).catch(console.error);
+        console.log('Scoring with Claude...');
+        const scored = await scoreJobs(jobs, profile);
+        console.log(`Done. Top: ${scored[0]?.title} @ ${scored[0]?.company} (${scored[0]?.matchScore}%) — Total: ${Date.now()-t0}ms`);
 
-        // 4. Trigger Apify with resume text
-        const runId = await triggerApify(name, email, profile, resumeText);
-        console.log(`Apify run started: ${runId}`);
+        // Non-blocking side effects
+        saveToAirtable(name, email, profile).catch(console.error);
+        sendEmail(name, email, scored).catch(console.error);
+        triggerApifyAsync(email);
 
-        // 5. Poll results in background and cache them
-        pollApifyResults(runId).then(jobs => {
-            console.log(`Run ${runId} finished: ${jobs.length} jobs for ${email}`);
-            runResults.set(runId, { jobs, email, ready: true });
-            // Clean up after 1 hour
-            setTimeout(() => runResults.delete(runId), 3600000);
-        }).catch(console.error);
-
-        // Return immediately with runId
-        res.json({
-            success: true,
-            message: `Welcome ${name}! Your search is running.`,
-            apifyRunId: runId,
-            profile,
-        });
-
+        res.json({ success: true, jobs: scored, profile, totalTime: Date.now()-t0 });
     } catch (err) {
-        console.error('Signup error:', err.message);
+        cleanup();
+        console.error('Error:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
-// Poll results endpoint
-app.get('/results', (req, res) => {
-    const { runId, email } = req.query;
-    const result = runResults.get(runId);
-    if (result?.ready) {
-        res.json({ status: 'ready', jobs: result.jobs });
-    } else {
-        res.json({ status: 'pending' });
-    }
-});
-
 app.listen(PORT, () => {
-    console.log(`JobMatch API v2 running on port ${PORT}`);
-    console.log(`Actor ID: ${APIFY_ACTOR_ID}`);
+    console.log(`JobMatch API v3 on port ${PORT}`);
+    console.log(`SMTP: ${SMTP_USER || 'NOT SET'} | Anthropic: ${ANTHROPIC_API_KEY ? 'SET' : 'NOT SET'}`);
 });
