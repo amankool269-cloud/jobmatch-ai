@@ -155,7 +155,7 @@ footer{text-align:center;padding:2rem;font-size:.8rem;color:var(--muted);border-
 </nav>
 
 <section class="hero">
-  <div class="hero-tag">Powered by Claude AI + Live Job Scraping</div>
+  <div class="hero-tag">AI-powered · Live job matching · Free</div>
   <h1>Your resume.<br><em>Matched to real jobs.</em><br>Instantly.</h1>
   <p class="hero-sub">Upload your resume, get AI-scored job matches from LinkedIn, Naukri and Indeed in under 60 seconds. Schedule daily updates and never miss a relevant opening.</p>
 </section>
@@ -199,7 +199,7 @@ footer{text-align:center;padding:2rem;font-size:.8rem;color:var(--muted);border-
     <div style="display:flex;align-items:flex-start;gap:.75rem;margin-bottom:1.25rem;padding:1rem;background:#f8f8fc;border-radius:10px">
       <input type="checkbox" id="consentCheck" style="margin-top:3px;flex-shrink:0;width:16px;height:16px;cursor:pointer;accent-color:#5b4fff">
       <label for="consentCheck" style="font-size:.82rem;color:#4a4a5a;line-height:1.6;cursor:pointer">
-        I agree to the <a href="/privacy.html" target="_blank" style="color:#5b4fff">Privacy Policy</a>. I understand my resume will be read by Claude AI to extract my profile, and my email will be used to send job match results. My data will not be sold or shared with third parties.
+        I agree to the <a href="/privacy.html" target="_blank" style="color:#5b4fff">Privacy Policy</a>. I understand my resume will be read by AI to understand your profile, and my email will be used to send job match results. My data will not be sold or shared with third parties.
       </label>
     </div>
 
@@ -214,7 +214,7 @@ footer{text-align:center;padding:2rem;font-size:.8rem;color:var(--muted);border-
       <div class="progress-steps">
         <div class="p-step" id="step1">
           <div class="step-dot">1</div>
-          <span>Reading your resume with Claude AI...</span>
+          <span>Our AI is reading your resume...</span>
         </div>
         <div class="p-step" id="step2">
           <div class="step-dot">2</div>
@@ -254,12 +254,12 @@ footer{text-align:center;padding:2rem;font-size:.8rem;color:var(--muted);border-
       <div class="how-step">
         <div class="how-num">01</div>
         <h3>Upload resume</h3>
-        <p>Drop your PDF or DOCX. Claude reads every line — experience, skills, domain, seniority.</p>
+        <p>Drop your PDF or DOCX. Our AI reads every line — experience, skills, domain, seniority.</p>
       </div>
       <div class="how-step">
         <div class="how-num">02</div>
         <h3>AI generates queries</h3>
-        <p>Claude creates 5 smart search queries tailored to your exact background — not generic keywords.</p>
+        <p>AI generates smart search queries tailored to your exact background — not generic keywords.</p>
       </div>
       <div class="how-step">
         <div class="how-num">03</div>
@@ -281,12 +281,13 @@ footer{text-align:center;padding:2rem;font-size:.8rem;color:var(--muted);border-
 </section>
 
 <footer>
-  JobMatch AI · Built with Claude + Apify · Free during beta · <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="42232f232c292d2d2e70747b02252f232b2e6c212d2f">[email&#160;protected]</a>
+  JobMatch AI · Built with AI · Free during beta · <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="42232f232c292d2d2e70747b02252f232b2e6c212d2f">[email&#160;protected]</a>
 </footer>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
-// ⚠️ Replace with your actual Render.com API URL after deployment
-const API_URL = 'https://jobmatch-api.onrender.com';
+
+<script>
+// API URL
+const API_URL = 'https://jobmatch-ai-z19k.onrender.com';
 
 // File upload handling
 const dropZone = document.getElementById('dropZone');
@@ -395,6 +396,10 @@ async function startSearch() {
   document.getElementById('jobsList').innerHTML = '';
 
   setStep(1, 'active');
+  // Show warming up message if server takes time
+  const warmupTimer = setTimeout(() => {
+    document.querySelector('#step1 span').textContent = 'Waking up server — please wait 20 seconds...';
+  }, 5000);
 
   try {
     const formData = new FormData();
@@ -403,9 +408,15 @@ async function startSearch() {
     formData.append('resume', file);
     formData.append('schedule', schedule ? '1' : '0');
 
-    const resp = await fetch(`${API_URL}/signup`, { method: 'POST', body: formData });
+    // 90 second timeout to handle server cold start
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 90000);
+    const resp = await fetch(`${API_URL}/signup`, { method: 'POST', body: formData, signal: controller.signal });
+    clearTimeout(timeout);
+    clearTimeout(warmupTimer);
+
     if (!resp.ok) {
-      const e = await resp.json();
+      const e = await resp.json().catch(() => ({ error: `Server error ${resp.status}` }));
       throw new Error(e.error || 'Server error — please try again');
     }
 
@@ -437,10 +448,16 @@ async function startSearch() {
     }
 
   } catch (err) {
+    clearTimeout(warmupTimer);
     setStep(1, 'error');
-    errBanner.textContent = err.message;
+    if (err.name === 'AbortError') {
+      errBanner.textContent = 'Server is starting up — please try again in 10 seconds.';
+    } else {
+      errBanner.textContent = err.message;
+    }
     errBanner.classList.add('show');
     document.getElementById('submitBtn').disabled = false;
+    document.getElementById('submitBtn').textContent = 'Try again →';
   }
 }
 
@@ -456,7 +473,7 @@ async function pollForResults(runId, email, attempts = 0) {
   const messages = [
     'Preparing your personalised digest...',
     'Scanning LinkedIn for matches...',
-    'Claude is scoring jobs against your profile...',
+    'AI is scoring jobs against your profile...',
     'Almost ready — ranking your top matches...',
     'Finalising your digest...',
   ];
