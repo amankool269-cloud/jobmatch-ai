@@ -100,7 +100,6 @@ async function saveToAirtable(name, email, phone, profile, schedule) {
                 fields: {
                     'Name': name,
                     'Email': email,
-                    'Phone': phone || '',
                     'Target role': profile.targetRole || '',
                     'Location': profile.location || 'Bengaluru',
                     'Experience': profile.experience || '',
@@ -110,8 +109,10 @@ async function saveToAirtable(name, email, phone, profile, schedule) {
             }]
         })
     });
-    if (!resp.ok) throw new Error(`Airtable: ${resp.status}`);
-    const data = await resp.json();
+    const responseText = await resp.text();
+    console.log(`Airtable response: ${resp.status} — ${responseText}`);
+    if (!resp.ok) throw new Error(`Airtable: ${resp.status} — ${responseText}`);
+    const data = JSON.parse(responseText);
     return data.records[0].id;
 }
 
@@ -136,11 +137,10 @@ async function sendWelcomeEmail(name, email, schedule) {
 }
 
 // ─── Trigger Apify actor ──────────────────────────────────────────────────────
-async function triggerApify(name, email, profile, schedule) {
+async function triggerApify(name, email, profile, resumeText) {
     const apifyToken = process.env.APIFY_TOKEN;
     if (!apifyToken) throw new Error('APIFY_TOKEN not set');
 
-    // Use the correct Apify REST API format
     const url = `https://api.apify.com/v2/acts/${APIFY_ACTOR_ID}/runs`;
     console.log(`Triggering Apify: ${url}`);
 
@@ -155,12 +155,12 @@ async function triggerApify(name, email, profile, schedule) {
             anthropicApiKey: ANTHROPIC_API_KEY,
             maxResultsPerSource: 6,
             filterEmail: email,
+            resumeText: resumeText || '', // pass full resume text for better matching
         })
     });
 
     const responseText = await resp.text();
     console.log(`Apify response: ${resp.status} — ${responseText.slice(0, 200)}`);
-
     if (!resp.ok) throw new Error(`Apify trigger: ${resp.status} — ${responseText.slice(0, 100)}`);
     const data = JSON.parse(responseText);
     return data.data?.id;
@@ -239,20 +239,22 @@ app.post('/signup', upload.single('resume'), async (req, res) => {
         const profile = await parseResume(buffer, file.originalname || file.filename);
         console.log('Profile extracted:', profile);
 
-        // 2. Save to Airtable (non-blocking — don't fail if Airtable errors)
+        // Extract raw text for richer Apify matching
+        const resumeText = buffer.toString('utf8', 0, 5000).replace(/[^\x20-\x7E\n]/g, ' ').trim();
+
+        // 2. Save to Airtable (non-blocking)
         try {
             await saveToAirtable(name, email, phone, profile, schedule);
             console.log('Airtable: user saved successfully');
         } catch (airtableErr) {
             console.warn('Airtable save failed (non-fatal):', airtableErr.message);
-            // Continue anyway — user still gets job results
         }
 
         // 3. Send welcome email
         sendWelcomeEmail(name, email, schedule).catch(console.error);
 
-        // 4. Trigger Apify
-        const runId = await triggerApify(name, email, profile, schedule);
+        // 4. Trigger Apify with resume text
+        const runId = await triggerApify(name, email, profile, resumeText);
         console.log(`Apify run started: ${runId}`);
 
         // 5. Poll results in background and cache them
