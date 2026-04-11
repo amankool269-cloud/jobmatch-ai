@@ -112,14 +112,16 @@ EXAMPLES:
     };
 }
 
-// ── Save to Airtable with all 10 fields ───────────────────────────────────────
+// ── Save to Airtable — upsert (update if exists, create if new) ───────────────
 async function saveToAirtable(name, email, phone, cities, profile) {
     if (!AIRTABLE_TOKEN || !AIRTABLE_BASE_ID) return;
     const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
     const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
 
     const fields = {
-        'Name': name, 'Email': email, 'Phone': phone || '',
+        'Name': name,
+        'Email': email,
+        'Phone': phone || '',
         'Target role': profile.targetRole || profile.currentRole || '',
         'Current role': profile.currentRole || '',
         'Location': profile.location || 'Bengaluru',
@@ -133,19 +135,37 @@ async function saveToAirtable(name, email, phone, cities, profile) {
         'Status': 'Active',
     };
 
-    // Check if exists
-    const check = await fetch(`${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`, { headers });
+    // Check if user already exists
+    const check = await fetch(
+        `${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}&sort[0][field]=Created&sort[0][direction]=desc`,
+        { headers }
+    );
     const cd = await check.json();
-    if (cd.records?.[0]) {
-        await fetch(`${url}/${cd.records[0].id}`, {
+    const existing = cd.records || [];
+
+    if (existing.length > 0) {
+        // Update the newest record — preserve SeenJobs
+        const rec = existing[0];
+        await fetch(`${url}/${rec.id}`, {
             method: 'PATCH', headers,
-            body: JSON.stringify({ fields })
+            body: JSON.stringify({ fields }) // SeenJobs not touched — preserved
         });
-        console.log(`Airtable updated: ${email}`);
+        console.log(`Airtable updated: ${email} (re-upload)`);
+
+        // Delete any extra duplicate rows
+        for (const dup of existing.slice(1)) {
+            await fetch(`${url}/${dup.id}`, { method: 'DELETE', headers });
+            console.log(`Deleted duplicate Airtable row for ${email}`);
+        }
         return;
     }
-    const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ records: [{ fields }] }) });
-    console.log(`Airtable save: ${resp.status}`);
+
+    // New user — create row
+    const resp = await fetch(url, {
+        method: 'POST', headers,
+        body: JSON.stringify({ records: [{ fields }] })
+    });
+    console.log(`Airtable created: ${resp.status} for ${email}`);
 }
 
 // ── Welcome email via Resend ──────────────────────────────────────────────────
