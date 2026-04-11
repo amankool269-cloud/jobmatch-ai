@@ -2,7 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import { readFileSync, unlinkSync } from 'fs';
 
 const app = express();
@@ -19,7 +19,16 @@ const {
 } = process.env;
 
 const claude = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-const resendClient = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
+const BREVO_USER = process.env.BREVO_USER || '';
+const BREVO_PASS = process.env.BREVO_PASS || '';
+const BREVO_FROM = process.env.BREVO_FROM || '"JobMatch AI" <hello@jobmatchai.co.in>';
+const mailer = BREVO_USER && BREVO_PASS ? nodemailer.createTransport({
+    host: 'smtp-relay.brevo.com',
+    port: 587,
+    secure: false,
+    auth: { user: BREVO_USER, pass: BREVO_PASS },
+    tls: { rejectUnauthorized: false }
+}) : null;
 const runCache = new Map();
 
 // ── PARSE RESUME: Extract 10 fields for maximum search accuracy ───────────────
@@ -193,16 +202,17 @@ async function saveToAirtable(name, email, phone, cities, profile) {
     }
 }
 
-// ── Welcome email via Resend ──────────────────────────────────────────────────
+// ── Welcome email via Gmail SMTP ──────────────────────────────────────────────
 async function sendWelcomeEmail(name, email, profile) {
-    if (!resendClient) return;
-    const { error } = await resendClient.emails.send({
-        from: 'JobMatch AI <onboarding@resend.dev>',
-        to: email,
-        subject: `Welcome ${name} — searching ${profile.targetRole || 'your next role'} now!`,
-        html: `<div style="font-family:-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:24px">
-<h2 style="color:#6c63ff">Your AI job search is live! 🎯</h2>
-<p style="color:#6b7280">Hi ${name}, we extracted your profile and are now scanning LinkedIn, Naukri, iimjobs, Indeed and more.</p>
+    if (!mailer) { console.log('SMTP not configured — skipping welcome email'); return; }
+    try {
+        await mailer.sendMail({
+            from: BREVO_FROM,
+            to: email,
+            subject: `Welcome ${name} — searching ${profile.targetRole || 'your next role'} now!`,
+            html: `<div style="font-family:-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:24px">
+<h2 style="color:#0055FF">Your AI job search is live! 🎯</h2>
+<p style="color:#6b7280">Hi ${name}, we've read your resume and are now scanning LinkedIn, Naukri, iimjobs, Instahyre and more.</p>
 <div style="background:#f9fafb;border-radius:10px;padding:14px;margin:16px 0;font-size:13px">
   <b>Your profile:</b><br>
   Role: ${profile.targetRole || profile.currentRole}<br>
@@ -210,11 +220,18 @@ async function sendWelcomeEmail(name, email, profile) {
   Domain: ${profile.domain}<br>
   Skills: ${profile.skills}
 </div>
-<p style="background:#eeecff;padding:12px;border-radius:10px;color:#6c63ff;font-size:13px">✓ Job digest arriving within 10 minutes<br>✓ Fresh matches every morning at 8am IST</p>
-<p style="font-size:11px;color:#d1d5db">JobMatch AI · Free Beta</p></div>`
-    });
-    if (error) console.error('Welcome email error:', error);
-    else console.log(`Welcome email sent to ${email}`);
+<p style="background:#e8f0ff;padding:12px;border-radius:10px;color:#0055FF;font-size:13px">
+  ✓ Job digest arriving within 10 minutes<br>
+  ✓ Fresh matches every morning at 8am IST<br>
+  ✓ Zero duplicate jobs ever
+</p>
+<p style="font-size:11px;color:#d1d5db">JobMatch AI · Free Beta · Reply to this email if you need help</p>
+</div>`
+        });
+        console.log(`Welcome email sent to ${email}`);
+    } catch (e) {
+        console.error('Welcome email error:', e.message);
+    }
 }
 
 // ── Trigger Apify actor ───────────────────────────────────────────────────────
