@@ -33,7 +33,7 @@ CRITICAL: Return ONLY valid JSON. Never say "I cannot" or "I apologize". Always 
 Return ONLY this JSON object (no markdown, no explanation):
 {
   "currentRole": "exact current or most recent job title",
-  "targetRole": "job title they are seeking (same as current if not stated)",
+  "targetRole": "the next logical role up — if 0-3yr use current title, if 3-7yr add Senior prefix, if 7-10yr use Head/AVP/Director level, if 10+yr use VP/GM/CXO level",
   "currentCompany": "current or most recent company name",
   "experience": "total years as a number e.g. 6 years",
   "location": "current city in India",
@@ -118,17 +118,18 @@ async function saveToAirtable(name, email, phone, cities, profile) {
     const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
     const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
 
-    // First fetch existing columns to know what fields are safe to write
-    const schemaResp = await fetch(`https://api.airtable.com/v0/meta/bases/${AIRTABLE_BASE_ID}/tables`, { headers });
-    const schema = await schemaResp.json();
-    const table = schema.tables?.find(t => t.id === AIRTABLE_TABLE || t.name === 'Users');
-    const existingCols = new Set((table?.fields || []).map(f => f.name));
+    // Check if user already exists
+    const check = await fetch(
+        `${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`,
+        { headers }
+    );
+    const cd = await check.json();
+    const existing = cd.records || [];
 
-    // Build fields object — only include columns that actually exist in Airtable
-    const allFields = {
+    // Try saving with all fields first, then fall back to core fields if 422
+    const fullFields = {
         'Name': name,
         'Email': email,
-        'Phone': phone || '',
         'Target role': profile.targetRole || profile.currentRole || '',
         'Current role': profile.currentRole || '',
         'Location': profile.location || 'Bengaluru',
@@ -138,55 +139,57 @@ async function saveToAirtable(name, email, phone, cities, profile) {
         'Education': profile.education || '',
         'Seniority': profile.seniority || '',
         'Company type': profile.companyType || '',
+        'Phone': phone || '',
         'Cities': Array.isArray(cities) ? cities.join(', ') : '',
         'Status': 'Active',
     };
 
-    // Filter to only fields that exist in the table
-    const fields = {};
-    for (const [key, val] of Object.entries(allFields)) {
-        if (existingCols.size === 0 || existingCols.has(key)) {
-            fields[key] = val;
-        } else {
-            console.log(`Skipping field "${key}" — not in Airtable table`);
+    // Core fields that always exist (original columns)
+    const coreFields = {
+        'Name': name,
+        'Email': email,
+        'Target role': profile.targetRole || profile.currentRole || '',
+        'Location': profile.location || 'Bengaluru',
+        'Experience': profile.experience || '',
+        'Domain': profile.domain || '',
+        'Skills': profile.skills || '',
+        'Status': 'Active',
+    };
+
+    async function upsert(fields, recordId) {
+        if (recordId) {
+            return fetch(`${url}/${recordId}`, {
+                method: 'PATCH', headers,
+                body: JSON.stringify({ fields })
+            });
         }
-    }
-
-    // Check if user already exists
-    const check = await fetch(
-        `${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`,
-        { headers }
-    );
-    const cd = await check.json();
-    const existing = cd.records || [];
-
-    if (existing.length > 0) {
-        // Update newest record — preserve SeenJobs
-        const rec = existing[0];
-        const patchResp = await fetch(`${url}/${rec.id}`, {
-            method: 'PATCH', headers,
-            body: JSON.stringify({ fields })
+        return fetch(url, {
+            method: 'POST', headers,
+            body: JSON.stringify({ records: [{ fields }] })
         });
-        console.log(`Airtable updated: ${patchResp.status} for ${email} (re-upload)`);
-
-        // Delete duplicates
-        for (const dup of existing.slice(1)) {
-            await fetch(`${url}/${dup.id}`, { method: 'DELETE', headers });
-            console.log(`Deleted duplicate row for ${email}`);
-        }
-        return;
     }
 
-    // New user — create row
-    const resp = await fetch(url, {
-        method: 'POST', headers,
-        body: JSON.stringify({ records: [{ fields }] })
-    });
+    const recordId = existing[0]?.id || null;
+
+    // Try full fields first
+    let resp = await upsert(fullFields, recordId);
+    if (resp.status === 422) {
+        // Some fields don't exist yet — try without new columns
+        console.log('Full fields failed — retrying with core fields');
+        resp = await upsert(coreFields, recordId);
+    }
+
     const result = await resp.json();
     if (!resp.ok) {
-        console.error(`Airtable error ${resp.status}:`, JSON.stringify(result?.error || result));
+        console.error(`Airtable error ${resp.status}:`, JSON.stringify(result?.error));
     } else {
-        console.log(`Airtable created: ${resp.status} for ${email}`);
+        console.log(`Airtable ${recordId ? 'updated' : 'created'}: ${resp.status} for ${email}`);
+    }
+
+    // Delete duplicate rows
+    for (const dup of existing.slice(1)) {
+        await fetch(`${url}/${dup.id}`, { method: 'DELETE', headers });
+        console.log(`Deleted duplicate row for ${email}`);
     }
 }
 
