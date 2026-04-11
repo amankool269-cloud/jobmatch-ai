@@ -118,7 +118,14 @@ async function saveToAirtable(name, email, phone, cities, profile) {
     const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
     const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
 
-    const fields = {
+    // First fetch existing columns to know what fields are safe to write
+    const schemaResp = await fetch(`https://api.airtable.com/v0/meta/bases/${AIRTABLE_BASE_ID}/tables`, { headers });
+    const schema = await schemaResp.json();
+    const table = schema.tables?.find(t => t.id === AIRTABLE_TABLE || t.name === 'Users');
+    const existingCols = new Set((table?.fields || []).map(f => f.name));
+
+    // Build fields object — only include columns that actually exist in Airtable
+    const allFields = {
         'Name': name,
         'Email': email,
         'Phone': phone || '',
@@ -135,27 +142,37 @@ async function saveToAirtable(name, email, phone, cities, profile) {
         'Status': 'Active',
     };
 
+    // Filter to only fields that exist in the table
+    const fields = {};
+    for (const [key, val] of Object.entries(allFields)) {
+        if (existingCols.size === 0 || existingCols.has(key)) {
+            fields[key] = val;
+        } else {
+            console.log(`Skipping field "${key}" — not in Airtable table`);
+        }
+    }
+
     // Check if user already exists
     const check = await fetch(
-        `${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}&sort[0][field]=Created&sort[0][direction]=desc`,
+        `${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`,
         { headers }
     );
     const cd = await check.json();
     const existing = cd.records || [];
 
     if (existing.length > 0) {
-        // Update the newest record — preserve SeenJobs
+        // Update newest record — preserve SeenJobs
         const rec = existing[0];
-        await fetch(`${url}/${rec.id}`, {
+        const patchResp = await fetch(`${url}/${rec.id}`, {
             method: 'PATCH', headers,
-            body: JSON.stringify({ fields }) // SeenJobs not touched — preserved
+            body: JSON.stringify({ fields })
         });
-        console.log(`Airtable updated: ${email} (re-upload)`);
+        console.log(`Airtable updated: ${patchResp.status} for ${email} (re-upload)`);
 
-        // Delete any extra duplicate rows
+        // Delete duplicates
         for (const dup of existing.slice(1)) {
             await fetch(`${url}/${dup.id}`, { method: 'DELETE', headers });
-            console.log(`Deleted duplicate Airtable row for ${email}`);
+            console.log(`Deleted duplicate row for ${email}`);
         }
         return;
     }
@@ -165,7 +182,12 @@ async function saveToAirtable(name, email, phone, cities, profile) {
         method: 'POST', headers,
         body: JSON.stringify({ records: [{ fields }] })
     });
-    console.log(`Airtable created: ${resp.status} for ${email}`);
+    const result = await resp.json();
+    if (!resp.ok) {
+        console.error(`Airtable error ${resp.status}:`, JSON.stringify(result?.error || result));
+    } else {
+        console.log(`Airtable created: ${resp.status} for ${email}`);
+    }
 }
 
 // ── Welcome email via Resend ──────────────────────────────────────────────────
