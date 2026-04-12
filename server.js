@@ -417,15 +417,17 @@ app.get('/feedback', async (req, res) => {
         });
 
         const stars = '★'.repeat(r) + '☆'.repeat(5 - r);
-        const commentUrl = `/feedback/comment?email=${encodeURIComponent(email)}&token=${token}&rating=${r}`;
-        res.send(feedbackPage(stars, r, commentUrl));
+        res.send(feedbackPage(stars, r, email, token));
     } catch (e) {
         res.status(500).send(page('Error', 'Something went wrong. Please try again.', '', ''));
     }
 });
 
 app.post('/feedback/comment', async (req, res) => {
-    const { email, token, rating, comment } = req.body;
+    const email = req.query.email || req.body.email;
+    const token = req.query.token || req.body.token;
+    const rating = req.query.rating || req.body.rating;
+    const comment = req.body.comment;
     if (!email || !token || !validToken(email, token)) {
         return res.status(400).send(page('Invalid link', 'This link is invalid.', '', ''));
     }
