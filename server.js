@@ -15,13 +15,15 @@ const {
     ANTHROPIC_API_KEY, AIRTABLE_TOKEN, AIRTABLE_BASE_ID,
     AIRTABLE_TABLE = 'tblJtDvebLwnXvV9i',
     APIFY_TOKEN, APIFY_ACTOR_ID = 'flexible_transaction/my-actor',
-    RESEND_API_KEY, PORT = 3000,
+    PORT = 3000,
 } = process.env;
 
 const claude = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+
+// Brevo SMTP — professional sender, full dashboard, 300 emails/day free
 const BREVO_USER = process.env.BREVO_USER || '';
 const BREVO_PASS = process.env.BREVO_PASS || '';
-const BREVO_FROM = process.env.BREVO_FROM || '"JobMatch AI" <hello@jobmatchai.co.in>';
+const BREVO_FROM = process.env.BREVO_FROM || 'JobMatch AI <hello@jobmatchai.co.in>';
 const mailer = BREVO_USER && BREVO_PASS ? nodemailer.createTransport({
     host: 'smtp-relay.brevo.com',
     port: 587,
@@ -29,12 +31,12 @@ const mailer = BREVO_USER && BREVO_PASS ? nodemailer.createTransport({
     auth: { user: BREVO_USER, pass: BREVO_PASS },
     tls: { rejectUnauthorized: false }
 }) : null;
+
 const runCache = new Map();
 
-// ── PARSE RESUME: Extract 10 fields for maximum search accuracy ───────────────
+// ── PARSE RESUME ──────────────────────────────────────────────────────────────
 async function parseResume(buffer, filename) {
     const isDocx = filename?.endsWith('.docx') || filename?.endsWith('.doc');
-
     const prompt = `You are an expert resume parser for the Indian job market. Extract ALL information from this resume.
 
 CRITICAL: Return ONLY valid JSON. Never say "I cannot" or "I apologize". Always extract what you can see.
@@ -55,7 +57,7 @@ Return ONLY this JSON object (no markdown, no explanation):
 
 SENIORITY GUIDE:
 - fresher: 0-1 years
-- junior: 1-3 years  
+- junior: 1-3 years
 - mid-level: 3-6 years
 - senior: 6-10 years
 - lead/head: 10+ years
@@ -77,10 +79,7 @@ EXAMPLES:
             model: 'claude-haiku-4-5-20251001', max_tokens: 800,
             messages: [{ role: 'user', content }]
         });
-
         const raw = msg.content[0].text.replace(/```json|```/g, '').trim();
-
-        // Layer 1: direct parse
         try {
             const p = JSON.parse(raw);
             if (p.currentRole || p.targetRole || p.skills) {
@@ -88,8 +87,6 @@ EXAMPLES:
                 return p;
             }
         } catch {}
-
-        // Layer 2: extract JSON from mixed response
         const m = raw.match(/\{[\s\S]*\}/);
         if (m) {
             try {
@@ -100,13 +97,11 @@ EXAMPLES:
                 }
             } catch {}
         }
-
-        console.warn(`Claude refused to parse resume — using text fallback`);
+        console.warn('Claude refused to parse resume — using text fallback');
     } catch (e) {
         console.error('Claude API error:', e.message);
     }
 
-    // Layer 3: raw text fallback
     const text = buffer.toString('utf8', 0, 6000).replace(/[^\x20-\x7E\n]/g, ' ');
     const cities = ['Bengaluru','Bangalore','Mumbai','Delhi','Hyderabad','Pune','Chennai','Kolkata','Noida','Gurgaon'];
     const foundCity = cities.find(c => text.toLowerCase().includes(c.toLowerCase())) || 'Bengaluru';
@@ -121,24 +116,18 @@ EXAMPLES:
     };
 }
 
-// ── Save to Airtable — upsert (update if exists, create if new) ───────────────
+// ── Save to Airtable ──────────────────────────────────────────────────────────
 async function saveToAirtable(name, email, phone, cities, profile) {
     if (!AIRTABLE_TOKEN || !AIRTABLE_BASE_ID) return;
     const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
     const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
 
-    // Check if user already exists
-    const check = await fetch(
-        `${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`,
-        { headers }
-    );
+    const check = await fetch(`${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`, { headers });
     const cd = await check.json();
     const existing = cd.records || [];
 
-    // Try saving with all fields first, then fall back to core fields if 422
     const fullFields = {
-        'Name': name,
-        'Email': email,
+        'Name': name, 'Email': email,
         'Target role': profile.targetRole || profile.currentRole || '',
         'Current role': profile.currentRole || '',
         'Location': profile.location || 'Bengaluru',
@@ -152,11 +141,8 @@ async function saveToAirtable(name, email, phone, cities, profile) {
         'Cities': Array.isArray(cities) ? cities.join(', ') : '',
         'Status': 'Active',
     };
-
-    // Core fields that always exist (original columns)
     const coreFields = {
-        'Name': name,
-        'Email': email,
+        'Name': name, 'Email': email,
         'Target role': profile.targetRole || profile.currentRole || '',
         'Location': profile.location || 'Bengaluru',
         'Experience': profile.experience || '',
@@ -166,66 +152,53 @@ async function saveToAirtable(name, email, phone, cities, profile) {
     };
 
     async function upsert(fields, recordId) {
-        if (recordId) {
-            return fetch(`${url}/${recordId}`, {
-                method: 'PATCH', headers,
-                body: JSON.stringify({ fields })
-            });
-        }
-        return fetch(url, {
-            method: 'POST', headers,
-            body: JSON.stringify({ records: [{ fields }] })
-        });
+        if (recordId) return fetch(`${url}/${recordId}`, { method: 'PATCH', headers, body: JSON.stringify({ fields }) });
+        return fetch(url, { method: 'POST', headers, body: JSON.stringify({ records: [{ fields }] }) });
     }
 
     const recordId = existing[0]?.id || null;
-
-    // Try full fields first
     let resp = await upsert(fullFields, recordId);
     if (resp.status === 422) {
-        // Some fields don't exist yet — try without new columns
         console.log('Full fields failed — retrying with core fields');
         resp = await upsert(coreFields, recordId);
     }
-
     const result = await resp.json();
-    if (!resp.ok) {
-        console.error(`Airtable error ${resp.status}:`, JSON.stringify(result?.error));
-    } else {
-        console.log(`Airtable ${recordId ? 'updated' : 'created'}: ${resp.status} for ${email}`);
-    }
+    if (!resp.ok) console.error(`Airtable error ${resp.status}:`, JSON.stringify(result?.error));
+    else console.log(`Airtable ${recordId ? 'updated' : 'created'}: ${resp.status} for ${email}`);
 
-    // Delete duplicate rows
     for (const dup of existing.slice(1)) {
         await fetch(`${url}/${dup.id}`, { method: 'DELETE', headers });
         console.log(`Deleted duplicate row for ${email}`);
     }
 }
 
-// ── Welcome email via Gmail SMTP ──────────────────────────────────────────────
+// ── Welcome email via Brevo ───────────────────────────────────────────────────
 async function sendWelcomeEmail(name, email, profile) {
-    if (!mailer) { console.log('SMTP not configured — skipping welcome email'); return; }
+    if (!mailer) { console.log('Brevo not configured — skipping welcome email'); return; }
     try {
         await mailer.sendMail({
             from: BREVO_FROM,
             to: email,
             subject: `Welcome ${name} — searching ${profile.targetRole || 'your next role'} now!`,
             html: `<div style="font-family:-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:24px">
-<h2 style="color:#0055FF">Your AI job search is live! 🎯</h2>
-<p style="color:#6b7280">Hi ${name}, we've read your resume and are now scanning LinkedIn, Naukri, iimjobs, Instahyre and more.</p>
-<div style="background:#f9fafb;border-radius:10px;padding:14px;margin:16px 0;font-size:13px">
-  <b>Your profile:</b><br>
+<div style="background:#0055FF;border-radius:12px;padding:20px 24px;margin-bottom:20px">
+  <div style="font-size:18px;font-weight:700;color:#fff">JobMatch AI</div>
+  <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:2px">Your AI job search is live</div>
+</div>
+<p style="color:#374151;font-size:14px;margin-bottom:16px">Hi <strong>${name}</strong> — we've read your resume and are now scanning LinkedIn, Naukri, iimjobs, Instahyre and more.</p>
+<div style="background:#f9fafb;border-radius:10px;padding:14px;margin:16px 0;font-size:13px;color:#374151">
+  <b>Your profile:</b><br><br>
   Role: ${profile.targetRole || profile.currentRole}<br>
   Experience: ${profile.experience} · ${profile.seniority}<br>
   Domain: ${profile.domain}<br>
   Skills: ${profile.skills}
 </div>
-<p style="background:#e8f0ff;padding:12px;border-radius:10px;color:#0055FF;font-size:13px">
+<div style="background:#e8f0ff;padding:14px;border-radius:10px;color:#0055FF;font-size:13px">
   ✓ Job digest arriving within 10 minutes<br>
   ✓ Fresh matches every morning at 8am IST<br>
   ✓ Zero duplicate jobs ever
-</p>
-<p style="font-size:11px;color:#d1d5db">JobMatch AI · Free Beta · Reply to this email if you need help</p>
+</div>
+<p style="font-size:11px;color:#9ca3af;margin-top:20px">JobMatch AI · Free Beta · <a href="mailto:hello@jobmatchai.co.in" style="color:#0055FF">hello@jobmatchai.co.in</a></p>
 </div>`
         });
         console.log(`Welcome email sent to ${email}`);
@@ -247,8 +220,9 @@ async function triggerApify(email, profile, cities) {
             jsearchApiKey: process.env.JSEARCH_API_KEY || '',
             adzunaAppId: process.env.ADZUNA_APP_ID || '',
             adzunaAppKey: process.env.ADZUNA_APP_KEY || '',
-            smtpUser: process.env.SMTP_USER || '',
-            smtpPass: process.env.SMTP_PASS || '',
+            brevoUser: BREVO_USER,
+            brevoPass: BREVO_PASS,
+            brevoFrom: BREVO_FROM,
             maxResultsPerSource: 10,
             filterEmail: email,
         })
@@ -286,12 +260,26 @@ async function pollApifyRun(runId) {
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
-app.get('/health', (req, res) => res.json({ status: 'ok', version: '5.0.0' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: '5.1.0' }));
 
 app.get('/debug', async (req, res) => {
     let at = 'untested';
-    try { const r = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}?maxRecords=1`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }); at = `HTTP ${r.status}`; } catch (e) { at = e.message; }
-    res.json({ version: '5.0.0', env: { ANTHROPIC: ANTHROPIC_API_KEY ? 'SET' : 'MISSING', AIRTABLE: AIRTABLE_TOKEN ? 'SET' : 'MISSING', RESEND: RESEND_API_KEY ? 'SET' : 'MISSING', APIFY: APIFY_TOKEN ? 'SET' : 'MISSING', JSEARCH: process.env.JSEARCH_API_KEY ? 'SET' : 'MISSING', ADZUNA: process.env.ADZUNA_APP_ID ? 'SET' : 'MISSING' }, airtableStatus: at });
+    try {
+        const r = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}?maxRecords=1`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        at = `HTTP ${r.status}`;
+    } catch (e) { at = e.message; }
+    res.json({
+        version: '5.1.0',
+        env: {
+            ANTHROPIC: ANTHROPIC_API_KEY ? 'SET' : 'MISSING',
+            AIRTABLE:  AIRTABLE_TOKEN    ? 'SET' : 'MISSING',
+            BREVO:     BREVO_USER        ? 'SET' : 'MISSING',
+            APIFY:     APIFY_TOKEN       ? 'SET' : 'MISSING',
+            JSEARCH:   process.env.JSEARCH_API_KEY ? 'SET' : 'MISSING',
+            ADZUNA:    process.env.ADZUNA_APP_ID   ? 'SET' : 'MISSING',
+        },
+        airtableStatus: at
+    });
 });
 
 app.get('/results', (req, res) => {
@@ -322,7 +310,6 @@ app.post('/signup', upload.single('resume'), async (req, res) => {
         cleanup();
         console.log(`Profile (${Date.now()-t0}ms):`, JSON.stringify(profile));
 
-        // Non-blocking
         saveToAirtable(name, email, phone, cities, profile).catch(e => console.error('Airtable:', e.message));
         sendWelcomeEmail(name, email, profile).catch(e => console.error('Email:', e.message));
 
@@ -338,6 +325,6 @@ app.post('/signup', upload.single('resume'), async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`JobMatch API v5.0 on port ${PORT}`);
-    console.log(`Resend: ${RESEND_API_KEY?'SET':'MISSING'} | Anthropic: ${ANTHROPIC_API_KEY?'SET':'MISSING'}`);
+    console.log(`JobMatch API v5.1 on port ${PORT}`);
+    console.log(`Brevo: ${BREVO_USER?'SET':'MISSING'} | Anthropic: ${ANTHROPIC_API_KEY?'SET':'MISSING'}`);
 });
