@@ -284,7 +284,6 @@ async function triggerApify(email, profile, cities) {
             brevoApiKey: BREVO_API_KEY,
             brevoFromEmail: BREVO_FROM_EMAIL,
             brevoFromName: BREVO_FROM_NAME,
-            brevoFrom: BREVO_FROM,
             maxResultsPerSource: 10,
             filterEmail: email,
         })
