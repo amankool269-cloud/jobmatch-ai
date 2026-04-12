@@ -3,7 +3,7 @@ import multer from 'multer';
 import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync, unlinkSync } from 'fs';
-import { createHmac } from 'crypto';
+
 
 const app = express();
 const upload = multer({ dest: '/tmp/uploads/', limits: { fileSize: 5 * 1024 * 1024 } });
@@ -30,7 +30,13 @@ const runCache = new Map();
 
 // ── Unsubscribe token helpers ─────────────────────────────────────────────────
 function makeToken(email) {
-    return createHmac('sha256', UNSUB_SECRET).update(email.toLowerCase()).digest('hex').slice(0, 16);
+    let hash = 0;
+    const str = email.toLowerCase() + UNSUB_SECRET;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash).toString(16).padStart(8,'0') + str.length.toString(16);
 }
 function validToken(email, token) {
     return makeToken(email) === token;
