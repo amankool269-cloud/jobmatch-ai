@@ -352,5 +352,5 @@ app.post('/signup', upload.single('resume'), async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`JobMatch API v5.1 on port ${PORT}`);
-    console.log(`Brevo: ${BREVO_USER?'SET':'MISSING'} | Anthropic: ${ANTHROPIC_API_KEY?'SET':'MISSING'}`);
+    console.log(`Brevo API: ${BREVO_API_KEY?'SET':'MISSING'} | Anthropic: ${ANTHROPIC_API_KEY?'SET':'MISSING'}`);
 });
