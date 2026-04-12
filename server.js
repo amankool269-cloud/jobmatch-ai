@@ -385,6 +385,111 @@ app.post('/signup', upload.single('resume'), async (req, res) => {
     }
 });
 
+// ── Feedback routes ───────────────────────────────────────────────────────────
+app.get('/feedback', async (req, res) => {
+    const { email, rating, token } = req.query;
+    if (!email || !rating || !token || !validToken(email, token)) {
+        return res.status(400).send(page('Invalid link', 'This feedback link is invalid.', '', ''));
+    }
+    const r = parseInt(rating);
+    if (r < 1 || r > 5) return res.status(400).send(page('Invalid rating', 'Rating must be 1-5.', '', ''));
+
+    try {
+        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
+        const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
+        const check = await fetch(`${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`, { headers });
+        const data = await check.json();
+        const rec = data.records?.[0];
+        if (!rec) return res.send(page('Not found', 'We could not find your account.', '', ''));
+
+        await fetch(`${url}/${rec.id}`, {
+            method: 'PATCH', headers,
+            body: JSON.stringify({ fields: {
+                'Rating': r,
+                'Rated On': new Date().toISOString().split('T')[0],
+            }})
+        });
+
+        const stars = '★'.repeat(r) + '☆'.repeat(5 - r);
+        const commentUrl = `/feedback/comment?email=${encodeURIComponent(email)}&token=${token}&rating=${r}`;
+        res.send(feedbackPage(stars, r, commentUrl));
+    } catch (e) {
+        res.status(500).send(page('Error', 'Something went wrong. Please try again.', '', ''));
+    }
+});
+
+app.post('/feedback/comment', async (req, res) => {
+    const { email, token, rating, comment } = req.body;
+    if (!email || !token || !validToken(email, token)) {
+        return res.status(400).send(page('Invalid link', 'This link is invalid.', '', ''));
+    }
+    try {
+        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
+        const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
+        const check = await fetch(`${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`, { headers });
+        const data = await check.json();
+        const rec = data.records?.[0];
+        if (!rec) return res.send(page('Not found', 'We could not find your account.', '', ''));
+        await fetch(`${url}/${rec.id}`, {
+            method: 'PATCH', headers,
+            body: JSON.stringify({ fields: { 'Feedback': comment || '' }})
+        });
+        res.send(page('Thank you!', 'Your feedback helps us improve JobMatch AI for everyone.', '', ''));
+    } catch (e) {
+        res.status(500).send(page('Error', 'Something went wrong.', '', ''));
+    }
+});
+
+function feedbackPage(stars, rating, commentUrl) {
+    const msgs = ["", "Sorry to hear that. We'll do better.", "Thanks — we'll improve.", "Good to know, we're working on it.", "Great — glad it's useful!", "Amazing! You made our day."];
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Feedback — JobMatch AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#FAFAFA;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}
+.card{background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:20px;padding:2.5rem;max-width:440px;width:100%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.06)}
+.logo{font-size:1.1rem;font-weight:700;color:#0055FF;margin-bottom:1.5rem}
+.stars{font-size:2rem;color:#f59e0b;margin-bottom:0.75rem;letter-spacing:4px}
+h1{font-size:1.2rem;font-weight:600;color:#111;margin-bottom:0.5rem}
+p{font-size:0.88rem;color:#666;margin-bottom:1.5rem;line-height:1.6}
+textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:0.88rem;font-family:inherit;resize:vertical;min-height:90px;outline:none;margin-bottom:1rem}
+textarea:focus{border-color:#0055FF}
+.btn{width:100%;padding:0.75rem;background:#0055FF;color:#fff;border:none;border-radius:10px;font-size:0.88rem;font-weight:600;cursor:pointer}
+.skip{display:block;margin-top:0.75rem;font-size:0.78rem;color:#999;text-decoration:none}
+.skip:hover{color:#0055FF}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">JobMatch AI</div>
+  <div class="stars">${stars}</div>
+  <h1>${msgs[rating]}</h1>
+  <p>Want to tell us more? Takes 10 seconds.</p>
+  <form method="POST" action="/feedback/comment">
+    <input type="hidden" name="email" value="">
+    <input type="hidden" name="token" value="">
+    <input type="hidden" name="rating" value="${rating}">
+    <textarea name="comment" placeholder="What would make your matches better? Any specific roles or companies you'd like to see?"></textarea>
+    <button type="submit" class="btn">Send feedback</button>
+  </form>
+  <a href="/" class="skip">Skip — go back to JobMatch AI</a>
+</div>
+<script>
+  const p = new URLSearchParams(window.location.search);
+  document.querySelectorAll('input[type=hidden]').forEach(i => {
+    if(i.name==='email') i.value = p.get('email')||'';
+    if(i.name==='token') i.value = p.get('token')||'';
+  });
+</script>
+</body>
+</html>`;
+}
+
 // ── Unsubscribe / Resubscribe routes ─────────────────────────────────────────
 app.get('/unsubscribe', async (req, res) => {
     const { email, token } = req.query;
