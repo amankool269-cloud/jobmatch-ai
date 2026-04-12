@@ -2,7 +2,6 @@ import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
-import nodemailer from 'nodemailer';
 import { readFileSync, unlinkSync } from 'fs';
 
 const app = express();
@@ -20,17 +19,10 @@ const {
 
 const claude = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
-// Brevo SMTP — professional sender, full dashboard, 300 emails/day free
-const BREVO_USER = process.env.BREVO_USER || '';
-const BREVO_PASS = process.env.BREVO_PASS || '';
-const BREVO_FROM = process.env.BREVO_FROM || 'JobMatch AI <hello@jobmatchai.co.in>';
-const mailer = BREVO_USER && BREVO_PASS ? nodemailer.createTransport({
-    host: 'smtp-relay.brevo.com',
-    port: 587,
-    secure: false,
-    auth: { user: BREVO_USER, pass: BREVO_PASS },
-    tls: { rejectUnauthorized: false }
-}) : null;
+// Brevo HTTP API — no port blocking, full dashboard tracking
+const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
+const BREVO_FROM_EMAIL = process.env.BREVO_FROM_EMAIL || 'hello@jobmatchai.co.in';
+const BREVO_FROM_NAME = process.env.BREVO_FROM_NAME || 'JobMatch AI';
 
 const runCache = new Map();
 
@@ -62,10 +54,34 @@ SENIORITY GUIDE:
 - senior: 6-10 years
 - lead/head: 10+ years
 
-EXAMPLES:
-{"currentRole":"Area Sales Manager","targetRole":"Area Sales Manager","currentCompany":"Finnable Technologies","experience":"6 years","location":"New Delhi","domain":"Financial Services / Lending","skills":"DSA channel management, loan disbursement, NBFC, team leadership, client acquisition, B2B sales, sales targeting, digital lending","education":"MBA","seniority":"senior","companyType":"NBFC"}
+TARGET ROLE FRAMEWORK — use the right track based on education:
 
-{"currentRole":"Software Engineer","targetRole":"Senior Software Engineer","currentCompany":"Infosys","experience":"3 years","location":"Bengaluru","domain":"Technology / IT Services","skills":"React, Node.js, Python, AWS, REST APIs, SQL, Docker, Git","education":"B.Tech","seniority":"mid-level","companyType":"large enterprise"}`;
+TRACK A — Professional qualifications (CA / CFA / CPA / MBA-Finance / MBA):
+- 0-3yr  → Analyst / Associate (keep current title)
+- 3-6yr  → Senior Analyst / Manager / AVP
+- 6-9yr  → VP / Principal / Senior Manager
+- 10+yr  → Director / CFO / Partner
+
+TRACK B — General roles (Sales / Tech / Ops / Product / Marketing / HR):
+- 0-3yr  → current role (early career)
+- 3-6yr  → Senior [role] / Manager
+- 6-9yr  → Head / AVP / [function] Lead
+- 10+yr  → Director / VP / GM
+
+CRITICAL RULES for targetRole:
+1. For CA/CFA/CPA — use finance-specific titles (Credit Manager, AVP Credit, Investment Manager)
+2. For MBA — use management titles (Senior Manager, AVP, Deputy Director)
+3. NEVER use generic "Growth" or "Marketing" unless the current role is explicitly in those functions
+4. targetRole must stay in the SAME DOMAIN as currentRole — do not cross functions
+
+EXAMPLES:
+{"currentRole":"Credit & Investment Associate","targetRole":"Credit Manager","currentCompany":"Wint Wealth","experience":"3 years","location":"Mumbai","domain":"Financial Services / Fintech / Lending","skills":"Financial Analysis, Credit Evaluation, Due Diligence, Portfolio Monitoring","education":"CA","seniority":"mid-level","companyType":"startup"}
+
+{"currentRole":"Area Sales Manager","targetRole":"Senior Manager Sales","currentCompany":"Finnable Technologies","experience":"6 years","location":"New Delhi","domain":"Financial Services / Lending","skills":"DSA channel management, loan disbursement, NBFC, team leadership, client acquisition, B2B sales","education":"MBA","seniority":"senior","companyType":"NBFC"}
+
+{"currentRole":"Software Engineer","targetRole":"Senior Software Engineer","currentCompany":"Infosys","experience":"3 years","location":"Bengaluru","domain":"Technology / IT Services","skills":"React, Node.js, Python, AWS, REST APIs, SQL, Docker, Git","education":"B.Tech","seniority":"mid-level","companyType":"large enterprise"}
+
+{"currentRole":"Senior UI/UX Designer","targetRole":"Head of Design","currentCompany":"NeoFinity","experience":"6 years","location":"Gurugram","domain":"Fintech / EdTech","skills":"UI/UX Design, Design Systems, User Research, Interaction Design","education":"MCA","seniority":"senior","companyType":"startup"}`;
 
     const content = isDocx
         ? [{ type: 'text', text: `${prompt}\n\nResume text:\n${buffer.toString('utf8', 0, 5000)}` }]
@@ -172,20 +188,27 @@ async function saveToAirtable(name, email, phone, cities, profile) {
     }
 }
 
-// ── Welcome email via Brevo ───────────────────────────────────────────────────
+// ── Welcome email via Brevo HTTP API (no port blocking) ──────────────────────
 async function sendWelcomeEmail(name, email, profile) {
-    if (!mailer) { console.log('Brevo not configured — skipping welcome email'); return; }
+    if (!BREVO_API_KEY) { console.log('Brevo API key not set — skipping welcome email'); return; }
     try {
-        await mailer.sendMail({
-            from: BREVO_FROM,
-            to: email,
-            subject: `Welcome ${name} — searching ${profile.targetRole || 'your next role'} now!`,
-            html: `<div style="font-family:-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:24px">
+        const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'api-key': BREVO_API_KEY,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+                sender: { name: BREVO_FROM_NAME, email: BREVO_FROM_EMAIL },
+                to: [{ email, name }],
+                subject: `Welcome ${name} — searching ${profile.targetRole || 'your next role'} now!`,
+                htmlContent: `<div style="font-family:-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:24px">
 <div style="background:#0055FF;border-radius:12px;padding:20px 24px;margin-bottom:20px">
   <div style="font-size:18px;font-weight:700;color:#fff">JobMatch AI</div>
   <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:2px">Your AI job search is live</div>
 </div>
-<p style="color:#374151;font-size:14px;margin-bottom:16px">Hi <strong>${name}</strong> — we've read your resume and are now scanning LinkedIn, Naukri, iimjobs, Instahyre and more.</p>
+<p style="color:#374151;font-size:14px;margin-bottom:16px">Hi <strong>${name}</strong> — we have read your resume and are now scanning LinkedIn, Naukri, iimjobs, Instahyre and more.</p>
 <div style="background:#f9fafb;border-radius:10px;padding:14px;margin:16px 0;font-size:13px;color:#374151">
   <b>Your profile:</b><br><br>
   Role: ${profile.targetRole || profile.currentRole}<br>
@@ -194,14 +217,17 @@ async function sendWelcomeEmail(name, email, profile) {
   Skills: ${profile.skills}
 </div>
 <div style="background:#e8f0ff;padding:14px;border-radius:10px;color:#0055FF;font-size:13px">
-  ✓ Job digest arriving within 10 minutes<br>
-  ✓ Fresh matches every morning at 8am IST<br>
-  ✓ Zero duplicate jobs ever
+  &#10003; Job digest arriving within 10 minutes<br>
+  &#10003; Fresh matches every morning at 8am IST<br>
+  &#10003; Zero duplicate jobs ever
 </div>
-<p style="font-size:11px;color:#9ca3af;margin-top:20px">JobMatch AI · Free Beta · <a href="mailto:hello@jobmatchai.co.in" style="color:#0055FF">hello@jobmatchai.co.in</a></p>
+<p style="font-size:11px;color:#9ca3af;margin-top:20px">JobMatch AI &middot; Free Beta &middot; <a href="mailto:hello@jobmatchai.co.in" style="color:#0055FF">hello@jobmatchai.co.in</a></p>
 </div>`
+            })
         });
-        console.log(`Welcome email sent to ${email}`);
+        const result = await resp.json();
+        if (!resp.ok) throw new Error(JSON.stringify(result));
+        console.log(`Welcome email sent to ${email} (messageId: ${result.messageId})`);
     } catch (e) {
         console.error('Welcome email error:', e.message);
     }
@@ -273,7 +299,7 @@ app.get('/debug', async (req, res) => {
         env: {
             ANTHROPIC: ANTHROPIC_API_KEY ? 'SET' : 'MISSING',
             AIRTABLE:  AIRTABLE_TOKEN    ? 'SET' : 'MISSING',
-            BREVO:     BREVO_USER        ? 'SET' : 'MISSING',
+            BREVO:     BREVO_API_KEY     ? 'SET' : 'MISSING',
             APIFY:     APIFY_TOKEN       ? 'SET' : 'MISSING',
             JSEARCH:   process.env.JSEARCH_API_KEY ? 'SET' : 'MISSING',
             ADZUNA:    process.env.ADZUNA_APP_ID   ? 'SET' : 'MISSING',
