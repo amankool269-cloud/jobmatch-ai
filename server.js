@@ -3,6 +3,7 @@ import multer from 'multer';
 import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync, unlinkSync } from 'fs';
+import { createHmac } from 'crypto';
 
 const app = express();
 const upload = multer({ dest: '/tmp/uploads/', limits: { fileSize: 5 * 1024 * 1024 } });
@@ -16,6 +17,7 @@ const {
     APIFY_TOKEN, APIFY_ACTOR_ID = 'flexible_transaction/my-actor',
     PORT = 3000,
 } = process.env;
+const UNSUB_SECRET = process.env.UNSUBSCRIBE_SECRET || 'jobmatch-secret-2026';
 
 const claude = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
@@ -25,6 +27,14 @@ const BREVO_FROM_EMAIL = process.env.BREVO_FROM_EMAIL || 'hello@jobmatchai.co.in
 const BREVO_FROM_NAME = process.env.BREVO_FROM_NAME || 'JobMatch AI';
 
 const runCache = new Map();
+
+// ── Unsubscribe token helpers ─────────────────────────────────────────────────
+function makeToken(email) {
+    return createHmac('sha256', UNSUB_SECRET).update(email.toLowerCase()).digest('hex').slice(0, 16);
+}
+function validToken(email, token) {
+    return makeToken(email) === token;
+}
 
 // ── PARSE RESUME ──────────────────────────────────────────────────────────────
 async function parseResume(buffer, filename) {
@@ -99,6 +109,31 @@ EXAMPLES:
         try {
             const p = JSON.parse(raw);
             if (p.currentRole || p.targetRole || p.skills) {
+                // ── Post-processing: validate experience vs seniority ──
+                const expYears = parseFloat(p.experience) || 0;
+
+                // Override seniority based on actual experience
+                if (expYears < 1)        p.seniority = 'fresher';
+                else if (expYears < 3)   p.seniority = 'junior';
+                else if (expYears < 6)   p.seniority = 'mid-level';
+                else if (expYears < 10)  p.seniority = 'senior';
+                else                     p.seniority = 'lead';
+
+                // Strip inflated seniority prefixes from role if experience doesn't match
+                const seniorPrefixes = /^(senior|lead|principal|head of|director|vp|avp|chief)\s+/i;
+                if (expYears < 2 && seniorPrefixes.test(p.currentRole)) {
+                    p.currentRole = p.currentRole.replace(seniorPrefixes, '').trim();
+                    console.log(`Corrected inflated role title for ${expYears}yr experience`);
+                }
+
+                // Apply correct targetRole based on validated experience
+                const coreRole = p.currentRole.replace(seniorPrefixes, '').trim();
+                if (expYears < 1)       p.targetRole = coreRole;
+                else if (expYears < 3)  p.targetRole = coreRole;
+                else if (expYears < 6)  p.targetRole = 'Senior ' + coreRole;
+                else if (expYears < 10) p.targetRole = p.targetRole; // keep AI's suggestion
+                else                    p.targetRole = p.targetRole; // keep AI's suggestion
+
                 console.log('Profile extracted (10 fields):', JSON.stringify(p));
                 return p;
             }
@@ -246,8 +281,9 @@ async function triggerApify(email, profile, cities) {
             jsearchApiKey: process.env.JSEARCH_API_KEY || '',
             adzunaAppId: process.env.ADZUNA_APP_ID || '',
             adzunaAppKey: process.env.ADZUNA_APP_KEY || '',
-            brevoUser: BREVO_USER,
-            brevoPass: BREVO_PASS,
+            brevoApiKey: BREVO_API_KEY,
+            brevoFromEmail: BREVO_FROM_EMAIL,
+            brevoFromName: BREVO_FROM_NAME,
             brevoFrom: BREVO_FROM,
             maxResultsPerSource: 10,
             filterEmail: email,
@@ -349,6 +385,82 @@ app.post('/signup', upload.single('resume'), async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+// ── Unsubscribe / Resubscribe routes ─────────────────────────────────────────
+app.get('/unsubscribe', async (req, res) => {
+    const { email, token } = req.query;
+    if (!email || !token || !validToken(email, token)) {
+        return res.status(400).send(page('Invalid link', 'This unsubscribe link is invalid or expired.', '', ''));
+    }
+    try {
+        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
+        const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
+        const check = await fetch(`${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`, { headers });
+        const data = await check.json();
+        const rec = data.records?.[0];
+        if (!rec) return res.send(page('Not found', 'We could not find your account.', '', ''));
+        await fetch(`${url}/${rec.id}`, { method: 'PATCH', headers, body: JSON.stringify({ fields: { Status: 'Inactive' } }) });
+        const resubUrl = `/resubscribe?email=${encodeURIComponent(email)}&token=${token}`;
+        res.send(page('Unsubscribed', `You've been unsubscribed from JobMatch AI daily alerts.`, 'Changed your mind?', resubUrl));
+    } catch (e) {
+        res.status(500).send(page('Error', 'Something went wrong. Please try again.', '', ''));
+    }
+});
+
+app.get('/resubscribe', async (req, res) => {
+    const { email, token } = req.query;
+    if (!email || !token || !validToken(email, token)) {
+        return res.status(400).send(page('Invalid link', 'This link is invalid or expired.', '', ''));
+    }
+    try {
+        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
+        const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
+        const check = await fetch(`${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`, { headers });
+        const data = await check.json();
+        const rec = data.records?.[0];
+        if (!rec) return res.send(page('Not found', 'We could not find your account.', '', ''));
+        await fetch(`${url}/${rec.id}`, { method: 'PATCH', headers, body: JSON.stringify({ fields: { Status: 'Active' } }) });
+        res.send(page("You're back!", "Daily job alerts reactivated. Fresh matches arrive every morning at 8am IST.", "", ""));
+    } catch (e) {
+        res.status(500).send(page('Error', 'Something went wrong. Please try again.', '', ''));
+    }
+});
+
+function page(title, message, btnText, btnUrl) {
+    const icon = title === "You're back!" ? "🎯" : title === "Unsubscribed" ? "👋" : title === "Error" ? "⚠️" : "ℹ️";
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title} — JobMatch AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#FAFAFA;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}
+.card{background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:20px;padding:2.5rem;max-width:420px;width:100%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.06)}
+.logo{font-size:1.1rem;font-weight:700;color:#0055FF;margin-bottom:2rem;letter-spacing:-0.02em}
+.icon{font-size:2.5rem;margin-bottom:1rem}
+h1{font-size:1.3rem;font-weight:600;color:#111;margin-bottom:0.75rem}
+p{font-size:0.9rem;color:#666;line-height:1.65;margin-bottom:1.5rem}
+.btn{display:inline-block;padding:0.75rem 1.75rem;background:#0055FF;color:#fff;border-radius:10px;text-decoration:none;font-size:0.88rem;font-weight:600;transition:background 0.2s}
+.btn:hover{background:#0044CC}
+.home{display:block;margin-top:1rem;font-size:0.78rem;color:#999;text-decoration:none}
+.home:hover{color:#0055FF}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">JobMatch AI</div>
+  <div class="icon">${icon}</div>
+  <h1>${title}</h1>
+  <p>${message}</p>
+  ${btnText && btnUrl ? `<a href="${btnUrl}" class="btn">${btnText}</a>` : ''}
+  <a href="/" class="home">Back to JobMatch AI →</a>
+</div>
+</body>
+</html>`;
+}
 
 app.listen(PORT, () => {
     console.log(`JobMatch API v5.1 on port ${PORT}`);
