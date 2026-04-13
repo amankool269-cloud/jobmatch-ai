@@ -377,6 +377,43 @@ app.post('/signup', upload.single('resume'), async (req, res) => {
         cleanup();
         console.log(`Profile (${Date.now()-t0}ms):`, JSON.stringify(profile));
 
+        // ── Guard: detect corrupted / unreadable resume ─────────────────
+        const isCorrupted = profile.currentRole?.toLowerCase().includes('unable to extract')
+            || profile.currentRole?.toLowerCase().includes('corrupted')
+            || !profile.currentRole
+            || profile.currentRole === 'Professional';
+
+        if (isCorrupted) {
+            console.warn(`Corrupted resume for ${email} — skipping Apify, sending re-upload email`);
+            saveToAirtable(name, email, phone, cities, { ...profile, Status: 'Needs Resume' }).catch(e => console.error('Airtable:', e.message));
+            // Send re-upload email instead of welcome
+            await fetch('https://api.brevo.com/v3/smtp/email', {
+                method: 'POST',
+                headers: { 'accept': 'application/json', 'api-key': BREVO_API_KEY, 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    sender: { name: BREVO_FROM_NAME, email: BREVO_FROM_EMAIL },
+                    to: [{ email, name }],
+                    subject: 'Quick fix needed for your JobMatch AI profile',
+                    htmlContent: `<div style="font-family:-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:24px">
+<div style="background:#0055FF;border-radius:12px;padding:20px 24px;margin-bottom:20px">
+  <div style="font-size:18px;font-weight:700;color:#fff">JobMatch AI</div>
+</div>
+<p style="color:#374151;font-size:14px;margin-bottom:16px">Hi <strong>${name}</strong>,</p>
+<p style="color:#374151;font-size:14px;margin-bottom:16px">Thank you for signing up! Unfortunately we were unable to read your resume — it may be password-protected, scanned as an image, or in an unsupported format.</p>
+<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:#dc2626">
+  Please re-upload your resume and make sure it is:<br><br>
+  ✓ A text-based PDF or Word document (.docx)<br>
+  ✓ Not password protected<br>
+  ✓ Under 5MB
+</div>
+<a href="https://jobmatch-ai-z19k.onrender.com" style="display:inline-block;background:#0055FF;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600">Re-upload resume →</a>
+<p style="font-size:11px;color:#9ca3af;margin-top:20px">JobMatch AI · hello@jobmatchai.co.in</p>
+</div>`
+                })
+            }).catch(e => console.error('Re-upload email error:', e.message));
+            return res.json({ success: true, runId: null, profile, corrupted: true, totalTime: Date.now()-t0 });
+        }
+
         saveToAirtable(name, email, phone, cities, profile).catch(e => console.error('Airtable:', e.message));
         sendWelcomeEmail(name, email, profile).catch(e => console.error('Email:', e.message));
 
