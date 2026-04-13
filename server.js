@@ -229,6 +229,37 @@ async function saveToAirtable(name, email, phone, cities, profile) {
     }
 }
 
+// ── Store resume in Airtable as base64 attachment ────────────────────────────
+async function storeResume(email, buffer, filename) {
+    if (!AIRTABLE_TOKEN || !AIRTABLE_BASE_ID) return;
+    try {
+        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
+        const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
+        // Find user record
+        const check = await fetch(`${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`, { headers });
+        const data = await check.json();
+        const rec = data.records?.[0];
+        if (!rec) return;
+        // Store resume as base64 string in Resume field
+        const base64 = buffer.toString('base64');
+        const mimeType = filename?.endsWith('.docx') || filename?.endsWith('.doc')
+            ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            : 'application/pdf';
+        await fetch(`${url}/${rec.id}`, {
+            method: 'PATCH', headers,
+            body: JSON.stringify({ fields: {
+                'Resume Filename': filename || 'resume.pdf',
+                'Resume Base64': base64.slice(0, 99000), // Airtable long text limit
+                'Resume Type': mimeType,
+                'Resume Uploaded At': new Date().toISOString(),
+            }})
+        });
+        console.log(`Resume stored for ${email} (${Math.round(buffer.length/1024)}KB)`);
+    } catch (e) {
+        console.error('Resume storage error:', e.message);
+    }
+}
+
 // ── Welcome email via Brevo HTTP API (no port blocking) ──────────────────────
 async function sendWelcomeEmail(name, email, profile) {
     if (!BREVO_API_KEY) { console.log('Brevo API key not set — skipping welcome email'); return; }
@@ -375,6 +406,8 @@ app.post('/signup', upload.single('resume'), async (req, res) => {
         const buffer = readFileSync(file.path);
         const profile = await parseResume(buffer, file.originalname || 'resume.pdf');
         cleanup();
+        // Store resume for future analysis (non-blocking)
+        storeResume(email, buffer, file.originalname || 'resume.pdf').catch(e => console.error('Resume store:', e.message));
         console.log(`Profile (${Date.now()-t0}ms):`, JSON.stringify(profile));
 
         // ── Guard: detect corrupted / unreadable resume ─────────────────
