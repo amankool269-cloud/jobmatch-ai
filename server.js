@@ -233,28 +233,35 @@ async function saveToAirtable(name, email, phone, cities, profile) {
 async function storeResume(email, buffer, filename) {
     if (!AIRTABLE_TOKEN || !AIRTABLE_BASE_ID) return;
     try {
+        // Wait 3s for Airtable record to be created first
+        await new Promise(r => setTimeout(r, 3000));
         const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
         const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
         // Find user record
         const check = await fetch(`${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`, { headers });
         const data = await check.json();
         const rec = data.records?.[0];
-        if (!rec) return;
-        // Store resume as base64 string in Resume field
+        if (!rec) { console.error(`Resume store: no Airtable record found for ${email}`); return; }
+        // Store resume as base64 string
         const base64 = buffer.toString('base64');
         const mimeType = filename?.endsWith('.docx') || filename?.endsWith('.doc')
             ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             : 'application/pdf';
-        await fetch(`${url}/${rec.id}`, {
+        const patchResp = await fetch(`${url}/${rec.id}`, {
             method: 'PATCH', headers,
             body: JSON.stringify({ fields: {
                 'Resume Filename': filename || 'resume.pdf',
-                'Resume Base64': base64.slice(0, 99000), // Airtable long text limit
+                'Resume Base64': base64.slice(0, 99000),
                 'Resume Type': mimeType,
                 'Resume Uploaded At': new Date().toISOString(),
             }})
         });
-        console.log(`Resume stored for ${email} (${Math.round(buffer.length/1024)}KB)`);
+        if (!patchResp.ok) {
+            const err = await patchResp.text();
+            console.error(`Resume store PATCH failed (${patchResp.status}): ${err}`);
+            return;
+        }
+        console.log(`✅ Resume stored for ${email} (${Math.round(buffer.length/1024)}KB)`);
     } catch (e) {
         console.error('Resume storage error:', e.message);
     }
