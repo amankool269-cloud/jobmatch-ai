@@ -607,14 +607,14 @@ function go(){
   document.getElementById('scheduledNotice').classList.remove('show');
   document.getElementById('jobList').innerHTML='';
   ss(1,'active');ss(2,'');ss(3,'');ss(4,'');
-  var warmup=setTimeout(function(){var s=document.querySelector('#s1 span');if(s)s.textContent='Server warming up — almost ready...';},7000);
+  var warmup=setTimeout(function(){var s=document.querySelector('#s1 span');if(s)s.textContent='Server warming up (30-60s on first use)...';},8000);
   var fd=new FormData();
   fd.append('name',name);fd.append('email',email);fd.append('phone',phone);
   fd.append('resume',file);fd.append('schedule',sched?'1':'0');
   fd.append('cities',JSON.stringify(getCities()));
   fd.append('industry',document.getElementById('inp-industry')?.value||'');
   var ctrl=new AbortController();
-  var tout=setTimeout(function(){ctrl.abort();},120000);
+  var tout=setTimeout(function(){ctrl.abort();},300000); // 5 min — handles Render cold start
   fetch(API+'/signup',{method:'POST',body:fd,signal:ctrl.signal})
     .then(function(resp){clearTimeout(tout);clearTimeout(warmup);if(!resp.ok)return resp.json().then(function(e){throw new Error(e.error||'Server error');});return resp.json();})
     .then(function(data){
@@ -623,7 +623,7 @@ function go(){
       if(data.runId){poll(data.runId,email,sched,0);}
       else{ss(2,'done');ss(3,'done');ss(4,'done');showFallback(email,sched);}
     })
-    .catch(function(e){clearTimeout(tout);clearTimeout(warmup);ss(1,'fail');var errEl=document.getElementById('errMsg');errEl.textContent=e.message||'Something went wrong. Please try again.';errEl.classList.add('show');document.getElementById('submitBtn').disabled=false;});
+    .catch(function(e){clearTimeout(tout);clearTimeout(warmup);ss(1,'fail');var errEl=document.getElementById('errMsg');var msg=e.message||'';errEl.textContent=msg.includes('fetch')||msg.includes('abort')?'Server is warming up — please wait 30 seconds and try again.':msg||'Something went wrong. Please try again.';errEl.classList.add('show');document.getElementById('submitBtn').disabled=false;});
 }
 </script>
 </body>
