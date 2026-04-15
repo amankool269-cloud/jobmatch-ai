@@ -56,7 +56,7 @@ Return ONLY this JSON object (no markdown, no explanation):
   "currentCompany": "current or most recent company name",
   "experience": "total years as a number e.g. 6 years",
   "location": "current city in India",
-  "domain": "industry/sector e.g. Financial Services, Technology, FMCG",
+  "domain": "PRIMARY industry the person wants to work in NEXT — based on their most recent 2 roles and stated target. Use the most specific term: Fintech / NBFC / Digital Lending / Payments / SaaS / EdTech / HealthTech / E-commerce / IT Services / FMCG / Manufacturing / Consulting. If multi-domain, pick the DOMINANT recent one.",
   "skills": "top 8 skills comma separated",
   "education": "highest degree e.g. MBA, B.Tech, B.Com",
   "seniority": "one of: fresher / junior / mid-level / senior / lead / head",
@@ -83,6 +83,12 @@ TRACK B — General roles (Sales / Tech / Ops / Product / Marketing / HR):
 - 3-6yr  → Senior [role] / Manager
 - 6-9yr  → Head / AVP / [function] Lead
 - 10+yr  → Director / VP / GM
+
+CRITICAL RULES for domain:
+1. Use the MOST RECENT 2 jobs to determine domain — not older jobs
+2. If the person has recently moved domains (e.g., pharma → fintech), use the LATEST domain
+3. Be specific — "Fintech" not "Financial Services", "SaaS" not "Technology"
+4. If person is in Partnerships/Growth/BD, the domain is the INDUSTRY they work in, not their function
 
 CRITICAL RULES for targetRole:
 1. For CA/CFA/CPA — use finance-specific titles (Credit Manager, AVP Credit, Investment Manager)
@@ -305,7 +311,12 @@ async function sendWelcomeEmail(name, email, profile) {
             })
         });
         const result = await resp.json();
-        if (!resp.ok) throw new Error(JSON.stringify(result));
+        if (!resp.ok) {
+            const errMsg = result?.message || result?.error || JSON.stringify(result);
+            console.error(`Welcome email FAILED for ${email}: ${resp.status} — ${errMsg}`);
+            // Don't throw — still complete signup, just log the email failure
+            return;
+        }
         console.log(`Welcome email sent to ${email} (messageId: ${result.messageId})`);
     } catch (e) {
         console.error('Welcome email error:', e.message);
@@ -396,7 +407,7 @@ app.get('/results', (req, res) => {
 });
 
 app.post('/signup', upload.single('resume'), async (req, res) => {
-    const { name, email, phone, cities: citiesRaw } = req.body;
+    const { name, email, phone, cities: citiesRaw, industry } = req.body;
     const file = req.file;
     const cities = citiesRaw ? JSON.parse(citiesRaw) : ['Bengaluru'];
 
@@ -404,6 +415,14 @@ app.post('/signup', upload.single('resume'), async (req, res) => {
 
     if (!name || !email) return res.status(400).json({ error: 'Name and email required.' });
     if (!file) return res.status(400).json({ error: 'Resume required.' });
+
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!emailRegex.test(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
+
+    // Block obviously disposable/temp email domains
+    const disposableDomains = /mailinator\.|guerrillamail\.|tempmail\.|throwaway\.|yopmail\.|sharklasers\.|trashmail\.|maildrop\.|dispostable\.|spamgourmet\.|fakeinbox\.|temp-mail\.|getairmail\.|mailnull\.|spamhole\.|discard\.email/i;
+    if (disposableDomains.test(email)) return res.status(400).json({ error: 'Disposable email addresses are not allowed. Please use your work or personal email.' });
 
     const cleanup = () => { try { unlinkSync(file.path); } catch {} };
 
@@ -452,6 +471,12 @@ app.post('/signup', upload.single('resume'), async (req, res) => {
                 })
             }).catch(e => console.error('Re-upload email error:', e.message));
             return res.json({ success: true, runId: null, profile, corrupted: true, totalTime: Date.now()-t0 });
+        }
+
+        // Override AI-parsed domain with user-selected industry if provided
+        if (industry && industry.trim() && industry !== 'Other') {
+            profile.domain = industry.trim();
+            console.log(`Domain overridden by user selection: ${profile.domain}`);
         }
 
         saveToAirtable(name, email, phone, cities, profile).catch(e => console.error('Airtable:', e.message));
