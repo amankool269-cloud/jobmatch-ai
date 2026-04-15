@@ -344,7 +344,7 @@ async function triggerApify(email, profile, cities) {
             // Pass full profile directly so actor doesn't re-fetch from Airtable
             // This fixes the race condition where Airtable write hasn't committed yet
             inlineProfile: {
-                name: profile.name || email.split('@')[0],
+                name: name || email.split('@')[0],
                 email,
                 targetRole:   profile.targetRole   || profile.currentRole || '',
                 currentRole:  profile.currentRole  || '',
@@ -380,9 +380,11 @@ async function pollApifyRun(runId) {
             const status = data?.data?.status;
             console.log(`Apify ${runId}: ${status}`);
             if (status === 'SUCCEEDED') {
-                const dsResp = await fetch(`https://api.apify.com/v2/datasets/${data.data.defaultDatasetId}/items?token=${APIFY_TOKEN}&limit=50`);
+                const dsResp = await fetch(`https://api.apify.com/v2/datasets/${data.data.defaultDatasetId}/items?token=${APIFY_TOKEN}&limit=200`);
                 const items = await dsResp.json();
-                runCache.set(runId, { ready: true, jobs: Array.isArray(items) ? items : [] });
+                const jobs = Array.isArray(items) ? items : [];
+                console.log(`Poll: ${runId} SUCCEEDED — ${jobs.length} jobs in dataset`);
+                runCache.set(runId, { ready: true, jobs });
                 setTimeout(() => runCache.delete(runId), 3600000);
                 return;
             }
@@ -437,9 +439,11 @@ app.get('/results', async (req, res) => {
         console.log(`/results direct Apify check: ${runId} → ${status}`);
 
         if (status === 'SUCCEEDED') {
-            const dsResp = await fetch(`https://api.apify.com/v2/datasets/${data.data.defaultDatasetId}/items?token=${APIFY_TOKEN}&limit=50`);
+            const dsResp = await fetch(`https://api.apify.com/v2/datasets/${data.data.defaultDatasetId}/items?token=${APIFY_TOKEN}&limit=200`);
             const items = await dsResp.json();
             const jobs = Array.isArray(items) ? items : [];
+            const above55 = jobs.filter(j => (j.matchScore||0) >= 55).length;
+            console.log(`/results: ${runId} SUCCEEDED — ${jobs.length} total jobs, ${above55} above 55%`);
             runCache.set(runId, { ready: true, jobs });
             setTimeout(() => runCache.delete(runId), 3600000);
             return res.json({ status: 'ready', jobs });
