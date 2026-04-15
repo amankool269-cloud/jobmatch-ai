@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JobMatch AI — AI-powered daily job digest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,700&family=Fraunces:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --y:#FFD600;--y2:#FFC000;--b:#0052FF;--b2:#0040CC;
+  --g:#00C48C;--r:#FF4D6A;
+  --ink:#0D0D0D;--ink2:#1A1A1A;
+  --muted:#6B7280;--muted2:#9CA3AF;
+  --bg:#FFFFFF;--bg2:#F8F9FF;--bg3:#F0F4FF;
+  --border:rgba(0,0,0,0.07);--border2:rgba(0,0,0,0.12);
+  --shadow:0 4px 24px rgba(0,82,255,0.1);
+  --shadow-lg:0 16px 48px rgba(0,82,255,0.15);
+  --r:14px;--r2:20px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+.fu{animation:fadeUp 0.6s cubic-bezier(0.16,1,0.3,1) both}
+.d1{animation-delay:0.1s}.d2{animation-delay:0.2s}.d3{animation-delay:0.3s}.d4{animation-delay:0.4s}.d5{animation-delay:0.5s}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;width:100%;z-index:300;height:60px;padding:0 clamp(1rem,5vw,3rem);display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+.logo{font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px;letter-spacing:-0.02em}
+.logo-badge{background:var(--y);color:var(--ink);font-family:'Plus Jakarta Sans',sans-serif;font-size:0.6rem;font-weight:800;padding:2px 7px;border-radius:999px;letter-spacing:0.06em;text-transform:uppercase}
+.nav-links{display:flex;gap:2rem}
+.nav-links a{font-size:0.82rem;font-weight:600;color:var(--muted);transition:color 0.15s}
+.nav-links a:hover{color:var(--ink)}
+.nav-cta{background:var(--b);color:#fff;font-size:0.82rem;font-weight:700;padding:0.5rem 1.25rem;border-radius:999px;transition:all 0.15s;letter-spacing:0.01em}
+.nav-cta:hover{background:var(--b2);box-shadow:var(--shadow)}
+
+/* ── HERO ── */
+.hero{padding:calc(60px + 4rem) clamp(1rem,5vw,3rem) 3rem;max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1fr 440px;gap:3.5rem;align-items:center}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid rgba(0,82,255,0.15);border-radius:999px;padding:0.3rem 0.9rem;font-size:0.72rem;font-weight:700;color:var(--b);letter-spacing:0.04em;text-transform:uppercase;margin-bottom:1.5rem}
+.hero-eyebrow-dot{width:6px;height:6px;border-radius:50%;background:var(--g);animation:blink 1.5s ease-in-out infinite}
+h1{font-family:'Fraunces',serif;font-size:clamp(2.8rem,4.5vw,4rem);font-weight:700;line-height:1.05;letter-spacing:-0.025em;color:var(--ink);margin-bottom:1.25rem}
+h1 .hl{color:var(--b);font-style:italic}
+h1 .hl-y{background:var(--y);padding:0 6px;border-radius:6px;font-style:normal}
+.hero-sub{font-size:1.05rem;color:var(--muted);line-height:1.75;max-width:500px;margin-bottom:2.25rem}
+.hero-actions{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:2.5rem}
+.btn-hero{background:var(--b);color:#fff;font-size:0.95rem;font-weight:700;padding:0.9rem 2rem;border-radius:999px;border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all 0.2s;box-shadow:0 4px 20px rgba(0,82,255,0.3);letter-spacing:0.01em}
+.btn-hero:hover{background:var(--b2);transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,82,255,0.35)}
+.hero-free{font-size:0.8rem;color:var(--muted2);font-weight:500}
+.hero-free strong{color:var(--ink);font-weight:700}
+.trust-row{display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap}
+.trust-chip{display:flex;align-items:center;gap:6px;font-size:0.78rem;font-weight:600;color:var(--muted)}
+.trust-chip-icon{width:22px;height:22px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.75rem}
+.tc-g{background:rgba(0,196,140,0.12);color:var(--g)}
+.tc-b{background:rgba(0,82,255,0.1);color:var(--b)}
+.tc-y{background:rgba(255,214,0,0.2);color:#92600A}
+
+/* ── LIVE FEED CARD ── */
+.feed-card{background:#fff;border-radius:var(--r2);border:1px solid var(--border2);padding:1.5rem;box-shadow:var(--shadow-lg);animation:float 4s ease-in-out infinite}
+.feed-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem}
+.feed-title-row{font-size:0.72rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted2)}
+.live-pill{display:flex;align-items:center;gap:5px;background:rgba(0,196,140,0.1);border:1px solid rgba(0,196,140,0.25);border-radius:999px;padding:3px 10px;font-size:0.65rem;font-weight:700;color:var(--g);letter-spacing:0.04em}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--g);animation:blink 1.2s ease-in-out infinite}
+.feed-jobs{display:flex;flex-direction:column;gap:0.6rem;margin-bottom:1rem}
+.feed-job{background:var(--bg2);border-radius:10px;padding:0.85rem 1rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem;border:1px solid var(--border)}
+.fj-title{font-size:0.82rem;font-weight:700;color:var(--ink);margin-bottom:2px}
+.fj-meta{font-size:0.7rem;color:var(--muted2)}
+.fj-score{text-align:right;flex-shrink:0}
+.fj-pct{font-family:'Fraunces',serif;font-size:1.5rem;font-weight:700;line-height:1}
+.fj-pct.s{color:var(--g)}.fj-pct.g{color:var(--b)}.fj-pct.p{color:#F59E0B}
+.fj-label{font-size:0.6rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--muted2)}
+.feed-footer{display:flex;justify-content:space-between;align-items:center;padding-top:1rem;border-top:1px solid var(--border)}
+.feed-source-row{display:flex;gap:6px}
+.src-tag{font-size:0.65rem;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--bg3);color:var(--b);border:1px solid rgba(0,82,255,0.12)}
+.feed-note{font-size:0.65rem;color:var(--muted2)}
+
+/* ── STATS BAND ── */
+.stats-band{background:var(--y);padding:1.5rem clamp(1rem,5vw,3rem);display:flex;justify-content:center;gap:0;overflow:hidden}
+.stats-inner{display:flex;gap:0;max-width:900px;width:100%}
+.stat-block{flex:1;text-align:center;padding:0.5rem 1.5rem;border-right:2px solid rgba(0,0,0,0.1)}
+.stat-block:last-child{border-right:none}
+.stat-n{font-family:'Fraunces',serif;font-size:2.2rem;font-weight:700;color:var(--ink);line-height:1}
+.stat-l{font-size:0.72rem;font-weight:700;color:rgba(0,0,0,0.5);letter-spacing:0.05em;text-transform:uppercase;margin-top:3px}
+
+/* ── HOW IT WORKS ── */
+.how{padding:5rem clamp(1rem,5vw,3rem);max-width:1180px;margin:0 auto}
+.section-eyebrow{font-size:0.72rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--b);margin-bottom:0.75rem}
+.section-h2{font-family:'Fraunces',serif;font-size:clamp(2rem,3.5vw,2.8rem);font-weight:700;color:var(--ink);letter-spacing:-0.02em;line-height:1.15;margin-bottom:3rem}
+.section-h2 em{font-style:italic;color:var(--b)}
+.how-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
+.how-card{background:var(--bg2);border-radius:var(--r2);padding:2rem;border:1px solid var(--border);transition:transform 0.2s,box-shadow 0.2s;position:relative;overflow:hidden}
+.how-card:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+.how-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.how-card:nth-child(1)::before{background:var(--b)}
+.how-card:nth-child(2)::before{background:var(--y)}
+.how-card:nth-child(3)::before{background:var(--g)}
+.how-card:nth-child(4)::before{background:var(--r)}
+.how-card:nth-child(5)::before{background:#8B5CF6}
+.how-card:nth-child(6)::before{background:#F59E0B}
+.how-num{font-family:'Fraunces',serif;font-size:3rem;font-weight:700;color:var(--border2);line-height:1;margin-bottom:0.75rem}
+.how-title{font-size:0.95rem;font-weight:800;color:var(--ink);margin-bottom:0.5rem}
+.how-body{font-size:0.8rem;color:var(--muted);line-height:1.7}
+
+/* ── FORM SECTION ── */
+.form-wrap{background:var(--bg3);padding:5rem clamp(1rem,5vw,3rem)}
+.form-inner{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1fr 520px;gap:5rem;align-items:start}
+.form-info-eyebrow{font-size:0.72rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--b);margin-bottom:0.75rem}
+.form-info h2{font-family:'Fraunces',serif;font-size:clamp(1.8rem,3vw,2.6rem);font-weight:700;color:var(--ink);letter-spacing:-0.02em;line-height:1.15;margin-bottom:1rem}
+.form-info h2 em{font-style:italic;color:var(--b)}
+.form-info p{font-size:0.88rem;color:var(--muted);line-height:1.75;margin-bottom:2rem}
+.steps{display:flex;flex-direction:column;gap:1.1rem}
+.step-row{display:flex;gap:1rem;align-items:flex-start}
+.step-ico{width:32px;height:32px;border-radius:10px;background:var(--b);color:#fff;font-size:0.78rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.step-txt h4{font-size:0.88rem;font-weight:700;color:var(--ink);margin-bottom:2px}
+.step-txt p{font-size:0.78rem;color:var(--muted);line-height:1.6}
+
+/* ── FORM CARD ── */
+.form-card{background:#fff;border-radius:var(--r2);padding:2.25rem;box-shadow:var(--shadow-lg);border:1px solid var(--border)}
+.form-card-hdr{margin-bottom:1.75rem}
+.form-card-title{font-family:'Fraunces',serif;font-size:1.5rem;font-weight:700;color:var(--ink);margin-bottom:4px;letter-spacing:-0.02em}
+.form-card-sub{font-size:0.75rem;color:var(--muted2);font-weight:500}
+.fields{display:flex;flex-direction:column;gap:1rem}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem}
+.field-label{display:block;font-size:0.72rem;font-weight:700;color:var(--muted);letter-spacing:0.03em;text-transform:uppercase;margin-bottom:5px}
+.field-opt{font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted2)}
+.inp{width:100%;padding:0.72rem 0.95rem;background:#fff;border:1.5px solid var(--border2);border-radius:var(--r);font-size:0.85rem;font-family:'Plus Jakarta Sans',sans-serif;color:var(--ink);outline:none;transition:border-color 0.15s,box-shadow 0.15s}
+.inp:focus{border-color:var(--b);box-shadow:0 0 0 3px rgba(0,82,255,0.1)}
+.inp::placeholder{color:var(--muted2)}
+.drop-zone{border:2px dashed var(--border2);border-radius:var(--r);padding:1.5rem;text-align:center;cursor:pointer;transition:all 0.15s;position:relative;background:#fff}
+.drop-zone:hover,.drop-zone.hover{border-color:var(--b);background:var(--bg3)}
+.drop-zone.done{border-color:var(--g);background:rgba(0,196,140,0.05);border-style:solid}
+.drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:1.5rem;margin-bottom:0.4rem}
+.drop-title{font-size:0.85rem;font-weight:700;color:var(--ink);margin-bottom:3px}
+.drop-hint{font-size:0.72rem;color:var(--muted2)}
+.drop-name{font-size:0.75rem;color:var(--g);margin-top:0.4rem;font-weight:700}
+.sec-div{font-size:0.68rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted2);padding-bottom:0.4rem;border-bottom:1.5px solid var(--border);margin-bottom:0.2rem}
+.chips{display:flex;flex-wrap:wrap;gap:0.4rem}
+.chip{display:inline-flex;align-items:center;padding:0.35rem 0.85rem;border-radius:999px;border:1.5px solid var(--border2);font-size:0.75rem;font-weight:600;color:var(--muted);cursor:pointer;transition:all 0.15s;user-select:none}
+.chip input{display:none}
+.chip.on{background:var(--bg3);border-color:var(--b);color:var(--b)}
+.toggle-row{display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0}
+.toggle-label{font-size:0.85rem;font-weight:600;color:var(--ink)}
+.toggle-label small{display:block;font-size:0.7rem;color:var(--muted2);font-weight:400;margin-top:1px}
+.sw{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0}
+.sw input{opacity:0;width:0;height:0}
+.sw-t{position:absolute;cursor:pointer;inset:0;background:var(--border2);border-radius:999px;transition:0.2s}
+.sw-t::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+.sw input:checked+.sw-t{background:var(--b)}
+.sw input:checked+.sw-t::before{transform:translateX(20px)}
+.consent{display:flex;align-items:flex-start;gap:0.6rem}
+.consent input{width:15px;height:15px;margin-top:2px;flex-shrink:0;accent-color:var(--b)}
+.consent label{font-size:0.72rem;color:var(--muted2);line-height:1.55}
+.consent a{color:var(--b);text-decoration:underline}
+.err{font-size:0.78rem;color:var(--r);padding:0.4rem 0;display:none;font-weight:600}
+.err.show{display:block}
+.btn-submit{width:100%;padding:1rem;background:var(--b);color:#fff;border:none;border-radius:999px;font-size:0.95rem;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 20px rgba(0,82,255,0.25);letter-spacing:0.01em}
+.btn-submit:hover{background:var(--b2);transform:translateY(-1px);box-shadow:0 8px 28px rgba(0,82,255,0.3)}
+.btn-submit:disabled{opacity:0.5;transform:none;cursor:not-allowed;box-shadow:none}
+
+/* ── PROGRESS ── */
+.progress{display:none;flex-direction:column;gap:0.5rem;padding:0.5rem 0}
+.progress.show{display:flex}
+.step{display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0.9rem;border-radius:10px;background:var(--bg2);border:1px solid var(--border);transition:all 0.2s}
+.step.active{background:var(--bg3);border-color:rgba(0,82,255,0.2)}
+.step.done{background:rgba(0,196,140,0.08);border-color:rgba(0,196,140,0.2)}
+.s-dot{width:24px;height:24px;border-radius:50%;background:var(--border2);font-size:0.65rem;font-weight:800;display:flex;align-items:center;justify-content:center;color:var(--muted);flex-shrink:0;transition:all 0.2s}
+.step.active .s-dot{background:var(--b);color:#fff;box-shadow:0 0 0 4px rgba(0,82,255,0.15)}
+.step.done .s-dot{background:var(--g);color:#fff}
+.step span{font-size:0.78rem;font-weight:600;color:var(--muted)}
+.step.active span{color:var(--b)}
+.step.done span{color:var(--g)}
+
+/* ── RESULTS ── */
+.results{display:none;padding-top:0.75rem}
+.results.show{display:block}
+.results-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem}
+.results-title{font-size:0.85rem;font-weight:800;color:var(--ink)}
+.count-pill{font-size:0.72rem;font-weight:800;background:var(--bg3);color:var(--b);padding:3px 12px;border-radius:999px;border:1px solid rgba(0,82,255,0.15)}
+.job-card{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);padding:1rem 1.1rem;margin-bottom:0.6rem;animation:fadeUp 0.4s cubic-bezier(0.16,1,0.3,1) both;transition:border-color 0.15s,box-shadow 0.15s}
+.job-card:hover{border-color:rgba(0,82,255,0.2);box-shadow:0 4px 16px rgba(0,82,255,0.08)}
+.job-top{display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;margin-bottom:0.5rem}
+.job-title{font-size:0.85rem;font-weight:800;color:var(--ink);margin-bottom:2px}
+.job-co{font-size:0.72rem;color:var(--muted2)}
+.ring{position:relative;flex-shrink:0}
+.ring-n{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:800;color:var(--ink)}
+.job-tags{display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem}
+.tag{font-size:0.65rem;font-weight:800;padding:2px 9px;border-radius:999px;letter-spacing:0.02em}
+.fit-s{background:rgba(0,196,140,0.12);color:#00875A}
+.fit-g{background:rgba(0,82,255,0.1);color:var(--b)}
+.fit-p{background:rgba(245,158,11,0.12);color:#92600A}
+.fit-w{background:var(--bg2);color:var(--muted2)}
+.tag-src{background:var(--bg2);color:var(--muted2);border:1px solid var(--border)}
+.verdict{font-size:0.75rem;color:var(--muted);line-height:1.6;margin-bottom:0.6rem}
+.j-actions{display:flex;gap:0.5rem}
+.jbtn{font-size:0.72rem;font-weight:700;padding:0.38rem 0.9rem;border-radius:999px;border:1.5px solid var(--border2);cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all 0.15s;text-decoration:none;display:inline-block;color:var(--muted);background:#fff}
+.jbtn:hover{border-color:var(--b);color:var(--b)}
+.jbtn.apply{background:var(--b);color:#fff;border-color:var(--b);box-shadow:0 2px 8px rgba(0,82,255,0.2)}
+.jbtn.apply:hover{background:var(--b2)}
+.notice{font-size:0.75rem;color:var(--g);background:rgba(0,196,140,0.08);border:1px solid rgba(0,196,140,0.2);border-radius:var(--r);padding:0.7rem 1rem;display:none;margin-top:0.5rem;font-weight:600}
+.notice.show{display:block}
+.fallback{padding:1.5rem;text-align:center}
+.fallback h3{font-size:0.95rem;font-weight:800;color:var(--ink);margin-bottom:0.4rem}
+.fallback p{font-size:0.8rem;color:var(--muted);line-height:1.65}
+
+/* ── CONTACT ── */
+.contact-section{padding:5rem clamp(1rem,5vw,3rem);background:var(--ink)}
+.contact-inner{max-width:900px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center}
+.contact-left .eyebrow{font-size:0.72rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--y);margin-bottom:0.75rem}
+.contact-heading{font-family:'Fraunces',serif;font-size:clamp(2rem,3.5vw,2.8rem);font-weight:700;color:#fff;letter-spacing:-0.02em;line-height:1.15;margin-bottom:1rem}
+.contact-heading em{color:var(--y);font-style:italic}
+.contact-sub{font-size:0.88rem;color:rgba(255,255,255,0.45);line-height:1.7}
+.contact-items{display:flex;flex-direction:column;gap:0.75rem}
+.contact-item{display:flex;align-items:center;gap:1rem;padding:1.1rem 1.25rem;background:rgba(255,255,255,0.06);border-radius:var(--r);border:1px solid rgba(255,255,255,0.1);text-align:left;transition:all 0.2s}
+.contact-item:hover{background:rgba(255,255,255,0.1);border-color:rgba(255,214,0,0.35);transform:translateX(4px)}
+.c-icon{width:40px;height:40px;border-radius:10px;background:rgba(255,214,0,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.1rem}
+.c-label{font-size:0.67rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:3px}
+.c-value{font-size:0.92rem;font-weight:700;color:#fff}
+.c-value a{color:#fff}
+.contact-item:hover .c-value,.contact-item:hover .c-value a{color:var(--y)}
+@media(max-width:700px){.contact-inner{grid-template-columns:1fr;gap:2rem}}
+
+/* ── FOOTER ── */
+footer{background:var(--ink);padding:1.5rem clamp(1rem,5vw,3rem);text-align:center;font-size:0.72rem;color:rgba(255,255,255,0.4);font-weight:500}
+footer a{color:rgba(255,255,255,0.6);transition:color 0.15s}
+footer a:hover{color:#fff}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .hero{grid-template-columns:1fr;gap:2rem;padding-top:calc(60px + 2.5rem)}
+  .feed-card{display:none}
+  .how-grid{grid-template-columns:1fr 1fr}
+  .form-inner{grid-template-columns:1fr}
+  .field-row{grid-template-columns:1fr}
+  .nav-links{display:none}
+}
+@media(max-width:600px){
+  .how-grid{grid-template-columns:1fr}
+  .stats-inner{flex-wrap:wrap}
+  .stat-block{flex:1 0 45%;border-right:none;border-bottom:2px solid rgba(0,0,0,0.1);padding:0.75rem}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">JobMatch <span style="color:var(--b)">AI</span> <span class="logo-badge">Beta</span></div>
+  <div class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#form-section">Get started</a>
+    <a href="#contact">Contact</a>
+  </div>
+  <a href="#form-section" class="nav-cta">Start free →</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div>
+    <div class="hero-eyebrow fu"><span class="hero-eyebrow-dot"></span>AI-Powered · 6 Platforms · Free</div>
+    <h1 class="fu d1">The right job<br>finds <span class="hl">you.</span><br>Every <span class="hl-y">morning.</span></h1>
+    <p class="hero-sub fu d2">Upload your resume once. Our AI scans LinkedIn, Naukri, Indeed, Glassdoor and more — scores every job against your profile and sends you the best matches daily at 9am.</p>
+    <div class="hero-actions fu d3">
+      <button class="btn-hero" onclick="document.getElementById('form-section').scrollIntoView({behavior:'smooth'})">Find my matching jobs →</button>
+      <span class="hero-free">Free · No credit card · <strong>5 minutes</strong></span>
+    </div>
+    <div class="trust-row fu d4">
+      <div class="trust-chip"><span class="trust-chip-icon tc-g">✓</span> Zero duplicates ever</div>
+      <div class="trust-chip"><span class="trust-chip-icon tc-b">⚡</span> 100-point AI scoring</div>
+      <div class="trust-chip"><span class="trust-chip-icon tc-y">📬</span> Daily 9am digest</div>
+    </div>
+  </div>
+
+  <div class="feed-card fu d2">
+    <div class="feed-top">
+      <div class="feed-title-row">Today's top matches</div>
+      <div class="live-pill"><div class="live-dot"></div>Live</div>
+    </div>
+    <div class="feed-jobs">
+      <div class="feed-job">
+        <div>
+          <div class="fj-title">Director — Partnerships & Growth</div>
+          <div class="fj-meta">Razorpay · Bengaluru · Just now</div>
+        </div>
+        <div class="fj-score"><div class="fj-pct s">85%</div><div class="fj-label">Strong fit</div></div>
+      </div>
+      <div class="feed-job">
+        <div>
+          <div class="fj-title">Head of Growth — Fintech</div>
+          <div class="fj-meta">CRED · Bengaluru · 4 min ago</div>
+        </div>
+        <div class="fj-score"><div class="fj-pct s">82%</div><div class="fj-label">Strong fit</div></div>
+      </div>
+      <div class="feed-job">
+        <div>
+          <div class="fj-title">AVP Strategic Alliances</div>
+          <div class="fj-meta">PhonePe · Remote · 11 min ago</div>
+        </div>
+        <div class="fj-score"><div class="fj-pct g">76%</div><div class="fj-label">Good fit</div></div>
+      </div>
+    </div>
+    <div class="feed-footer">
+      <div class="feed-source-row">
+        <span class="src-tag">LinkedIn</span>
+        <span class="src-tag">Naukri</span>
+        <span class="src-tag">Indeed</span>
+        <span class="src-tag">Glassdoor</span>
+      </div>
+      <div class="feed-note">Sample — yours will be personalised</div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS BAND -->
+<div class="stats-band">
+  <div class="stats-inner">
+    <div class="stat-block"><div class="stat-n">35+</div><div class="stat-l">Active users</div></div>
+    <div class="stat-block"><div class="stat-n">6</div><div class="stat-l">Job platforms</div></div>
+    <div class="stat-block"><div class="stat-n">9am</div><div class="stat-l">Daily digest</div></div>
+    <div class="stat-block"><div class="stat-n">0</div><div class="stat-l">Duplicates ever</div></div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <div class="section-eyebrow fu">How it works</div>
+  <div class="section-h2 fu d1">One resume.<br><em>Unlimited matches.</em></div>
+  <div class="how-grid">
+    <div class="how-card fu d1">
+      <div class="how-num">01</div>
+      <div class="how-title">AI reads your resume</div>
+      <div class="how-body">We extract 10 profile signals — your role, domain, skills, seniority and experience. Select your industry for even sharper results.</div>
+    </div>
+    <div class="how-card fu d2">
+      <div class="how-num">02</div>
+      <div class="how-title">6 platforms searched</div>
+      <div class="how-body">LinkedIn, Naukri, Indeed, Glassdoor and more are searched simultaneously. Only jobs posted in the last 7 days are shown.</div>
+    </div>
+    <div class="how-card fu d3">
+      <div class="how-num">03</div>
+      <div class="how-title">100-point AI scoring</div>
+      <div class="how-body">Every job gets a match score based on role fit, skills, domain, seniority, location and recency. A verdict and personalised pitch included.</div>
+    </div>
+    <div class="how-card fu d2">
+      <div class="how-num">04</div>
+      <div class="how-title">Daily digest at 9am</div>
+      <div class="how-body">Fresh unseen matches arrive every morning. A job you've seen before will never appear again — zero duplicates guaranteed.</div>
+    </div>
+    <div class="how-card fu d3">
+      <div class="how-num">05</div>
+      <div class="how-title">Personalised pitch</div>
+      <div class="how-body">Every matched job comes with a 1-line outreach message tailored to your exact background — ready to copy and send.</div>
+    </div>
+    <div class="how-card fu d4">
+      <div class="how-num">06</div>
+      <div class="how-title">Free during beta</div>
+      <div class="how-body">No account needed. No credit card. Upload your resume and you're done. Unsubscribe anytime with one click.</div>
+    </div>
+  </div>
+</section>
+
+<!-- FORM SECTION -->
+<div class="form-wrap" id="form-section">
+  <div class="form-inner">
+    <div>
+      <div class="form-info-eyebrow fu">Get started — free</div>
+      <h2 class="fu d1">Upload once.<br><em>Get jobs daily.</em></h2>
+      <p class="fu d2">One resume sets up your complete profile. AI handles everything from there — searching, scoring and sending fresh matches every morning at 9am.</p>
+      <div class="steps fu d3">
+        <div class="step-row">
+          <div class="step-ico">1</div>
+          <div class="step-txt"><h4>Upload your resume</h4><p>AI extracts your role, skills, seniority, domain and experience automatically.</p></div>
+        </div>
+        <div class="step-row">
+          <div class="step-ico">2</div>
+          <div class="step-txt"><h4>Get instant results</h4><p>LinkedIn, Naukri, Indeed, Glassdoor and more — scored in minutes.</p></div>
+        </div>
+        <div class="step-row">
+          <div class="step-ico">3</div>
+          <div class="step-txt"><h4>Daily fresh matches</h4><p>New unseen jobs every morning at 9am. Apply directly from your inbox.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-card fu d2">
+      <div class="form-card-hdr">
+        <div class="form-card-title">Find your matching jobs</div>
+        <div class="form-card-sub">Free · No credit card · 5 minutes</div>
+      </div>
+
+      <div class="fields">
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label">Full name</label>
+            <input class="inp" type="text" id="inp-name" placeholder="Your name" autocomplete="name">
+          </div>
+          <div class="field">
+            <label class="field-label">Email</label>
+            <input class="inp" type="email" id="inp-email" placeholder="you@gmail.com" autocomplete="email">
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Phone <span class="field-opt">(optional)</span></label>
+          <input class="inp" type="tel" id="inp-phone" placeholder="+91 98765 43210">
+        </div>
+
+        <div class="field">
+          <label class="field-label">Resume</label>
+          <div class="drop-zone" id="dropZone">
+            <input type="file" id="resumeFile" accept=".pdf,.doc,.docx">
+            <div class="drop-icon">📄</div>
+            <div class="drop-title">Drop your resume here</div>
+            <div class="drop-hint">or browse files · PDF, DOCX · Max 5MB</div>
+            <div class="drop-name" id="fileName"></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Target industry <span class="field-opt">(improves accuracy)</span></label>
+          <select class="inp" id="inp-industry" style="cursor:pointer">
+            <option value="">Select your industry...</option>
+            <option value="Fintech / NBFC / Digital Lending">Fintech / NBFC / Digital Lending</option>
+            <option value="Payments / UPI / Wallets">Payments / UPI / Wallets</option>
+            <option value="Banking / Insurance">Banking / Insurance</option>
+            <option value="SaaS / B2B Tech">SaaS / B2B Tech</option>
+            <option value="E-commerce / D2C">E-commerce / D2C</option>
+            <option value="HealthTech / MedTech">HealthTech / MedTech</option>
+            <option value="EdTech">EdTech</option>
+            <option value="IT Services / Consulting">IT Services / Consulting</option>
+            <option value="FMCG / Retail">FMCG / Retail</option>
+            <option value="Manufacturing / Industrial">Manufacturing / Industrial</option>
+            <option value="Media / Entertainment">Media / Entertainment</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div class="sec-div">Preferred cities</div>
+        <div class="chips" id="chipGrid">
+          <label class="chip on"><input type="checkbox" value="Bengaluru" checked>Bengaluru</label>
+          <label class="chip"><input type="checkbox" value="Mumbai">Mumbai</label>
+          <label class="chip"><input type="checkbox" value="Delhi NCR">Delhi NCR</label>
+          <label class="chip"><input type="checkbox" value="Hyderabad">Hyderabad</label>
+          <label class="chip"><input type="checkbox" value="Pune">Pune</label>
+          <label class="chip"><input type="checkbox" value="Chennai">Chennai</label>
+          <label class="chip"><input type="checkbox" value="Remote">Remote</label>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-label">Daily job alerts <small>Fresh matches every morning at 9am IST</small></div>
+          <label class="sw"><input type="checkbox" id="alertToggle" checked><span class="sw-t"></span></label>
+        </div>
+
+        <div class="consent">
+          <input type="checkbox" id="consentChk">
+          <label for="consentChk">I agree to the <a href="/privacy.html" target="_blank">Privacy Policy</a>. Resume processed by AI to find matching jobs. Data will not be sold.</label>
+        </div>
+
+        <div class="err" id="errMsg"></div>
+
+        <button class="btn-submit" id="submitBtn" onclick="go()">Find my matching jobs →</button>
+
+        <div class="progress" id="progressWrap">
+          <div class="step" id="s1"><div class="s-dot">1</div><span>Reading your resume...</span></div>
+          <div class="step" id="s2"><div class="s-dot">2</div><span>Scanning LinkedIn, Naukri, Indeed...</span></div>
+          <div class="step" id="s3"><div class="s-dot">3</div><span>AI scoring jobs against your profile...</span></div>
+          <div class="step" id="s4"><div class="s-dot">4</div><span>Preparing your matches...</span></div>
+        </div>
+
+        <div class="results" id="resultsBox">
+          <div class="results-hdr">
+            <div class="results-title">Your matches</div>
+            <div class="count-pill" id="countPill">0</div>
+          </div>
+          <div id="jobList"></div>
+          <div class="notice" id="scheduledNotice">✓ Daily digest scheduled — fresh unseen matches every morning at 9am IST. Zero duplicates guaranteed.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTACT -->
+<section class="contact-section" id="contact">
+  <div class="contact-inner">
+    <div class="contact-left">
+      <div class="eyebrow">Get in touch</div>
+      <div class="contact-heading">We're here to<br><em>help you.</em></div>
+      <div class="contact-sub">Have questions about your matches, profile, or the platform? Reach out on WhatsApp or email — we usually respond within a few hours.</div>
+    </div>
+    <div class="contact-items">
+      <a href="https://wa.me/917503061534" target="_blank" class="contact-item">
+        <div class="c-icon">📞</div>
+        <div><div class="c-label">WhatsApp / Call</div><div class="c-value">+91 75030 61534</div></div>
+      </a>
+      <a href="mailto:hello@jobmatchai.co.in" class="contact-item">
+        <div class="c-icon">✉️</div>
+        <div><div class="c-label">Email</div><div class="c-value">hello@jobmatchai.co.in</div></div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  JobMatch AI &nbsp;·&nbsp; Free during beta &nbsp;·&nbsp;
+  <a href="/privacy.html">Privacy Policy</a> &nbsp;·&nbsp;
+  <a href="mailto:hello@jobmatchai.co.in">hello@jobmatchai.co.in</a> &nbsp;·&nbsp;
+  Built with ♥ in India
+</footer>
+
+<script>
+var API='https://jobmatch-ai-z19k.onrender.com';
+var dz=document.getElementById('dropZone');
+var fi=document.getElementById('resumeFile');
+var fn=document.getElementById('fileName');
+
+fi.onchange=function(){var f=fi.files[0];if(f){dz.classList.add('done');fn.textContent='✓ '+f.name;}};
+['dragover','dragenter'].forEach(function(e){dz.addEventListener(e,function(ev){ev.preventDefault();dz.classList.add('hover');});});
+['dragleave','drop'].forEach(function(e){dz.addEventListener(e,function(ev){ev.preventDefault();dz.classList.remove('hover');});});
+dz.addEventListener('drop',function(ev){var f=ev.dataTransfer.files[0];if(f){fi.files=ev.dataTransfer.files;dz.classList.add('done');fn.textContent='✓ '+f.name;}});
+document.querySelectorAll('.chip').forEach(function(c){c.addEventListener('click',function(){setTimeout(function(){c.classList.toggle('on',c.querySelector('input').checked);},0);});});
+function getCities(){var a=[];document.querySelectorAll('.chip input:checked').forEach(function(cb){a.push(cb.value);});return a.length?a:['Bengaluru'];}
+
+function ss(n,st){var el=document.getElementById('s'+n);el.className='step '+st;var d=el.querySelector('.s-dot');d.textContent=st==='done'?'✓':st==='fail'?'✗':n;}
+function scoreColor(s){return s>=85?'#00875A':s>=70?'#0052FF':s>=55?'#92600A':'#6B7280';}
+function fitClass(s){return s>=85?'fit-s':s>=70?'fit-g':s>=55?'fit-p':'fit-w';}
+function fitLabel(s){return s>=85?'Strong fit':s>=70?'Good fit':s>=55?'Possible fit':'Weak fit';}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function jobCard(j,i){
+  var c=scoreColor(j.matchScore),r=15,circ=2*Math.PI*r,off=circ-(j.matchScore/100)*circ;
+  var showScore=j.matchScore>=70;
+  var d=document.createElement('div');d.className='job-card';d.style.animationDelay=(i*0.055)+'s';
+  d.innerHTML='<div class="job-top"><div style="flex:1;min-width:0"><div class="job-title">'+esc(j.title)+'</div><div class="job-co">'+esc(j.company)+' · '+esc(j.location)+'</div></div>'
+    +(showScore?'<div class="ring"><svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="'+r+'" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="3"/><circle cx="20" cy="20" r="'+r+'" fill="none" stroke="'+c+'" stroke-width="3" stroke-dasharray="'+circ+'" stroke-dashoffset="'+off+'" stroke-linecap="round" transform="rotate(-90 20 20)"/></svg><div class="ring-n" style="color:'+c+'">'+j.matchScore+'%</div></div>':'')
+    +'</div>'
+    +'<div class="job-tags"><span class="tag '+fitClass(j.matchScore)+'">'+fitLabel(j.matchScore)+'</span><span class="tag tag-src">'+esc(j.source||'AI')+'</span></div>'
+    +(j.verdict?'<div class="verdict">'+esc(j.verdict)+'</div>':'')
+    +'<div class="j-actions">'+(j.jobUrl?'<a class="jbtn apply" href="'+esc(j.jobUrl)+'" target="_blank">Apply →</a>':'')+(j.pitch?'<button class="jbtn" onclick="cp(this,\''+esc(j.pitch).replace(/'/g,'&#39;')+'\')">Copy pitch</button>':'')+'</div>';
+  return d;
+}
+function cp(btn,text){navigator.clipboard.writeText(text).then(function(){var o=btn.textContent;btn.textContent='Copied!';setTimeout(function(){btn.textContent=o;},2000);});}
+
+function showResults(jobs,sched){
+  var box=document.getElementById('resultsBox'),list=document.getElementById('jobList');
+  var filtered=jobs.filter(function(j){return j.matchScore>=55;});
+  filtered.sort(function(a,b){return b.matchScore-a.matchScore;});
+  document.getElementById('countPill').textContent=filtered.length+' jobs';
+  list.innerHTML='';
+  if(filtered.length===0){list.innerHTML='<div class="fallback"><h3>Searching more platforms...</h3><p>Your digest will arrive at your email within 10 minutes.</p></div>';}
+  else{filtered.forEach(function(j,i){list.appendChild(jobCard(j,i));});}
+  box.classList.add('show');
+  if(sched)document.getElementById('scheduledNotice').classList.add('show');
+  box.scrollIntoView({behavior:'smooth'});
+  document.getElementById('submitBtn').disabled=false;
+}
+function showFallback(email,sched){
+  var box=document.getElementById('resultsBox'),list=document.getElementById('jobList');
+  list.innerHTML='<div class="fallback"><h3>Search is running!</h3><p>Scanning LinkedIn, Naukri, Indeed and more right now.<br>Results arrive at <strong>'+esc(email)+'</strong> within 10 minutes.</p></div>';
+  document.getElementById('countPill').textContent='...';
+  box.classList.add('show');
+  if(sched)document.getElementById('scheduledNotice').classList.add('show');
+  document.getElementById('submitBtn').disabled=false;
+}
+function poll(runId,email,sched,n){
+  if(n>72){ss(2,'done');ss(3,'done');ss(4,'done');showFallback(email,sched);return;}
+  var msgs=['Scanning LinkedIn, Naukri, Indeed...','Scanning LinkedIn, Naukri, JSearch...','Scanning LinkedIn, Naukri, JSearch...','Scanning LinkedIn, Naukri, JSearch...','Scanning LinkedIn, Naukri, JSearch...','AI reading your resume...','AI reading your resume...','Scoring jobs against your profile...','Scoring jobs against your profile...','Scoring jobs against your profile...','Finalising your matches...'];
+  var sn=n<5?2:n<9?3:4;
+  for(var i=2;i<=4;i++){if(i<=sn)ss(i,'active');else ss(i,'');}
+  var el=document.querySelector('#s'+sn+' span');if(el)el.textContent=msgs[Math.min(n,msgs.length-1)];
+  setTimeout(function(){
+    fetch(API+'/results?runId='+encodeURIComponent(runId))
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(d.status==='ready'&&d.jobs&&d.jobs.length){ss(2,'done');ss(3,'done');ss(4,'done');showResults(d.jobs,sched);}
+        else if(d.status==='ready'){ss(2,'done');ss(3,'done');ss(4,'done');showFallback(email,sched);}
+        else poll(runId,email,sched,n+1);
+      }).catch(function(){poll(runId,email,sched,n+1);});
+  },5000);
+}
+function go(){
+  var name=document.getElementById('inp-name').value.trim();
+  var email=document.getElementById('inp-email').value.trim();
+  var phone=document.getElementById('inp-phone').value.trim();
+  var file=fi.files[0];
+  var sched=document.getElementById('alertToggle').checked;
+  var consent=document.getElementById('consentChk').checked;
+  var err=document.getElementById('errMsg');
+  err.classList.remove('show');
+  if(!name){err.textContent='Please enter your name.';err.classList.add('show');return;}
+  if(!email||!email.includes('@')){err.textContent='Please enter a valid email.';err.classList.add('show');return;}
+  if(!file){err.textContent='Please upload your resume.';err.classList.add('show');return;}
+  if(file.size>5*1024*1024){err.textContent='File too large. Max 5MB.';err.classList.add('show');return;}
+  if(!consent){err.textContent='Please agree to the Privacy Policy.';err.classList.add('show');return;}
+  document.getElementById('submitBtn').disabled=true;
+  document.getElementById('progressWrap').classList.add('show');
+  document.getElementById('resultsBox').classList.remove('show');
+  document.getElementById('scheduledNotice').classList.remove('show');
+  document.getElementById('jobList').innerHTML='';
+  ss(1,'active');ss(2,'');ss(3,'');ss(4,'');
+  var warmup=setTimeout(function(){var s=document.querySelector('#s1 span');if(s)s.textContent='Server warming up — almost ready...';},7000);
+  var fd=new FormData();
+  fd.append('name',name);fd.append('email',email);fd.append('phone',phone);
+  fd.append('resume',file);fd.append('schedule',sched?'1':'0');
+  fd.append('cities',JSON.stringify(getCities()));
+  fd.append('industry',document.getElementById('inp-industry')?.value||'');
+  var ctrl=new AbortController();
+  var tout=setTimeout(function(){ctrl.abort();},120000);
+  fetch(API+'/signup',{method:'POST',body:fd,signal:ctrl.signal})
+    .then(function(resp){clearTimeout(tout);clearTimeout(warmup);if(!resp.ok)return resp.json().then(function(e){throw new Error(e.error||'Server error');});return resp.json();})
+    .then(function(data){
+      ss(1,'done');
+      if(data.corrupted){ss(2,'done');ss(3,'done');ss(4,'done');showFallback(email,sched);return;}
+      if(data.runId){poll(data.runId,email,sched,0);}
+      else{ss(2,'done');ss(3,'done');ss(4,'done');showFallback(email,sched);}
+    })
+    .catch(function(e){clearTimeout(tout);clearTimeout(warmup);ss(1,'fail');var errEl=document.getElementById('errMsg');errEl.textContent=e.message||'Something went wrong. Please try again.';errEl.classList.add('show');document.getElementById('submitBtn').disabled=false;});
+}
+</script>
+</body>
+</html>
