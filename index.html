@@ -572,7 +572,7 @@ function showFallback(email,sched){
   document.getElementById('submitBtn').disabled=false;
 }
 function poll(runId,email,sched,n){
-  if(n>72){ss(2,'done');ss(3,'done');ss(4,'done');showFallback(email,sched);return;}
+  if(n>120){ss(2,'done');ss(3,'done');ss(4,'done');showFallback(email,sched);return;}
   var msgs=['Scanning LinkedIn, Naukri, Indeed...','Scanning LinkedIn, Naukri, JSearch...','Scanning LinkedIn, Naukri, JSearch...','Scanning LinkedIn, Naukri, JSearch...','Scanning LinkedIn, Naukri, JSearch...','AI reading your resume...','AI reading your resume...','Scoring jobs against your profile...','Scoring jobs against your profile...','Scoring jobs against your profile...','Finalising your matches...'];
   var sn=n<5?2:n<9?3:4;
   for(var i=2;i<=4;i++){if(i<=sn)ss(i,'active');else ss(i,'');}
@@ -614,14 +614,18 @@ function go(){
   fd.append('cities',JSON.stringify(getCities()));
   fd.append('industry',document.getElementById('inp-industry')?.value||'');
   var ctrl=new AbortController();
-  var tout=setTimeout(function(){ctrl.abort();},300000); // 5 min — handles Render cold start
+  var tout=setTimeout(function(){ctrl.abort();},600000); // 10 min — matches actor max runtime
   fetch(API+'/signup',{method:'POST',body:fd,signal:ctrl.signal})
     .then(function(resp){clearTimeout(tout);clearTimeout(warmup);if(!resp.ok)return resp.json().then(function(e){throw new Error(e.error||'Server error');});return resp.json();})
     .then(function(data){
       ss(1,'done');
       if(data.corrupted){ss(2,'done');ss(3,'done');ss(4,'done');showFallback(email,sched);return;}
-      if(data.runId){poll(data.runId,email,sched,0);}
-      else{ss(2,'done');ss(3,'done');ss(4,'done');showFallback(email,sched);}
+      if(data.runId){
+        sessionStorage.setItem('jm_runId', data.runId);
+        sessionStorage.setItem('jm_email', email);
+        sessionStorage.setItem('jm_sched', sched?'1':'0');
+        poll(data.runId,email,sched,0);
+      } else{ss(2,'done');ss(3,'done');ss(4,'done');showFallback(email,sched);}
     })
     .catch(function(e){clearTimeout(tout);clearTimeout(warmup);ss(1,'fail');var errEl=document.getElementById('errMsg');var msg=e.message||'';errEl.textContent=msg.includes('fetch')||msg.includes('abort')?'Server is warming up — please wait 30 seconds and try again.':msg||'Something went wrong. Please try again.';errEl.classList.add('show');document.getElementById('submitBtn').disabled=false;});
 }
