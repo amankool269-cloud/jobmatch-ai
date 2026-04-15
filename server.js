@@ -351,8 +351,12 @@ async function triggerApify(email, profile, cities) {
 }
 
 // ── Poll Apify ────────────────────────────────────────────────────────────────
+// pollApifyRun is now lightweight — just warms the cache if server is awake
+// The real status check happens in /results route directly via Apify API
+// This survives Render restarts because runId is sent back to the frontend
 async function pollApifyRun(runId) {
-    for (let i = 0; i < 72; i++) {  // 72 × 5s = 6 min max
+    // Still poll server-side to warm cache when server stays alive
+    for (let i = 0; i < 72; i++) {
         await new Promise(r => setTimeout(r, 5000));
         try {
             const resp = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_TOKEN}`);
@@ -398,12 +402,42 @@ app.get('/debug', async (req, res) => {
     });
 });
 
-app.get('/results', (req, res) => {
+app.get('/results', async (req, res) => {
     const { runId } = req.query;
     if (!runId) return res.json({ status: 'pending' });
+
+    // 1. Check in-memory cache first (fast path)
     const cached = runCache.get(runId);
     if (cached?.ready) return res.json({ status: 'ready', jobs: cached.jobs });
-    return res.json({ status: 'pending' });
+
+    // 2. Cache miss (server restarted) — check Apify directly
+    // This is the key fix: runId is safe to pass to Apify even after restart
+    if (!APIFY_TOKEN) return res.json({ status: 'pending' });
+    try {
+        const resp = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_TOKEN}`);
+        if (!resp.ok) return res.json({ status: 'pending' });
+        const data = await resp.json();
+        const status = data?.data?.status;
+        console.log(`/results direct Apify check: ${runId} → ${status}`);
+
+        if (status === 'SUCCEEDED') {
+            const dsResp = await fetch(`https://api.apify.com/v2/datasets/${data.data.defaultDatasetId}/items?token=${APIFY_TOKEN}&limit=50`);
+            const items = await dsResp.json();
+            const jobs = Array.isArray(items) ? items : [];
+            runCache.set(runId, { ready: true, jobs });
+            setTimeout(() => runCache.delete(runId), 3600000);
+            return res.json({ status: 'ready', jobs });
+        }
+        if (status === 'FAILED' || status === 'ABORTED' || status === 'TIMED-OUT') {
+            runCache.set(runId, { ready: true, jobs: [] });
+            return res.json({ status: 'ready', jobs: [] });
+        }
+        // Still RUNNING or READY
+        return res.json({ status: 'pending' });
+    } catch (e) {
+        console.error(`/results Apify check error: ${e.message}`);
+        return res.json({ status: 'pending' });
+    }
 });
 
 app.post('/signup', upload.single('resume'), async (req, res) => {
