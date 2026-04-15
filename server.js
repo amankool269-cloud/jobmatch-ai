@@ -324,7 +324,7 @@ async function sendWelcomeEmail(name, email, profile) {
 }
 
 // ── Trigger Apify actor ───────────────────────────────────────────────────────
-async function triggerApify(email, profile, cities) {
+async function triggerApify(name, email, profile, cities) {
     if (!APIFY_TOKEN) throw new Error('APIFY_TOKEN not set');
     const actorId = (APIFY_ACTOR_ID || '').replace('/', '~');
     const resp = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${APIFY_TOKEN}`, {
@@ -537,7 +537,7 @@ app.post('/signup', upload.single('resume'), async (req, res) => {
         await saveToAirtable(name, email, phone, cities, profile).catch(e => console.error('Airtable:', e.message));
         sendWelcomeEmail(name, email, profile).catch(e => console.error('Email:', e.message));
 
-        const runId = await triggerApify(email, profile, cities);
+        const runId = await triggerApify(name, email, profile, cities);
         pollApifyRun(runId).catch(e => console.error('Poll:', e.message));
 
         res.json({ success: true, runId, profile, totalTime: Date.now()-t0 });
