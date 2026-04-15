@@ -341,6 +341,22 @@ async function triggerApify(email, profile, cities) {
             brevoFromName: BREVO_FROM_NAME,
             maxResultsPerSource: 10,
             filterEmail: email,
+            // Pass full profile directly so actor doesn't re-fetch from Airtable
+            // This fixes the race condition where Airtable write hasn't committed yet
+            inlineProfile: {
+                name: profile.name || email.split('@')[0],
+                email,
+                targetRole:   profile.targetRole   || profile.currentRole || '',
+                currentRole:  profile.currentRole  || '',
+                experience:   profile.experience   || '3 years',
+                seniority:    profile.seniority    || 'mid-level',
+                domain:       profile.domain       || '',
+                skills:       profile.skills       || '',
+                education:    profile.education    || '',
+                companyType:  profile.companyType  || '',
+                location:     profile.location     || (cities?.[0] || 'Bengaluru'),
+                cities:       cities               || ['Bengaluru'],
+            },
         })
     });
     const text = await resp.text();
@@ -513,7 +529,8 @@ app.post('/signup', upload.single('resume'), async (req, res) => {
             console.log(`Domain overridden by user selection: ${profile.domain}`);
         }
 
-        saveToAirtable(name, email, phone, cities, profile).catch(e => console.error('Airtable:', e.message));
+        // Await Airtable save before triggering Apify (prevents race condition)
+        await saveToAirtable(name, email, phone, cities, profile).catch(e => console.error('Airtable:', e.message));
         sendWelcomeEmail(name, email, profile).catch(e => console.error('Email:', e.message));
 
         const runId = await triggerApify(email, profile, cities);
