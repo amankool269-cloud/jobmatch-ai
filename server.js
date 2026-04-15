@@ -352,7 +352,7 @@ async function triggerApify(email, profile, cities) {
 
 // ── Poll Apify ────────────────────────────────────────────────────────────────
 async function pollApifyRun(runId) {
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 72; i++) {  // 72 × 5s = 6 min max
         await new Promise(r => setTimeout(r, 5000));
         try {
             const resp = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_TOKEN}`);
