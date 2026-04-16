@@ -114,7 +114,7 @@ EXAMPLES:
 
     try {
         const msg = await claude.messages.create({
-            model: 'claude-haiku-4-5-20251001', max_tokens: 800,
+            model: 'claude-haiku-4-5-20251001', max_tokens: 400,
             messages: [{ role: 'user', content }]
         });
         const raw = msg.content[0].text.replace(/```json|```/g, '').trim();
@@ -287,26 +287,30 @@ async function sendWelcomeEmail(name, email, profile) {
             body: JSON.stringify({
                 sender: { name: BREVO_FROM_NAME, email: BREVO_FROM_EMAIL },
                 to: [{ email, name }],
-                subject: `Welcome ${name} — searching ${profile.targetRole || 'your next role'} now!`,
-                htmlContent: `<div style="font-family:-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:24px">
-<div style="background:#0055FF;border-radius:12px;padding:20px 24px;margin-bottom:20px">
-  <div style="font-size:18px;font-weight:700;color:#fff">JobMatch AI</div>
-  <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:2px">Your AI job search is live</div>
+                subject: `You're set, ${name} — first matches arriving within 10 minutes`,
+                htmlContent: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:540px;margin:0 auto;background:#f9fafb;padding:24px">
+<div style="background:#0055FF;border-radius:14px;padding:22px 26px;margin-bottom:20px">
+  <div style="font-size:20px;font-weight:700;color:#fff;letter-spacing:-0.02em">JobMatch AI</div>
+  <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:3px">Your AI-powered job search is now live</div>
 </div>
-<p style="color:#374151;font-size:14px;margin-bottom:16px">Hi <strong>${name}</strong> — we have read your resume and are now scanning LinkedIn, Naukri, iimjobs, Instahyre and more.</p>
-<div style="background:#f9fafb;border-radius:10px;padding:14px;margin:16px 0;font-size:13px;color:#374151">
-  <b>Your profile:</b><br><br>
-  Role: ${profile.targetRole || profile.currentRole}<br>
-  Experience: ${profile.experience} · ${profile.seniority}<br>
-  Domain: ${profile.domain}<br>
-  Skills: ${profile.skills}
+<div style="background:#fff;border-radius:12px;padding:20px 22px;margin-bottom:14px;border:1px solid #e5e7eb">
+  <p style="color:#111;font-size:15px;font-weight:600;margin:0 0 12px">Hi ${name},</p>
+  <p style="color:#374151;font-size:13px;line-height:1.7;margin:0 0 16px">We've read your resume and built your profile. We're now scanning <strong>LinkedIn, Naukri, Indeed, Glassdoor</strong> and more for roles that match you specifically.</p>
+  <div style="background:#f0f4ff;border-radius:10px;padding:14px 16px;font-size:13px;color:#374151;margin-bottom:16px">
+    <div style="font-size:10px;font-weight:700;color:#0055FF;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px">Your profile</div>
+    <b>Target role:</b> ${profile.targetRole || profile.currentRole}<br>
+    <b>Industry:</b> ${profile.domain}<br>
+    <b>Experience:</b> ${profile.experience} &middot; ${profile.seniority}<br>
+    <b>Top skills:</b> ${(profile.skills||'').split(',').slice(0,4).join(', ')}
+  </div>
+  <div style="font-size:13px;color:#374151;line-height:1.8">
+    <div style="margin-bottom:6px">&#9989; First results arriving <strong>within 10 minutes</strong></div>
+    <div style="margin-bottom:6px">&#9989; Daily digest every morning at <strong>9am IST</strong></div>
+    <div style="margin-bottom:6px">&#9989; Every match includes a <strong>personalised recruiter pitch</strong></div>
+    <div>&#9989; <strong>Zero duplicate jobs</strong> — ever</div>
+  </div>
 </div>
-<div style="background:#e8f0ff;padding:14px;border-radius:10px;color:#0055FF;font-size:13px">
-  &#10003; Job digest arriving within 10 minutes<br>
-  &#10003; Fresh matches every morning at 8am IST<br>
-  &#10003; Zero duplicate jobs ever
-</div>
-<p style="font-size:11px;color:#9ca3af;margin-top:20px">JobMatch AI &middot; Free Beta &middot; <a href="mailto:hello@jobmatchai.co.in" style="color:#0055FF">hello@jobmatchai.co.in</a></p>
+<p style="font-size:11px;color:#9ca3af;text-align:center;margin:0">JobMatch AI &middot; Free Beta &middot; <a href="mailto:hello@jobmatchai.co.in" style="color:#0055FF">hello@jobmatchai.co.in</a></p>
 </div>`
             })
         });
