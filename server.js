@@ -1,4 +1,4 @@
-import express from 'express';
+vimport express from 'express';
 import multer from 'multer';
 import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
@@ -345,6 +345,7 @@ async function triggerApify(name, email, profile, cities) {
             brevoFromName: BREVO_FROM_NAME,
             maxResultsPerSource: 10,
             filterEmail: email,
+            unsubscribeSecret: process.env.UNSUBSCRIBE_SECRET || 'jobmatch-secret-2026',
             // Pass full profile directly so actor doesn't re-fetch from Airtable
             // This fixes the race condition where Airtable write hasn't committed yet
             inlineProfile: {
