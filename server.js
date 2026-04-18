@@ -586,27 +586,24 @@ app.get('/feedback', async (req, res) => {
         const rec = data.records?.[0];
         if (!rec) return res.send(page('Not found', 'We could not find your account.', '', ''));
 
-        // Save rating — try number first, then string (handles both Number and Text field types)
-        let ratingSaved = false;
-        const ratingPayloads = [
-            { 'Rating': r, 'Rated On': new Date().toISOString().split('T')[0] },
-            { 'Rating': String(r), 'Rated On': new Date().toISOString().split('T')[0] },
-        ];
-        for (const fields of ratingPayloads) {
-            const saveResp = await fetch(`${url}/${rec.id}`, {
+        // Try saving rating as number, then as string
+        // Airtable field type determines which works
+        let saved = false;
+        for (const val of [r, String(r), ['😞','😐','🙂','😊','🤩'][r-1]]) {
+            const sr = await fetch(`${url}/${rec.id}`, {
                 method: 'PATCH', headers,
-                body: JSON.stringify({ fields })
+                body: JSON.stringify({ fields: { 'Rating': val } })
             });
-            const saveData = await saveResp.json();
-            if (saveResp.ok) {
-                console.log(`Rating ${r} saved for ${email} ✅ fields: ${JSON.stringify(Object.keys(saveData.fields||{}))}`);
-                ratingSaved = true;
+            const sd = await sr.json();
+            if (sr.ok) {
+                console.log(`Rating ${r} (as ${typeof val}) saved for ${email} ✅`);
+                saved = true;
                 break;
             } else {
-                console.error(`Rating save attempt failed (${saveResp.status}): ${JSON.stringify(saveData)}`);
+                console.error(`Rating save failed with value "${val}" (${sr.status}): ${sd?.error?.message}`);
             }
         }
-        if (!ratingSaved) console.error(`All rating save attempts failed for ${email}`);
+        if (!saved) console.error(`All rating save attempts failed for ${email}`);
 
         const stars = '★'.repeat(r) + '☆'.repeat(5 - r);
         res.send(feedbackPage(stars, r, email, token));
@@ -636,7 +633,7 @@ app.post('/feedback/comment', async (req, res) => {
         }
         const saveResp = await fetch(`${url}/${rec.id}`, {
             method: 'PATCH', headers,
-            body: JSON.stringify({ fields: { 'Feedback': comment || '', 'Rated On': new Date().toISOString().split('T')[0] }})
+            body: JSON.stringify({ fields: { 'Feedback': comment || '' } })
         });
         const saveData = await saveResp.json();
         if (!saveResp.ok) {
