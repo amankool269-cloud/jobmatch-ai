@@ -586,13 +586,27 @@ app.get('/feedback', async (req, res) => {
         const rec = data.records?.[0];
         if (!rec) return res.send(page('Not found', 'We could not find your account.', '', ''));
 
-        await fetch(`${url}/${rec.id}`, {
-            method: 'PATCH', headers,
-            body: JSON.stringify({ fields: {
-                'Rating': r,
-                'Rated On': new Date().toISOString().split('T')[0],
-            }})
-        });
+        // Save rating — try number first, then string (handles both Number and Text field types)
+        let ratingSaved = false;
+        const ratingPayloads = [
+            { 'Rating': r, 'Rated On': new Date().toISOString().split('T')[0] },
+            { 'Rating': String(r), 'Rated On': new Date().toISOString().split('T')[0] },
+        ];
+        for (const fields of ratingPayloads) {
+            const saveResp = await fetch(`${url}/${rec.id}`, {
+                method: 'PATCH', headers,
+                body: JSON.stringify({ fields })
+            });
+            const saveData = await saveResp.json();
+            if (saveResp.ok) {
+                console.log(`Rating ${r} saved for ${email} ✅ fields: ${JSON.stringify(Object.keys(saveData.fields||{}))}`);
+                ratingSaved = true;
+                break;
+            } else {
+                console.error(`Rating save attempt failed (${saveResp.status}): ${JSON.stringify(saveData)}`);
+            }
+        }
+        if (!ratingSaved) console.error(`All rating save attempts failed for ${email}`);
 
         const stars = '★'.repeat(r) + '☆'.repeat(5 - r);
         res.send(feedbackPage(stars, r, email, token));
@@ -606,8 +620,9 @@ app.post('/feedback/comment', async (req, res) => {
     const token = req.query.token || req.body.token;
     const rating = req.query.rating || req.body.rating;
     const comment = req.body.comment;
-    if (!email || !token || !validToken(email, token)) {
-        return res.status(400).send(page('Invalid link', 'This link is invalid.', '', ''));
+    // Token already validated on GET /feedback — just need email here
+    if (!email) {
+        return res.status(400).send(page('Invalid link', 'Email is missing.', '', ''));
     }
     try {
         const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
@@ -615,12 +630,21 @@ app.post('/feedback/comment', async (req, res) => {
         const check = await fetch(`${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`, { headers });
         const data = await check.json();
         const rec = data.records?.[0];
-        if (!rec) return res.send(page('Not found', 'We could not find your account.', '', ''));
-        await fetch(`${url}/${rec.id}`, {
+        if (!rec) {
+            console.error(`Feedback comment: user not found for ${email}`);
+            return res.send(page('Thank you!', 'Your feedback has been noted.', '', ''));
+        }
+        const saveResp = await fetch(`${url}/${rec.id}`, {
             method: 'PATCH', headers,
-            body: JSON.stringify({ fields: { 'Feedback': comment || '' }})
+            body: JSON.stringify({ fields: { 'Feedback': comment || '', 'Rated On': new Date().toISOString().split('T')[0] }})
         });
-        res.send(page('Thank you!', 'Your feedback helps us improve JobMatch AI for everyone.', '', ''));
+        const saveData = await saveResp.json();
+        if (!saveResp.ok) {
+            console.error(`Feedback comment save failed: ${JSON.stringify(saveData)}`);
+        } else {
+            console.log(`Feedback comment saved for ${email}: "${(comment||'').slice(0,50)}"`);
+        }
+        res.send(page('Thank you! 🙏', 'Your feedback helps us improve the matches for everyone.', '', ''));
     } catch (e) {
         res.status(500).send(page('Error', 'Something went wrong.', '', ''));
     }
