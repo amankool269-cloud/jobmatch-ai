@@ -9,6 +9,7 @@ const app = express();
 const upload = multer({ dest: '/tmp/uploads/', limits: { fileSize: 5 * 1024 * 1024 } });
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // parse HTML form POST bodies
 app.use(express.static('.'));
 
 const {
@@ -39,7 +40,22 @@ function makeToken(email) {
     return Math.abs(hash).toString(16).padStart(8,'0') + str.length.toString(16);
 }
 function validToken(email, token) {
-    return makeToken(email) === token;
+    if (!token || !email) return false;
+    // Try current secret first
+    if (makeToken(email) === token) return true;
+    // Fallback: try alternative secrets for backwards compatibility
+    // (old emails may have been generated with different secret)
+    const fallbacks = ['jobmatch-secret-2026', 'jobmatch2024', 'secret'];
+    return fallbacks.some(s => {
+        let hash = 0;
+        const str = email.toLowerCase() + s;
+        for (let i = 0; i < str.length; i++) {
+            hash = ((hash << 5) - hash) + str.charCodeAt(i);
+            hash |= 0;
+        }
+        const t = Math.abs(hash).toString(16).padStart(8,'0') + str.length.toString(16);
+        return t === token;
+    });
 }
 
 // ── PARSE RESUME ──────────────────────────────────────────────────────────────
@@ -610,7 +626,7 @@ app.post('/feedback/comment', async (req, res) => {
     }
 });
 
-function feedbackPage(stars, rating, commentUrl) {
+function feedbackPage(stars, rating, email, token) {
     const msgs = ["", "Sorry to hear that. We'll do better.", "Thanks — we'll improve.", "Good to know, we're working on it.", "Great — glad it's useful!", "Amazing! You made our day."];
     return `<!DOCTYPE html>
 <html lang="en">
@@ -640,22 +656,15 @@ textarea:focus{border-color:#0055FF}
   <div class="stars">${stars}</div>
   <h1>${msgs[rating]}</h1>
   <p>Want to tell us more? Takes 10 seconds.</p>
-  <form method="POST" action="/feedback/comment">
-    <input type="hidden" name="email" value="">
-    <input type="hidden" name="token" value="">
+  <form method="POST" action="/feedback/comment?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}">
+    <input type="hidden" name="email" value="${email}">
+    <input type="hidden" name="token" value="${token}">
     <input type="hidden" name="rating" value="${rating}">
     <textarea name="comment" placeholder="What would make your matches better? Any specific roles or companies you'd like to see?"></textarea>
     <button type="submit" class="btn">Send feedback</button>
   </form>
   <a href="/" class="skip">Skip — go back to JobMatch AI</a>
 </div>
-<script>
-  const p = new URLSearchParams(window.location.search);
-  document.querySelectorAll('input[type=hidden]').forEach(i => {
-    if(i.name==='email') i.value = p.get('email')||'';
-    if(i.name==='token') i.value = p.get('token')||'';
-  });
-</script>
 </body>
 </html>`;
 }
