@@ -531,14 +531,14 @@ document.querySelectorAll('.chip').forEach(function(c){c.addEventListener('click
 function getCities(){var a=[];document.querySelectorAll('.chip input:checked').forEach(function(cb){a.push(cb.value);});return a.length?a:['Bengaluru'];}
 
 function ss(n,st){var el=document.getElementById('s'+n);el.className='step '+st;var d=el.querySelector('.s-dot');d.textContent=st==='done'?'✓':st==='fail'?'✗':n;}
-function scoreColor(s){return s>=85?'#00875A':s>=70?'#0052FF':s>=55?'#92600A':'#6B7280';}
-function fitClass(s){return s>=85?'fit-s':s>=70?'fit-g':s>=55?'fit-p':'fit-w';}
+function scoreColor(s){return s>=85?'#00875A':s>=70?'#0052FF':'#6B7280';}
+function fitClass(s){return s>=85?'fit-s':s>=70?'fit-g':'fit-p';}
 function fitLabel(s){return s>=85?'Strong fit':s>=70?'Good fit':s>=55?'Possible fit':'Weak fit';}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 function jobCard(j,i){
   var c=scoreColor(j.matchScore),r=15,circ=2*Math.PI*r,off=circ-(j.matchScore/100)*circ;
-  var showScore=j.matchScore>=70;
+  var showScore=j.matchScore>=55;
   var d=document.createElement('div');d.className='job-card';d.style.animationDelay=(i*0.055)+'s';
   d.innerHTML='<div class="job-top"><div style="flex:1;min-width:0"><div class="job-title">'+esc(j.title)+'</div><div class="job-co">'+esc(j.company)+' · '+esc(j.location)+'</div></div>'
     +(showScore?'<div class="ring"><svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="'+r+'" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="3"/><circle cx="20" cy="20" r="'+r+'" fill="none" stroke="'+c+'" stroke-width="3" stroke-dasharray="'+circ+'" stroke-dashoffset="'+off+'" stroke-linecap="round" transform="rotate(-90 20 20)"/></svg><div class="ring-n" style="color:'+c+'">'+j.matchScore+'%</div></div>':'')
@@ -556,8 +556,12 @@ function showResults(jobs,sched){
   filtered.sort(function(a,b){return b.matchScore-a.matchScore;});
   document.getElementById('countPill').textContent=filtered.length+' jobs';
   list.innerHTML='';
-  if(filtered.length===0){list.innerHTML='<div class="fallback"><h3>Searching more platforms...</h3><p>Your digest will arrive at your email within 10 minutes.</p></div>';}
-  else{filtered.forEach(function(j,i){list.appendChild(jobCard(j,i));});}
+  if(filtered.length===0){
+    var msg=jobs&&jobs.length>0
+      ?'<div class="fallback"><h3>Matches found — digest sent!</h3><p>We found '+jobs.length+' jobs but they scored below 55% match for your profile. We have improved the search and your daily digest will have stronger matches from tomorrow.</p></div>'
+      :'<div class="fallback"><h3>Search complete</h3><p>No strong matches found today across all platforms. Your daily digest will search again tomorrow at 9am with fresh postings.</p></div>';
+    list.innerHTML=msg;
+  } else{filtered.forEach(function(j,i){list.appendChild(jobCard(j,i));});}
   box.classList.add('show');
   if(sched)document.getElementById('scheduledNotice').classList.add('show');
   box.scrollIntoView({behavior:'smooth'});
