@@ -826,10 +826,10 @@ app.get('/dashboard', async (req, res) => {
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f8;color:#111;min-height:100vh}
-.topbar{background:#0A0F1E;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.topbar{background:#0055FF;padding:14px 22px;display:flex;align-items:center;justify-content:space-between}
 .logo{font-size:16px;font-weight:500;color:#fff;letter-spacing:-0.02em}
-.logo span{color:#4A8DFF}
-.topbar-right{font-size:12px;color:rgba(255,255,255,0.45)}
+.logo span{color:rgba(255,255,255,0.7)}
+.topbar-right{font-size:12px;color:rgba(255,255,255,0.65)}
 .page{max-width:640px;margin:0 auto;padding:20px 16px 40px}
 .section{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px 20px;margin-bottom:14px}
 .section-title{font-size:12px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #f1f5f9}
@@ -897,12 +897,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="section">
     <div class="section-title">Your latest matches</div>
     <div class="info-box">
-      <p>Your daily digest lands at <strong>9:00 AM IST</strong> every morning.<br>
-      Every role is fresh — nothing you have seen before.<br><br>
-      Open your most recent email to see today's matches, hiring contacts, and referral paths.</p>
+      <p>Your daily digest lands at <strong>9:00 AM IST</strong> every morning. Every role is fresh — nothing you have seen before.</p>
     </div>
+    <p style="font-size:13px;color:#6b7280;margin-top:12px;line-height:1.6">Open your most recent email to see today's full match cards, hiring contacts, and referral paths. Match history on dashboard — coming soon.</p>
     <div class="action-row">
-      <a href="mailto:hello@jobmatchai.co.in?subject=Update my profile&body=Hi, I'd like to update my profile. My email is ${encodeURIComponent(email)}." class="btn btn-primary">Update profile</a>
+      <a href="${SERVER_URL}/profile?email=${encodeURIComponent(email)}&token=${token}" class="btn btn-primary">Update profile</a>
       <a href="${unsubUrl}" class="btn btn-ghost">Unsubscribe</a>
     </div>
   </div>
@@ -934,6 +933,114 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     } catch (e) {
         console.error('Dashboard error:', e.message);
         res.status(500).send('Something went wrong. Please try again or email hello@jobmatchai.co.in');
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// PROFILE EDITOR — /profile?email=x&token=y
+// Lets users update their target role, location, skills, company pref
+// Saves directly to Airtable
+// ═══════════════════════════════════════════════════════════════════
+app.get('/profile', async (req, res) => {
+    const { email, token, saved } = req.query;
+    if (!email || !token || token !== makeToken(email))
+        return res.status(403).send('Invalid link.');
+
+    try {
+        const AT = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
+        const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` };
+        const r = await fetch(`${AT}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}&maxRecords=1`, { headers });
+        const d = await r.json();
+        const rec = d.records?.[0];
+        if (!rec) return res.status(404).send('Profile not found.');
+        const f = rec.fields;
+
+        res.send(`<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Update Profile — JobMatch AI</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f8;min-height:100vh}
+.topbar{background:#0055FF;padding:14px 22px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:16px;font-weight:500;color:#fff;letter-spacing:-0.02em}
+.page{max-width:540px;margin:0 auto;padding:24px 16px 40px}
+.section{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px;margin-bottom:14px}
+.section-title{font-size:12px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #f1f5f9}
+label{display:block;font-size:12px;color:#6b7280;margin-bottom:4px;margin-top:14px}
+label:first-of-type{margin-top:0}
+input,select,textarea{width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;color:#111;background:#fff;outline:none;font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:#1d4ed8}
+textarea{resize:vertical;min-height:70px}
+.btn{display:block;width:100%;padding:11px;background:#0055FF;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;margin-top:20px;text-align:center}
+.back{font-size:13px;color:#1d4ed8;text-decoration:none;display:inline-block;margin-top:14px}
+.saved-banner{background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:12px 16px;font-size:13px;color:#166534;margin-bottom:14px;font-weight:500}
+.hint{font-size:11px;color:#9ca3af;margin-top:3px}
+</style></head><body>
+<div class="topbar"><div class="logo">JobMatch AI</div></div>
+<div class="page">
+${saved === '1' ? '<div class="saved-banner">Profile updated — your next digest will use the new details.</div>' : ''}
+<div class="section">
+<div class="section-title">Update your profile</div>
+<form method="POST" action="/profile">
+<input type="hidden" name="email" value="${email}">
+<input type="hidden" name="token" value="${token}">
+<label>Target role</label>
+<input type="text" name="targetRole" value="${(f['Target role']||'').replace(/"/g,'&quot;')}" placeholder="e.g. Director of Partnerships">
+<label>Current role</label>
+<input type="text" name="currentRole" value="${(f['Current role']||'').replace(/"/g,'&quot;')}" placeholder="e.g. Senior Manager Partnerships">
+<label>Experience</label>
+<input type="text" name="experience" value="${(f['Experience']||'').replace(/"/g,'&quot;')}" placeholder="e.g. 9 years">
+<label>Domain / Industry</label>
+<input type="text" name="domain" value="${(f['Domain']||'').replace(/"/g,'&quot;')}" placeholder="e.g. Fintech / NBFC / Digital Lending">
+<label>Location</label>
+<input type="text" name="location" value="${(f['Location']||'').replace(/"/g,'&quot;')}" placeholder="e.g. Bengaluru">
+<label>Company preference</label>
+<select name="companyType">
+  <option value="">Open to all</option>
+  ${['startup','growth-stage','enterprise','MNC','NBFC','agency'].map(v => `<option value="${v}" ${(f['Company type']||'').toLowerCase()===v?'selected':''}>${v.charAt(0).toUpperCase()+v.slice(1)}</option>`).join('')}
+</select>
+<label>Key skills <span class="hint">(comma separated, top 5-8)</span></label>
+<textarea name="skills">${f['Skills']||''}</textarea>
+<button type="submit" class="btn">Save profile</button>
+</form>
+</div>
+<a href="/dashboard?email=${encodeURIComponent(email)}&token=${token}" class="back">← Back to dashboard</a>
+</div></body></html>`);
+    } catch(e) {
+        res.status(500).send('Error loading profile. Please try again.');
+    }
+});
+
+app.post('/profile', async (req, res) => {
+    const { email, token, targetRole, currentRole, experience, domain, location, companyType, skills } = req.body;
+    if (!email || !token || token !== makeToken(email))
+        return res.status(403).send('Invalid link.');
+
+    try {
+        const AT = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
+        const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
+        const r = await fetch(`${AT}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}&maxRecords=1`, { headers });
+        const d = await r.json();
+        const rec = d.records?.[0];
+        if (!rec) return res.status(404).send('Profile not found.');
+
+        await fetch(`${AT}/${rec.id}`, {
+            method: 'PATCH', headers,
+            body: JSON.stringify({ fields: {
+                'Target role':  targetRole  || rec.fields['Target role']  || '',
+                'Current role': currentRole || rec.fields['Current role'] || '',
+                'Experience':   experience  || rec.fields['Experience']  || '',
+                'Domain':       domain      || rec.fields['Domain']      || '',
+                'Location':     location    || rec.fields['Location']    || '',
+                'Company type': companyType || rec.fields['Company type']|| '',
+                'Skills':       skills      || rec.fields['Skills']      || '',
+            }})
+        });
+
+        res.redirect(`/profile?email=${encodeURIComponent(email)}&token=${token}&saved=1`);
+    } catch(e) {
+        res.status(500).send('Error saving profile. Please try again.');
     }
 });
 
