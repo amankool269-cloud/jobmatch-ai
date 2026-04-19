@@ -19,6 +19,7 @@ const {
     PORT = 3000,
 } = process.env;
 const UNSUB_SECRET = process.env.UNSUBSCRIBE_SECRET || 'jobmatch-secret-2026';
+const SERVER_URL   = process.env.SERVER_URL || 'https://jobmatch-ai-z19k.onrender.com';
 
 const claude = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
