@@ -815,8 +815,42 @@ app.get('/dashboard', async (req, res) => {
             }
         } catch {}
 
+        // Fetch LastMatches — compact JSON saved by actor after each run
+        let matchCards = '';
+        try {
+            const rawMatches = rec['LastMatches'] || '';
+            if (rawMatches) {
+                const matches = JSON.parse(rawMatches);
+                const sc = s => s>=85?'#059669':s>=70?'#1d4ed8':'#6b7280';
+                const bb = s => s>=85?'#dcfce7':s>=70?'#dbeafe':'#f3f4f6';
+                const bc = s => s>=85?'#166534':s>=70?'#1e40af':'#4b5563';
+                const lb = s => s>=85?'#059669':s>=70?'#1d4ed8':'#d1d5db';
+                matchCards = matches.map(j => `
+<div style="background:#fff;border:0.5px solid #e2e8f0;border-left:4px solid ${lb(j.s)};border-radius:10px;padding:13px 15px;margin-bottom:10px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:500;color:#111;line-height:1.4;margin-bottom:3px">${j.t}</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:6px">${j.c}${j.src ? ' · ' + j.src : ''}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
+        <span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;background:${bb(j.s)};color:${bc(j.s)}">${j.f||'Match'}</span>
+        ${j.sal ? `<span style="font-size:10px;color:#059669;font-weight:500;padding:2px 8px;border-radius:20px;background:#f0fdf4">${j.sal}</span>` : ''}
+        ${j.exp ? `<span style="font-size:10px;color:#6b7280;padding:2px 8px;border-radius:20px;background:#f9fafb">${j.exp}</span>` : ''}
+        ${j.ap ? `<span style="font-size:10px;color:${parseInt(j.ap)>200?'#dc2626':parseInt(j.ap)<25?'#059669':'#d97706'};padding:2px 8px;border-radius:20px;background:#f9fafb">${j.ap} applicants</span>` : ''}
+      </div>
+      ${j.v ? `<div style="font-size:11px;color:#6b7280;line-height:1.6;border-left:2px solid ${lb(j.s)};padding-left:8px">${j.v}</div>` : ''}
+    </div>
+    <div style="text-align:center;flex-shrink:0;min-width:52px">
+      <div style="font-size:22px;font-weight:500;color:${sc(j.s)};line-height:1.1">${j.s}%</div>
+      <div style="font-size:9px;color:#9ca3af;margin-bottom:6px">match</div>
+      ${j.u ? `<a href="${j.u}" style="display:block;background:#1d4ed8;color:#fff;padding:6px 4px;border-radius:7px;text-decoration:none;font-size:10px;font-weight:500">Apply</a>` : ''}
+    </div>
+  </div>
+</div>`).join('');
+            }
+        } catch {}
+
+        const matchRunDate = rec['LastRun'] ? new Date(rec['LastRun']).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : null;
         const unsubUrl = `/unsubscribe?email=${encodeURIComponent(email)}&token=${token}`;
-        const runUrl   = `/run?email=${encodeURIComponent(email)}&token=${token}`;
 
         res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -896,12 +930,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 
   <div class="section">
-    <div class="section-title">Your latest matches</div>
-    <div class="info-box">
-      <p>Your daily digest lands at <strong>9:00 AM IST</strong> every morning. Every role is fresh — nothing you have seen before.</p>
-    </div>
-    <p style="font-size:13px;color:#6b7280;margin-top:12px;line-height:1.6">Open your most recent email to see today's full match cards, hiring contacts, and referral paths. Match history on dashboard — coming soon.</p>
-    <div class="action-row">
+    <div class="section-title">Your latest matches${matchRunDate ? ' &middot; ' + matchRunDate : ''}</div>
+    ${matchCards ? matchCards : '<div class="info-box"><p>Your next digest arrives at <strong>9:00 AM IST</strong> tomorrow. Matches appear here automatically after each run.</p></div>'}
+    <div class="action-row" style="margin-top:12px">
       <a href="${SERVER_URL}/profile?email=${encodeURIComponent(email)}&token=${token}" class="btn btn-primary">Update profile</a>
       <a href="${unsubUrl}" class="btn btn-ghost">Unsubscribe</a>
     </div>
