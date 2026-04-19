@@ -766,6 +766,177 @@ p{font-size:0.9rem;color:#666;line-height:1.65;margin-bottom:1.5rem}
 </html>`;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD — /dashboard?email=x&token=y
+// Read-only personalised page. Token = same hash as unsubscribe.
+// Shows: latest matches, profile summary, feedback history
+// ═══════════════════════════════════════════════════════════════════
+app.get('/dashboard', async (req, res) => {
+    const { email, token } = req.query;
+    if (!email || !token) return res.redirect('/');
+
+    // Validate token
+    const expected = makeToken(email);
+    if (token !== expected) return res.status(403).send('Invalid link. Please use the link from your email.');
+
+    try {
+        const AT = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
+        const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` };
+
+        // Fetch user profile
+        const userResp = await fetch(`${AT}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}&maxRecords=1`, { headers });
+        const userData = await userResp.json();
+        const rec = userData.records?.[0]?.fields || {};
+
+        if (!rec['Name']) return res.status(404).send('Profile not found. Please sign up at jobmatchai.co.in');
+
+        const name        = rec['Name'] || '';
+        const targetRole  = rec['Target role'] || rec['Current role'] || '';
+        const experience  = rec['Experience'] || '';
+        const domain      = rec['Domain'] || '';
+        const location    = rec['Location'] || 'Bengaluru';
+        const seniority   = rec['Seniority'] || '';
+        const skills      = rec['Skills'] || '';
+        const companyType = rec['Company type'] || '';
+        const lastRun     = rec['LastRun'] ? new Date(rec['LastRun']).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not yet';
+        const seenCount   = (rec['SeenJobs'] || '').split('|').filter(Boolean).length;
+        const initials    = name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+
+        // Fetch last feedback ratings from Airtable if available
+        let feedbackRows = '';
+        try {
+            const fbResp = await fetch(`${AT}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}&fields[]=Rating&fields[]=RatedOn&maxRecords=7`, { headers });
+            const fbData = await fbResp.json();
+            const ratings = (fbData.records?.[0]?.fields?.['Rating'] || '').toString();
+            if (ratings) {
+                const rMap = {'1':'😞','2':'😐','3':'🙂','4':'😊','5':'🤩'};
+                feedbackRows = ratings.split(',').slice(-5).map(r => `<span style="font-size:20px">${rMap[r.trim()]||'?'}</span>`).join(' ');
+            }
+        } catch {}
+
+        const unsubUrl = `/unsubscribe?email=${encodeURIComponent(email)}&token=${token}`;
+        const runUrl   = `/run?email=${encodeURIComponent(email)}&token=${token}`;
+
+        res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JobMatch AI – ${name}'s Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f8;color:#111;min-height:100vh}
+.topbar{background:#0A0F1E;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:16px;font-weight:500;color:#fff;letter-spacing:-0.02em}
+.logo span{color:#4A8DFF}
+.topbar-right{font-size:12px;color:rgba(255,255,255,0.45)}
+.page{max-width:640px;margin:0 auto;padding:20px 16px 40px}
+.section{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px 20px;margin-bottom:14px}
+.section-title{font-size:12px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #f1f5f9}
+.profile-header{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.avatar{width:48px;height:48px;border-radius:50%;background:#1d4ed8;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:500;color:#fff;flex-shrink:0}
+.profile-name{font-size:18px;font-weight:500;color:#111}
+.profile-sub{font-size:13px;color:#6b7280;margin-top:2px}
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stat{background:#f8fafc;border-radius:10px;padding:12px;text-align:center;border:1px solid #e2e8f0}
+.stat-n{font-size:22px;font-weight:500;color:#111;line-height:1}
+.stat-n.green{color:#059669}
+.stat-n.blue{color:#1d4ed8}
+.stat-l{font-size:11px;color:#6b7280;margin-top:3px}
+.field-row{display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f1f5f9}
+.field-row:last-child{border-bottom:none}
+.field-label{font-size:12px;color:#9ca3af}
+.field-value{font-size:13px;color:#111;text-align:right;max-width:60%;line-height:1.5}
+.action-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;text-decoration:none;border:none;display:inline-block;text-align:center}
+.btn-primary{background:#1d4ed8;color:#fff}
+.btn-outline{background:transparent;color:#1d4ed8;border:1px solid #1d4ed8}
+.btn-ghost{background:#f1f5f9;color:#6b7280}
+.info-box{background:#f0f7ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px}
+.info-box p{font-size:13px;color:#1e40af;line-height:1.7}
+.feedback-area{font-size:22px;letter-spacing:4px;margin-bottom:8px}
+.feedback-sub{font-size:12px;color:#9ca3af}
+.footer{text-align:center;margin-top:24px;font-size:11px;color:#9ca3af}
+.footer a{color:#1d4ed8;text-decoration:none}
+@media(max-width:480px){
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+  .action-row{flex-direction:column}
+  .btn{width:100%;text-align:center}
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="logo">Job<span>Match</span> AI</div>
+  <div class="topbar-right">Free Beta</div>
+</div>
+
+<div class="page">
+
+  <div class="section">
+    <div class="profile-header">
+      <div class="avatar">${initials}</div>
+      <div>
+        <div class="profile-name">${name}</div>
+        <div class="profile-sub">${targetRole || 'No role set'}</div>
+      </div>
+    </div>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-n green">${seenCount}</div><div class="stat-l">roles seen</div></div>
+      <div class="stat"><div class="stat-n blue">${experience}</div><div class="stat-l">experience</div></div>
+      <div class="stat"><div class="stat-n">${lastRun}</div><div class="stat-l">last digest</div></div>
+    </div>
+    <div class="section-title" style="margin-top:4px">Your profile</div>
+    <div class="field-row"><span class="field-label">Domain</span><span class="field-value">${domain||'—'}</span></div>
+    <div class="field-row"><span class="field-label">Location</span><span class="field-value">${location}</span></div>
+    <div class="field-row"><span class="field-label">Seniority</span><span class="field-value">${seniority||'—'}</span></div>
+    <div class="field-row"><span class="field-label">Company pref.</span><span class="field-value">${companyType||'Open to all'}</span></div>
+    <div class="field-row"><span class="field-label">Key skills</span><span class="field-value">${skills ? skills.split(',').slice(0,4).join(', ') : '—'}</span></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Your latest matches</div>
+    <div class="info-box">
+      <p>Your daily digest lands at <strong>9:00 AM IST</strong> every morning.<br>
+      Every role is fresh — nothing you have seen before.<br><br>
+      Open your most recent email to see today's matches, hiring contacts, and referral paths.</p>
+    </div>
+    <div class="action-row">
+      <a href="mailto:hello@jobmatchai.co.in?subject=Update my profile&body=Hi, I'd like to update my profile. My email is ${encodeURIComponent(email)}." class="btn btn-primary">Update profile</a>
+      <a href="${unsubUrl}" class="btn btn-ghost">Unsubscribe</a>
+    </div>
+  </div>
+
+  ${feedbackRows ? `<div class="section">
+    <div class="section-title">Your recent ratings</div>
+    <div class="feedback-area">${feedbackRows}</div>
+    <div class="feedback-sub">Your ratings help us improve tomorrow's matches</div>
+  </div>` : ''}
+
+  <div class="section">
+    <div class="section-title">How it works</div>
+    <div class="field-row"><span class="field-label">Sources searched</span><span class="field-value">LinkedIn, Naukri, JSearch, Adzuna</span></div>
+    <div class="field-row"><span class="field-label">Scoring engine</span><span class="field-value">Function + skills + seniority + domain</span></div>
+    <div class="field-row"><span class="field-label">Outreach</span><span class="field-value">Hiring contact + referral path per match</span></div>
+    <div class="field-row"><span class="field-label">Duplicates</span><span class="field-value">0 — every role is new every day</span></div>
+  </div>
+
+  <div class="footer">
+    JobMatch AI · Free Beta ·
+    <a href="mailto:hello@jobmatchai.co.in">hello@jobmatchai.co.in</a> ·
+    <a href="${unsubUrl}">Unsubscribe</a>
+  </div>
+
+</div>
+</body>
+</html>`);
+
+    } catch (e) {
+        console.error('Dashboard error:', e.message);
+        res.status(500).send('Something went wrong. Please try again or email hello@jobmatchai.co.in');
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`JobMatch API v5.1 on port ${PORT}`);
     console.log(`Brevo API: ${BREVO_API_KEY?'SET':'MISSING'} | Anthropic: ${ANTHROPIC_API_KEY?'SET':'MISSING'}`);
