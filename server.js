@@ -947,6 +947,305 @@ fetch('/count').then(r => r.json()).then(d => {
 // We don't activate Pro from this page — that requires merchant verification.
 // activate-pro.js (run by you after Razorpay confirms) does the real work.
 // This page just shows confirmation + sets expectations.
+// ═══════════════════════════════════════════════════════════════════
+// /webhook/razorpay — Auto-activates Pro on payment confirmation
+// ═══════════════════════════════════════════════════════════════════
+// CRITICAL: this endpoint handles real money. It must:
+//   1. Verify Razorpay's signature (no spoofed payments)
+//   2. Be idempotent (Razorpay retries if we don't 200 in 5s)
+//   3. Always 200 OK to Razorpay (otherwise they keep retrying)
+//   4. Log every event for audit trail
+//   5. Match payment.amount to plan (49 = monthly, 499 = annual)
+//
+// SETUP (one-time):
+//   1. Razorpay Dashboard → Settings → Webhooks → Add New Webhook
+//   2. URL: https://jobmatchai.co.in/webhook/razorpay
+//   3. Active events: payment.captured, payment.failed, refund.processed
+//   4. Secret: generate strong random string, paste into RAZORPAY_WEBHOOK_SECRET env var
+//   5. Save and test with "Send Test Webhook" button
+// ═══════════════════════════════════════════════════════════════════
+
+const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
+
+// Razorpay sends raw body — we need it as-is for signature verification
+// Capture raw body BEFORE express.json() parses it
+app.post('/webhook/razorpay',
+    express.raw({ type: 'application/json' }),
+    async (req, res) => {
+        const sig = req.headers['x-razorpay-signature'];
+        const rawBody = req.body; // Buffer when using express.raw
+
+        // 1. Verify signature — reject if missing or invalid
+        if (!RAZORPAY_WEBHOOK_SECRET) {
+            console.error('Webhook: RAZORPAY_WEBHOOK_SECRET not set — rejecting');
+            return res.status(500).send('Webhook secret not configured');
+        }
+        if (!sig) {
+            console.warn('Webhook: missing x-razorpay-signature header');
+            return res.status(400).send('Missing signature');
+        }
+        const expectedSig = crypto.createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
+            .update(rawBody).digest('hex');
+        if (sig !== expectedSig) {
+            console.warn(`Webhook: invalid signature (got ${sig.slice(0,12)}, expected ${expectedSig.slice(0,12)})`);
+            return res.status(400).send('Invalid signature');
+        }
+
+        // 2. Always respond 200 OK fast — Razorpay retries on timeout
+        res.status(200).json({ received: true });
+
+        // 3. Parse and process async
+        let event;
+        try {
+            event = JSON.parse(rawBody.toString());
+        } catch (e) {
+            console.error('Webhook: invalid JSON', e.message);
+            return;
+        }
+
+        const eventType = event.event;
+        console.log(`Webhook received: ${eventType} (id: ${event?.payload?.payment?.entity?.id || 'n/a'})`);
+
+        try {
+            if (eventType === 'payment.captured') {
+                await handlePaymentCaptured(event.payload.payment.entity);
+            } else if (eventType === 'payment.failed') {
+                await handlePaymentFailed(event.payload.payment.entity);
+            } else if (eventType === 'refund.processed' || eventType === 'refund.created') {
+                await handleRefund(event.payload.refund.entity, event.payload.payment?.entity);
+            } else {
+                console.log(`Webhook: ignoring event type ${eventType}`);
+            }
+        } catch (err) {
+            console.error(`Webhook handler error for ${eventType}:`, err.message);
+        }
+    }
+);
+
+// ─── Handler: payment.captured ────────────────────────────────────
+// Triggered when payment succeeds. This is the activation path.
+async function handlePaymentCaptured(payment) {
+    const email = (payment.email || payment.notes?.customer_email || '').toLowerCase().trim();
+    const amountRupees = Math.round(payment.amount / 100); // Razorpay sends paise
+    const paymentId = payment.id;
+
+    if (!email) {
+        console.error(`Webhook: payment ${paymentId} has no email — cannot activate`);
+        return;
+    }
+
+    // Detect plan from amount — extend this map if you add tiers
+    let plan, days;
+    if (amountRupees === 49)       { plan = 'monthly'; days = 30; }
+    else if (amountRupees === 499) { plan = 'annual';  days = 365; }
+    else if (amountRupees === 99)  { plan = 'monthly'; days = 30; }  // future tier
+    else if (amountRupees === 999) { plan = 'annual';  days = 365; } // future tier
+    else {
+        console.warn(`Webhook: payment ${paymentId} amount ₹${amountRupees} doesn't match known plan — defaulting to 30d monthly`);
+        plan = 'monthly'; days = 30;
+    }
+
+    // Idempotency check — has this payment already been processed?
+    const existing = await findUserRecord(email);
+    if (!existing) {
+        console.error(`Webhook: payment ${paymentId} from ${email} but no Airtable user — creating partial record`);
+        // Auto-create stub record so payment isn't lost; user can complete profile later
+        await fetch(`https://api.airtable.com/v0/${AT_BASE}/${USERS_TABLE}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fields: {
+                    Email: email,
+                    Name: payment.notes?.name || email.split('@')[0],
+                    Phone: payment.contact || '',
+                    Status: 'Active',
+                    PaidStatus: 'pro',
+                    PaidUntil: addDays(new Date(), days).toISOString().split('T')[0],
+                    LastPaymentAmount: amountRupees,
+                    LastPaymentDate: new Date().toISOString(),
+                    LastPaymentId: paymentId,
+                    Notes: 'Stub record from webhook — needs profile completion'
+                }
+            })
+        });
+        await sendWelcomeEmail(email, payment.notes?.name || email.split('@')[0], plan, amountRupees, days, true);
+        return;
+    }
+
+    // Idempotency: skip if same paymentId already recorded
+    if (existing.fields?.['LastPaymentId'] === paymentId) {
+        console.log(`Webhook: payment ${paymentId} already processed for ${email} — skipping`);
+        return;
+    }
+
+    // Activate Pro
+    const newExpiry = addDays(new Date(), days).toISOString().split('T')[0];
+    await fetch(`https://api.airtable.com/v0/${AT_BASE}/${USERS_TABLE}/${existing.id}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            fields: {
+                PaidStatus: 'pro',
+                PaidUntil: newExpiry,
+                LastPaymentAmount: amountRupees,
+                LastPaymentDate: new Date().toISOString(),
+                LastPaymentId: paymentId,
+                RenewalReminderSent: '', // reset so reminders fire on schedule
+                Status: 'Active',
+                LastEngagement: new Date().toISOString(),
+            }
+        })
+    });
+
+    console.log(`✅ Activated Pro for ${email} (${plan}, ₹${amountRupees}, valid until ${newExpiry})`);
+
+    // Send welcome email
+    await sendWelcomeEmail(email, existing.fields?.Name || email.split('@')[0], plan, amountRupees, days, false);
+
+    // Log to webhook audit table (non-blocking)
+    logWebhookEvent('payment.captured', email, paymentId, amountRupees).catch(()=>{});
+}
+
+// ─── Handler: payment.failed ──────────────────────────────────────
+async function handlePaymentFailed(payment) {
+    const email = (payment.email || '').toLowerCase().trim();
+    const reason = payment.error_description || 'Unknown';
+    console.warn(`Payment failed: ${email} - ${reason} (${payment.id})`);
+    logWebhookEvent('payment.failed', email, payment.id, payment.amount/100, reason).catch(()=>{});
+    // Don't email user — Razorpay shows them the failure inline
+}
+
+// ─── Handler: refund ──────────────────────────────────────────────
+async function handleRefund(refund, payment) {
+    const email = (payment?.email || refund.notes?.customer_email || '').toLowerCase().trim();
+    if (!email) return;
+    const rec = await findUserRecord(email);
+    if (!rec) return;
+
+    // Downgrade to free, log refund
+    await fetch(`https://api.airtable.com/v0/${AT_BASE}/${USERS_TABLE}/${rec.id}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            fields: {
+                PaidStatus: 'churned',
+                Notes: `Refunded ₹${refund.amount/100} on ${new Date().toISOString().split('T')[0]} (refund_id: ${refund.id})`
+            }
+        })
+    });
+    console.log(`Refund processed: ${email} ₹${refund.amount/100}`);
+    logWebhookEvent('refund', email, refund.id, refund.amount/100).catch(()=>{});
+}
+
+// ─── Welcome email — designed, mobile-friendly ────────────────────
+async function sendWelcomeEmail(email, name, plan, amount, days, isStubRecord = false) {
+    if (!BREVO_KEY) return;
+
+    const expiryDate = addDays(new Date(), days).toLocaleDateString('en-IN', {
+        day: 'numeric', month: 'long', year: 'numeric'
+    });
+
+    const stubNote = isStubRecord
+        ? `<div style="background:#fff8e1;border:1px solid #fde68a;border-radius:10px;padding:14px;margin-bottom:18px;font-size:13px;color:#92600A;line-height:1.6">
+            <strong>One quick step:</strong> we don't have your resume yet. Please <a href="https://jobmatchai.co.in/signup" style="color:#0055FF;font-weight:600">complete your profile here</a> so we can start matching jobs for you tomorrow.
+          </div>`
+        : '';
+
+    const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:540px;margin:0 auto;padding:24px;background:#f8fafc">
+<div style="background:linear-gradient(135deg,#0055FF 0%,#7c3aed 100%);border-radius:14px 14px 0 0;padding:24px 28px">
+  <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-.02em">Welcome to JobMatch Pro 🎉</div>
+  <div style="font-size:13px;color:rgba(255,255,255,.85);margin-top:6px">Founding member · ${plan === 'annual' ? 'Annual' : 'Monthly'} · Activated</div>
+</div>
+<div style="background:#fff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 14px 14px;padding:26px 28px">
+  <p style="font-size:16px;font-weight:700;color:#111;margin:0 0 14px">Hi ${name},</p>
+  <p style="font-size:14px;color:#374151;line-height:1.7;margin:0 0 18px">
+    Thank you for becoming a founding member. Your Pro subscription is active. Your first daily Pro digest lands in your inbox tomorrow at 9am IST.
+  </p>
+
+  ${stubNote}
+
+  <div style="background:#f0f5ff;border:1px solid #c7d7ff;border-radius:10px;padding:18px;margin-bottom:20px">
+    <div style="font-size:11px;color:#0055FF;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Your subscription</div>
+    <div style="font-size:13px;color:#374151;line-height:2">
+      Plan: <strong>Pro ${plan === 'annual' ? 'Annual' : 'Monthly'}</strong><br>
+      Amount paid: <strong>₹${amount}</strong><br>
+      Active until: <strong>${expiryDate}</strong>
+    </div>
+  </div>
+
+  <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em">What changes for you</div>
+  <div style="font-size:13px;color:#374151;line-height:1.9;margin-bottom:18px">
+    ✓ Daily curated matches at 9am IST (was 2x/week)<br>
+    ✓ Up to 15 matches per email (was 5)<br>
+    ✓ Full search across LinkedIn, Naukri, JSearch, Adzuna, iimjobs<br>
+    ✓ Complete dashboard with apply history<br>
+    ✓ Priority email support — replies within 12 hours
+  </div>
+
+  <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em">Coming soon (free for founding members)</div>
+  <div style="font-size:13px;color:#6b7280;line-height:1.9;margin-bottom:22px;font-style:italic">
+    · WhatsApp daily digest at 9am IST<br>
+    · ATS resume optimiser (paste a JD, get keyword gaps)<br>
+    · Expanded hiring contact directory
+  </div>
+
+  <a href="https://jobmatchai.co.in/dashboard?email=${encodeURIComponent(email)}&token=${makeUnsubToken(email)}" style="display:block;text-align:center;background:#0055FF;color:#fff;padding:13px;border-radius:9px;text-decoration:none;font-size:14px;font-weight:700;margin-bottom:16px">View your dashboard →</a>
+
+  <p style="font-size:13px;color:#6b7280;line-height:1.6;margin:0 0 8px">
+    A heads-up about renewals: we use one-time payment links (not auto-charge), so you'll never see surprise bills. We'll email you 5 days before expiry to renew with one click.
+  </p>
+  <p style="font-size:13px;color:#6b7280;margin:14px 0 0">
+    Reply to this email anytime — I read every message and respond personally.
+  </p>
+</div>
+</div>`;
+
+    try {
+        await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sender: { name: 'JobMatch AI', email: BREVO_FROM_EMAIL },
+                to: [{ email, name }],
+                subject: `Welcome to JobMatch Pro 🎉 — your founding member access is live`,
+                htmlContent: html
+            })
+        });
+        console.log(`Welcome email sent to ${email}`);
+    } catch (e) {
+        console.error('Welcome email failed:', e.message);
+    }
+}
+
+// ─── Audit logger — writes to optional WebhookEvents Airtable table ───────
+async function logWebhookEvent(type, email, paymentId, amount, error = '') {
+    try {
+        await fetch(`https://api.airtable.com/v0/${AT_BASE}/WebhookEvents`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fields: {
+                    EventType: type,
+                    Email: email,
+                    PaymentId: paymentId,
+                    Amount: amount,
+                    Error: error,
+                    ReceivedAt: new Date().toISOString()
+                }
+            })
+        });
+    } catch (e) {
+        // Silent — audit log failure shouldn't block payment processing
+    }
+}
+
+// ─── Date helper ──────────────────────────────────────────────────
+function addDays(date, days) {
+    const d = new Date(date);
+    d.setDate(d.getDate() + days);
+    return d;
+}
+
 app.get('/welcome', (req, res) => {
     res.send(`<!DOCTYPE html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
