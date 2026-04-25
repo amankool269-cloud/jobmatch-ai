@@ -59,6 +59,18 @@ const SERVER_URL = process.env.SERVER_URL || 'https://jobmatchai.co.in';
 const RAZORPAY_LINK_MONTHLY = process.env.RAZORPAY_LINK_MONTHLY || '';
 const RAZORPAY_LINK_ANNUAL  = process.env.RAZORPAY_LINK_ANNUAL  || '';
 
+// Shared brand CSS — injected into every public page
+const BRAND_HEAD = `
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#09090B;--surface:#18181B;--card:#1C1E24;--gold:#F59E0B;--gold-dim:rgba(245,158,11,0.12);--gold-border:rgba(245,158,11,0.25);--text:#FAFAF9;--muted:#71717A;--subtle:#3F3F46;--border:rgba(255,255,255,0.07);--border-hover:rgba(255,255,255,0.14);--green:#22C55E;--blue:#3B82F6;--radius:12px;--radius-lg:18px}
+*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}
+body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}input,select,textarea,button{font-family:'Manrope',sans-serif}
+::selection{background:var(--gold-dim);color:var(--gold)}
+</style>`;
+
 const claude = new Anthropic({ apiKey: ANTHROPIC_KEY });
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -340,13 +352,13 @@ app.get('/dashboard', async (req, res) => {
 <div class="card match-card" style="border-left:4px solid ${scoreColor(m.s)};animation-delay:${i*0.05}s">
   <div style="display:flex;gap:14px;align-items:flex-start">
     <div style="flex:1;min-width:0">
-      <div style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:4px;line-height:1.3">${m.t}</div>
-      <div style="font-size:13px;color:#64748b;margin-bottom:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;line-height:1.3">${m.t}</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         <span>${m.c}</span>
         ${m.src ? `<span style="width:3px;height:3px;background:#cbd5e1;border-radius:50%;display:inline-block"></span><span>${m.src}</span>` : ''}
         ${m.sal ? `<span style="width:3px;height:3px;background:#cbd5e1;border-radius:50%;display:inline-block"></span><span style="color:#059669;font-weight:600">${m.sal}</span>` : ''}
       </div>
-      ${m.v ? `<div style="font-size:13px;color:#475569;line-height:1.6;background:#f8fafc;padding:10px 12px;border-radius:8px;margin-bottom:8px">${m.v}</div>` : ''}
+      ${m.v ? `<div style="font-size:13px;color:var(--muted);line-height:1.6;background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:8px;margin-bottom:8px">${m.v}</div>` : ''}
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:${scoreBg(m.s)};color:${scoreColor(m.s)};border:1px solid ${scoreBorder(m.s)}">${scoreLabel(m.s)}</span>
         ${m.ap ? `<span style="font-size:11px;color:#94a3b8">${m.ap} applicants</span>` : ''}
@@ -399,70 +411,69 @@ app.get('/dashboard', async (req, res) => {
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dashboard · JobMatch AI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
+  :root{--bg:#09090B;--surface:#18181B;--card:#1C1E24;--gold:#F59E0B;--gold-dim:rgba(245,158,11,0.1);--gold-border:rgba(245,158,11,0.2);--text:#FAFAF9;--muted:#71717A;--subtle:#3F3F46;--border:rgba(255,255,255,0.07);--green:#22C55E;--blue:#3B82F6}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Inter',-apple-system,sans-serif;background:#f1f5f9;color:#0f172a;min-height:100vh}
+  body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
   /* NAV */
-  .nav{background:#0f172a;padding:0 20px;position:sticky;top:0;z-index:50;border-bottom:1px solid #1e293b}
-  .nav-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
-  .logo{font-size:18px;font-weight:800;color:#fff;letter-spacing:-.02em}
-  .logo span{color:#60a5fa}
+  .nav{background:#09090B;padding:0 20px;position:sticky;top:0;z-index:50;border-bottom:1px solid var(--border)}
+  .nav-inner{max-width:940px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .logo{font-family:'Instrument Serif',serif;font-size:18px;color:var(--text)}
+  .logo i{font-style:italic;color:var(--gold)}
   .nav-right{display:flex;align-items:center;gap:14px}
-  .plan-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;${isPro ? 'background:#0055FF;color:#fff' : 'background:#334155;color:#94a3b8'}}
-  .nav-email{font-size:12px;color:#64748b;display:none}
+  .plan-badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;${isPro ? 'background:var(--gold);color:#000' : 'background:var(--surface);color:var(--muted);border:1px solid var(--border)'}}
+  .nav-email{font-size:12px;color:var(--muted);display:none}
   @media(min-width:640px){.nav-email{display:block}}
   /* TABS */
-  .tabs{background:#fff;border-bottom:1px solid #e5e7eb;padding:0 20px;position:sticky;top:56px;z-index:40}
-  .tabs-inner{max-width:900px;margin:0 auto;display:flex;gap:0}
-  .tab{padding:14px 18px;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;text-decoration:none;display:block}
-  .tab:hover{color:#0f172a}
-  .tab.active{color:#0055FF;border-bottom-color:#0055FF}
+  .tabs{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;position:sticky;top:56px;z-index:40}
+  .tabs-inner{max-width:940px;margin:0 auto;display:flex}
+  .tab{padding:14px 18px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap}
+  .tab:hover{color:var(--text)}
+  .tab.active{color:var(--gold);border-bottom-color:var(--gold)}
   /* CONTENT */
-  .wrap{max-width:900px;margin:0 auto;padding:24px 16px}
+  .wrap{max-width:940px;margin:0 auto;padding:24px 16px}
   /* STATS */
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
-  .stat{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;text-align:center}
-  .stat-num{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1}
-  .stat-lbl{font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
+  .stat-num{font-family:'Instrument Serif',serif;font-size:28px;line-height:1;margin-bottom:4px}
+  .stat-lbl{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
   @media(max-width:600px){.stats{grid-template-columns:repeat(2,1fr)}}
   /* CARDS */
-  .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px;margin-bottom:12px;animation:fadeUp .3s ease both}
-  @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-  .match-card{border-left-width:4px}
-  .apply-btn{display:block;background:#0055FF;color:#fff;padding:7px 12px;border-radius:8px;text-decoration:none;font-size:12px;font-weight:700;text-align:center;transition:transform .1s}
-  .apply-btn:hover{transform:translateY(-1px)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:10px;animation:fu .3s ease both}
+  @keyframes fu{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .match-card{border-left-width:3px}
+  .apply-btn{display:block;background:var(--gold);color:#000;padding:7px 12px;border-radius:8px;text-decoration:none;font-size:12px;font-weight:700;text-align:center}
   /* APPLY ROWS */
-  .apply-row{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #f1f5f9}
+  .apply-row{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)}
   .apply-row:last-child{border-bottom:none}
   /* PRO CARD */
-  .pro-card{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);border-radius:14px;padding:22px;margin-bottom:20px;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+  .pro-card{background:linear-gradient(135deg,#111112 0%,#1C1810 100%);border:1px solid var(--gold-border);border-radius:14px;padding:22px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
   /* FREE UPSELL */
-  .upsell{background:linear-gradient(135deg,#0055FF 0%,#7c3aed 100%);border-radius:14px;padding:22px;margin-bottom:20px;color:#fff}
+  .upsell{background:linear-gradient(135deg,rgba(245,158,11,0.15) 0%,rgba(245,158,11,0.05) 100%);border:1px solid var(--gold-border);border-radius:14px;padding:22px;margin-bottom:20px}
   /* SECTION HEADER */
-  .section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
-  .section-title{font-size:14px;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:.06em}
-  .section-count{font-size:12px;color:#94a3b8;font-weight:600}
+  .section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .section-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+  .section-count{font-size:12px;color:var(--subtle);font-weight:600}
   /* EMPTY STATE */
-  .empty{text-align:center;padding:48px 20px;color:#94a3b8}
-  .empty-icon{font-size:40px;margin-bottom:12px}
-  .empty-title{font-size:15px;font-weight:600;color:#64748b;margin-bottom:6px}
-  .empty-sub{font-size:13px;line-height:1.6}
+  .empty{text-align:center;padding:48px 20px;color:var(--muted)}
+  .empty-icon{font-size:36px;margin-bottom:12px}
+  .empty-title{font-size:15px;font-weight:600;color:var(--muted);margin-bottom:6px}
+  .empty-sub{font-size:13px;line-height:1.6;color:var(--subtle)}
   /* TAB PANELS */
-  .panel{display:none}
-  .panel.active{display:block}
+  .panel{display:none}.panel.active{display:block}
   /* PROFILE FORM */
-  .form-group{margin-bottom:18px}
-  .form-label{font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
-  .form-input{width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;transition:border-color .15s}
-  .form-input:focus{outline:0;border-color:#0055FF}
-  .save-btn{background:#0055FF;color:#fff;padding:12px 24px;border:0;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;width:100%}
+  .form-group{margin-bottom:16px}
+  .form-label{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:7px;text-transform:uppercase;letter-spacing:.07em}
+  .form-input{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:9px;font-size:14px;font-family:inherit;transition:border-color .15s;background:var(--bg);color:var(--text);outline:none}
+  .form-input:focus{border-color:var(--gold)}
+  .save-btn{background:var(--gold);color:#000;padding:12px 24px;border:0;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;width:100%}
 </style></head>
 <body>
 
 <!-- NAV -->
 <nav class="nav"><div class="nav-inner">
-  <div class="logo">Job<span>Match</span> AI</div>
+  <div class="logo">Job<i>Match</i> AI</div>
   <div class="nav-right">
     <span class="nav-email">${f.Name || email.split('@')[0]}</span>
     <span class="plan-badge">${isPro ? '★ PRO' : 'FREE'}</span>
@@ -502,19 +513,19 @@ app.get('/dashboard', async (req, res) => {
   ${isPro ? `
   <div class="pro-card">
     <div>
-      <div style="font-size:11px;font-weight:700;color:#60a5fa;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">★ Pro Member</div>
-      <div style="font-size:18px;font-weight:800;margin-bottom:4px">${f.Name || 'Welcome back'}</div>
-      <div style="font-size:13px;color:#94a3b8">${paidUntil ? `Active until ${paidUntil}${daysLeft !== null && daysLeft <= 7 ? ` <span style="color:#fbbf24;font-weight:600">(${daysLeft}d left)</span>` : ''}` : 'Active'}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">★ Pro Member</div>
+      <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px">${f.Name || 'Welcome back'}</div>
+      <div style="font-size:13px;color:var(--muted)">${paidUntil ? `Active until ${paidUntil}${daysLeft !== null && daysLeft <= 7 ? ` <span style="color:#fbbf24;font-weight:600">(${daysLeft}d left)</span>` : ''}` : 'Active'}</div>
     </div>
     <div style="text-align:right">
-      <div style="font-size:11px;color:#64748b;margin-bottom:8px">Daily search across all 5 platforms</div>
-      <a href="mailto:hello@jobmatchai.co.in" style="font-size:12px;color:#60a5fa;text-decoration:none;font-weight:600">Contact support →</a>
+      <div style="font-size:11px;color:var(--subtle);margin-bottom:8px">Daily search · all 5 platforms</div>
+      <a href="mailto:hello@jobmatchai.co.in" style="font-size:12px;color:var(--gold);text-decoration:none;font-weight:600">Support →</a>
     </div>
   </div>` : `
   <div class="upsell">
-    <div style="font-size:16px;font-weight:800;margin-bottom:6px">Upgrade to Pro · ₹49/month</div>
-    <div style="font-size:13px;color:rgba(255,255,255,.85);margin-bottom:14px;line-height:1.6">Daily emails · LinkedIn + Naukri search · Full apply history · Priority support</div>
-    <a href="${SERVER_URL}/pricing?email=${encodeURIComponent(email)}&token=${token}" style="display:inline-block;background:#fff;color:#0055FF;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:700">Become a founding member →</a>
+    <div style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:6px">Upgrade to Pro · ₹49/month</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">Daily emails · Full source coverage · Dashboard · Priority support</div>
+    <a href="${SERVER_URL}/pricing?email=${encodeURIComponent(email)}&token=${token}" style="display:inline-block;background:var(--gold);color:#000;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:700">Become a founding member →</a>
   </div>`}
 
   <!-- MATCHES TAB -->
@@ -835,340 +846,362 @@ app.get('/count', async (req, res) => {
 app.get('/signup', (req, res) => {
     res.send(`<!DOCTYPE html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sign up · JobMatch AI</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<title>Sign up free · JobMatch AI</title>
+${BRAND_HEAD}
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Inter',-apple-system,sans-serif;background:#f1f5f9;color:#111;line-height:1.6}
-  .wrap{max-width:520px;margin:0 auto;padding:40px 20px}
-  .card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:32px;box-shadow:0 4px 20px rgba(0,0,0,.04)}
-  h1{font-size:24px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px}
-  .sub{font-size:14px;color:#6b7280;margin-bottom:28px}
-  label{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
-  input,select,textarea{width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;margin-bottom:18px;background:#fff}
-  input:focus,select:focus{outline:0;border-color:#0055FF}
-  .file-zone{border:2px dashed #c7d7ff;background:#f0f5ff;border-radius:9px;padding:20px;text-align:center;cursor:pointer;margin-bottom:18px;transition:all .2s}
-  .file-zone:hover{background:#e0eaff;border-color:#0055FF}
-  .file-zone input{display:none}
-  .file-name{font-size:13px;color:#0055FF;font-weight:600;margin-top:6px;display:none}
-  .req{color:#dc2626;font-weight:700}
-  button{width:100%;background:#0055FF;color:#fff;padding:14px;border:0;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:transform .1s}
-  button:hover{transform:translateY(-1px)}
-  button:disabled{opacity:.6;cursor:wait}
-  .note{font-size:12px;color:#9ca3af;text-align:center;margin-top:14px;line-height:1.6}
-  .note a{color:#0055FF;text-decoration:none}
-  .back{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#6b7280;text-decoration:none;margin-bottom:18px}
-  .back:hover{color:#0055FF}
-  .promise{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;padding:12px 14px;margin-bottom:22px;font-size:12px;color:#15803d;line-height:1.6}
-  .err{background:#fee2e2;border:1px solid #fecaca;color:#991b1b;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none}
-  .ok{background:#dcfce7;border:1px solid #bbf7d0;color:#15803d;padding:14px;border-radius:9px;text-align:center;display:none}
+.pg{min-height:100vh;display:grid;grid-template-columns:1fr 1fr}
+.lp{background:var(--surface);border-right:1px solid var(--border);padding:48px 40px;display:flex;flex-direction:column;justify-content:space-between}
+.logo{font-family:'Instrument Serif',serif;font-size:20px;display:block;margin-bottom:56px}.logo i{font-style:italic;color:var(--gold)}
+.lt{font-family:'Instrument Serif',serif;font-size:34px;line-height:1.15;margin-bottom:14px}.lt i{font-style:italic;color:var(--gold)}
+.ls{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:36px}
+.fl{display:flex;flex-direction:column;gap:14px;margin-bottom:36px}
+.fe{display:flex;gap:12px;align-items:flex-start}
+.fi{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;font-size:14px}
+.ftt strong{display:block;font-size:13px;font-weight:600;margin-bottom:2px}
+.ftt span{font-size:12px;color:var(--muted)}
+.sc{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:10px;padding:14px}
+.rp{padding:48px 40px;display:flex;flex-direction:column;justify-content:center}
+.rh{margin-bottom:28px}
+.rh h2{font-size:24px;font-weight:700;margin-bottom:6px}
+.rh p{font-size:14px;color:var(--muted)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fd{margin-bottom:16px}
+.fd label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px}
+.fd input{width:100%;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);transition:border-color .15s;outline:none}
+.fd input:focus{border-color:var(--gold)}
+.fd input::placeholder{color:var(--subtle)}
+.fz{width:100%;border:1.5px dashed var(--border);border-radius:10px;padding:22px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px;background:transparent;display:block}
+.fz:hover{border-color:var(--gold-border);background:var(--gold-dim)}
+.fz input{display:none}
+.fz-icon{font-size:20px;margin-bottom:6px}
+.fz-main{font-size:13px;font-weight:600;color:var(--gold);margin-bottom:3px}
+.fz-sub{font-size:11px;color:var(--muted)}
+.fname{font-size:12px;color:var(--green);margin-top:6px;font-weight:600;display:none}
+.sb{width:100%;padding:14px;background:var(--gold);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s}
+.sb:hover{opacity:.88}.sb:disabled{opacity:.5;cursor:wait}
+.fn{font-size:12px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.6}.fn a{color:var(--gold)}
+.eb{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#FCA5A5;padding:11px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none}
+.ob{background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:28px;text-align:center;display:none}
+@media(max-width:720px){.pg{grid-template-columns:1fr}.lp{display:none}.rp{padding:40px 24px}.row{grid-template-columns:1fr}}
 </style></head>
-<body><div class="wrap">
-<a href="/" class="back">← Back</a>
-<div class="card">
-  <h1>Get your daily matches</h1>
-  <p class="sub">Upload your resume. Get curated jobs every morning. Free forever, premium optional.</p>
-
-  <div class="promise">
-    🔒 We never share your resume. We never charge you to apply for jobs. Your data stays yours.
+<body>
+<div class="pg">
+  <div class="lp">
+    <div>
+      <a href="/" class="logo">Job<i>Match</i> AI</a>
+      <h1 class="lt">Your next role,<br><i>every morning.</i></h1>
+      <p class="ls">Upload your resume once. We scan 5 job platforms daily and send you the matches that actually fit your profile, seniority, and domain.</p>
+      <div class="fl">
+        <div class="fe"><div class="fi" style="background:rgba(34,197,94,0.1)">🔍</div><div class="ftt"><strong>AI-powered scoring</strong><span>Function fit, seniority, domain, location — all scored against your profile</span></div></div>
+        <div class="fe"><div class="fi" style="background:rgba(245,158,11,0.1)">⚡</div><div class="ftt"><strong>5 platforms in one email</strong><span>LinkedIn, Naukri, JSearch, Adzuna, iimjobs — aggregated daily</span></div></div>
+        <div class="fe"><div class="fi" style="background:rgba(59,130,246,0.1)">🎯</div><div class="ftt"><strong>No noise, ever</strong><span>Fresh roles only. Nothing repeated. Only what's worth your time.</span></div></div>
+      </div>
+      <p style="font-size:10px;color:var(--subtle);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:10px">Sample from yesterday</p>
+      <div class="sc">
+        <div style="font-size:13px;font-weight:600;margin-bottom:3px">Head of Partnerships – Fintech</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Brahma Finance · Bengaluru · ₹30–45L</div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:11px;color:var(--green);background:rgba(34,197,94,0.1);padding:3px 9px;border-radius:20px;font-weight:600">Strong fit</span>
+          <span style="font-size:19px;font-weight:700;color:var(--green)">91%</span>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--subtle)">59+ Indian professionals matched · Free forever · Built with Claude</p>
   </div>
 
-  <div id="err" class="err"></div>
-  <div id="ok" class="ok">
-    <div style="font-size:36px;margin-bottom:8px">🎉</div>
-    <div style="font-weight:700;margin-bottom:4px">You're in!</div>
-    <div style="font-size:13px;color:#15803d;margin-top:6px">Check your inbox in the next 10 minutes for your first matches.</div>
+  <div class="rp">
+    <div class="rh"><h2>Create your free account</h2><p>Takes 60 seconds. No credit card needed.</p></div>
+    <div id="eb" class="eb"></div>
+    <div id="ob" class="ob">
+      <div style="font-size:36px;margin-bottom:10px">🎉</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:6px">You're in!</div>
+      <div style="font-size:14px;color:var(--muted);line-height:1.6">Check your inbox — your first matches are on their way.</div>
+    </div>
+    <form id="form" enctype="multipart/form-data">
+      <div class="row">
+        <div class="fd"><label>Full name *</label><input name="name" required maxlength="60" placeholder="Priya Sharma"></div>
+        <div class="fd"><label>WhatsApp *</label><input name="phone" type="tel" required placeholder="+91 98765 43210"></div>
+      </div>
+      <div class="fd"><label>Email *</label><input name="email" type="email" required placeholder="priya@company.com"></div>
+      <div class="fd"><label>Cities *</label><input name="cities" required value="Bengaluru" placeholder="Bengaluru, Mumbai, Remote"></div>
+      <label class="fz" for="resume">
+        <input id="resume" name="resume" type="file" accept=".pdf" required>
+        <div class="fz-icon">📄</div>
+        <div class="fz-main">Click to upload your resume</div>
+        <div class="fz-sub">PDF only · Max 5MB · We never share it</div>
+        <div class="fname" id="fname"></div>
+      </label>
+      <button type="submit" id="btn" class="sb">Get my first matches →</button>
+      <p class="fn">Free forever · No spam · <a href="/terms">Privacy policy</a></p>
+    </form>
   </div>
-
-  <form id="form" enctype="multipart/form-data">
-    <label>Full name <span class="req">*</span></label>
-    <input name="name" required maxlength="60" placeholder="Priya Sharma">
-
-    <label>Email <span class="req">*</span></label>
-    <input name="email" type="email" required placeholder="priya@example.com">
-
-    <label>WhatsApp number <span class="req">*</span></label>
-    <input name="phone" type="tel" required pattern="[+0-9 ]{10,15}" placeholder="+91 98765 43210">
-
-    <label>Cities you're open to <span class="req">*</span></label>
-    <input name="cities" required value="Bengaluru" placeholder="Bengaluru, Mumbai, Remote">
-
-    <label>Resume <span class="req">*</span> (PDF, max 5MB)</label>
-    <label class="file-zone" for="resume">
-      <div style="font-size:24px;margin-bottom:6px">📄</div>
-      <div style="font-size:13px;font-weight:600;color:#0055FF">Click to upload</div>
-      <div style="font-size:11px;color:#9ca3af;margin-top:4px">We'll auto-extract your role, skills, experience</div>
-      <div class="file-name" id="fname"></div>
-      <input id="resume" name="resume" type="file" accept=".pdf" required>
-    </label>
-
-    <button type="submit" id="btn">Get my first digest →</button>
-  </form>
-
-  <p class="note">By signing up you agree to our <a href="/terms">terms</a> &middot; Free always &middot; Cancel anytime</p>
 </div>
-</div>
-
 <script>
-const form = document.getElementById('form');
-const btn = document.getElementById('btn');
-const err = document.getElementById('err');
-const ok = document.getElementById('ok');
-const fileInput = document.getElementById('resume');
-const fileName = document.getElementById('fname');
-
-fileInput.addEventListener('change', e => {
-  const f = e.target.files[0];
-  if (f) { fileName.textContent = f.name; fileName.style.display = 'block'; }
+document.getElementById('resume').addEventListener('change',e=>{
+  const f=e.target.files[0],fn=document.getElementById('fname');
+  if(f){fn.textContent='✓ '+f.name;fn.style.display='block';}
 });
-
-form.addEventListener('submit', async e => {
+document.getElementById('form').addEventListener('submit',async e=>{
   e.preventDefault();
-  err.style.display = 'none';
-  btn.disabled = true;
-  btn.textContent = 'Reading your resume...';
-  const fd = new FormData(form);
-  try {
-    const r = await fetch('/signup', { method: 'POST', body: fd });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || 'Signup failed');
-    form.style.display = 'none';
-    ok.style.display = 'block';
-  } catch(e) {
-    err.textContent = e.message;
-    err.style.display = 'block';
-    btn.disabled = false;
-    btn.textContent = 'Try again';
-  }
+  const err=document.getElementById('eb'),ok=document.getElementById('ob'),btn=document.getElementById('btn');
+  err.style.display='none';btn.disabled=true;btn.textContent='Reading your resume...';
+  try{
+    const r=await fetch('/signup',{method:'POST',body:new FormData(e.target)});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Signup failed');
+    e.target.style.display='none';ok.style.display='block';
+  }catch(er){err.textContent=er.message;err.style.display='block';btn.disabled=false;btn.textContent='Try again';}
 });
 </script>
 </body></html>`);
 });
-
 // ═══════════════════════════════════════════════════════════════════
 // /  — Landing page
 // ═══════════════════════════════════════════════════════════════════
 app.get('/', (req, res) => {
     res.send(`<!DOCTYPE html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JobMatch AI · Curated daily job matches for India</title>
-<meta name="description" content="Get hand-picked job matches every morning, scored by AI across LinkedIn, Naukri, and 5 platforms. Free for India.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<title>JobMatch AI — Daily curated job matches for India</title>
+<meta name="description" content="AI-powered job matching across LinkedIn, Naukri, and 5 platforms. Free for India.">
+${BRAND_HEAD}
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Inter',-apple-system,sans-serif;color:#0f172a;line-height:1.6;background:#fff}
-  .wrap{max-width:1100px;margin:0 auto;padding:0 24px}
-  /* HEADER */
-  header{padding:20px 0;border-bottom:1px solid #f1f5f9;position:sticky;top:0;background:rgba(255,255,255,.95);backdrop-filter:blur(8px);z-index:50}
-  .nav{display:flex;justify-content:space-between;align-items:center}
-  .logo{font-size:20px;font-weight:800;letter-spacing:-.02em}
-  .logo span{color:#0055FF}
-  .nav-cta{background:#0055FF;color:#fff;padding:9px 18px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600}
-  /* HERO */
-  .hero{padding:80px 0 60px;text-align:center}
-  .badge{display:inline-block;background:#f0f5ff;border:1px solid #c7d7ff;color:#1d4ed8;padding:6px 14px;border-radius:24px;font-size:12px;font-weight:600;margin-bottom:20px}
-  .live-dot{display:inline-block;width:7px;height:7px;background:#10b981;border-radius:50%;margin-right:6px;animation:pulse 2s infinite}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-  h1{font-size:56px;font-weight:900;letter-spacing:-.03em;line-height:1.1;margin-bottom:22px;max-width:780px;margin-left:auto;margin-right:auto}
-  h1 em{font-style:normal;background:linear-gradient(135deg,#0055FF 0%,#7c3aed 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-  .lede{font-size:19px;color:#475569;max-width:640px;margin:0 auto 36px;line-height:1.55}
-  .cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:18px}
-  .btn-primary{background:#0055FF;color:#fff;padding:16px 32px;border-radius:11px;text-decoration:none;font-size:15px;font-weight:700;transition:transform .15s;display:inline-block;box-shadow:0 4px 14px rgba(0,85,255,.25)}
-  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,85,255,.35)}
-  .btn-ghost{background:transparent;color:#475569;padding:16px 28px;border-radius:11px;text-decoration:none;font-size:15px;font-weight:600;border:1.5px solid #e2e8f0;display:inline-block}
-  .micro{font-size:13px;color:#94a3b8}
-  /* STATS BAR */
-  .stats{background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:24px;margin:50px 0;display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-  .stat{text-align:center}
-  .stat-num{font-size:28px;font-weight:800;color:#0055FF;letter-spacing:-.02em}
-  .stat-lbl{font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
-  /* HOW IT WORKS */
-  .section{padding:60px 0}
-  .h2{font-size:36px;font-weight:800;letter-spacing:-.02em;text-align:center;margin-bottom:14px}
-  .sub2{font-size:16px;color:#64748b;text-align:center;max-width:560px;margin:0 auto 50px}
-  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
-  .step{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:28px;position:relative}
-  .step-num{position:absolute;top:-14px;left:24px;background:#0055FF;color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px}
-  .step-title{font-size:17px;font-weight:700;margin:14px 0 8px}
-  .step-desc{font-size:14px;color:#64748b;line-height:1.6}
-  /* PRICING */
-  .pricing{background:#f8fafc;border-radius:18px;padding:50px 30px;margin:30px 0}
-  .price-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:760px;margin:30px auto 0}
-  .plan{background:#fff;border-radius:14px;padding:30px;border:2px solid #e2e8f0;position:relative}
-  .plan.pro{border-color:#0055FF;box-shadow:0 8px 24px rgba(0,85,255,.12)}
-  .plan-tag{position:absolute;top:-12px;right:24px;background:#0055FF;color:#fff;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.06em}
-  .plan-name{font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
-  .plan-price{font-size:38px;font-weight:800;color:#0f172a;letter-spacing:-.02em}
-  .plan-price small{font-size:14px;color:#94a3b8;font-weight:500}
-  .plan-tagline{font-size:13px;color:#64748b;margin:6px 0 18px}
-  .plan ul{list-style:none;font-size:14px;color:#334155;margin-bottom:22px}
-  .plan li{padding:6px 0;display:flex;align-items:flex-start;gap:8px}
-  .plan li::before{content:'✓';color:#10b981;font-weight:700;flex-shrink:0}
-  .plan-cta{display:block;text-align:center;padding:11px;border-radius:9px;font-size:13px;font-weight:700;text-decoration:none}
-  .plan-cta.primary{background:#0055FF;color:#fff}
-  .plan-cta.secondary{background:#fff;color:#0f172a;border:1.5px solid #e2e8f0}
-  /* TRUST */
-  .trust{background:linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 100%);border:1px solid #bbf7d0;border-radius:14px;padding:28px;margin:40px 0;display:flex;align-items:center;gap:20px}
-  .trust-icon{font-size:36px;flex-shrink:0}
-  .trust-title{font-size:16px;font-weight:700;color:#15803d;margin-bottom:4px}
-  .trust-desc{font-size:13px;color:#166534;line-height:1.6}
-  /* FAQ */
-  .faq{max-width:720px;margin:0 auto}
-  .faq-item{border-bottom:1px solid #e2e8f0;padding:18px 0}
-  .faq-q{font-weight:700;font-size:15px;margin-bottom:6px;color:#0f172a}
-  .faq-a{font-size:14px;color:#64748b;line-height:1.7}
-  /* FOOTER */
-  footer{background:#0f172a;color:#94a3b8;padding:40px 0;margin-top:60px;font-size:13px}
-  .foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
-  footer a{color:#cbd5e1;text-decoration:none}
-  /* MOBILE */
-  @media(max-width:720px){
-    h1{font-size:38px}
-    .lede{font-size:16px}
-    .stats{grid-template-columns:repeat(2,1fr)}
-    .steps{grid-template-columns:1fr}
-    .price-grid{grid-template-columns:1fr}
-    .h2{font-size:28px}
-    .trust{flex-direction:column;text-align:center}
-  }
+.w{max-width:1100px;margin:0 auto;padding:0 24px}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(9,9,11,0.9);backdrop-filter:blur(12px)}
+.logo{font-family:'Instrument Serif',serif;font-size:20px;letter-spacing:-.01em}
+.logo i{font-style:italic;color:var(--gold)}
+.nav-r{display:flex;align-items:center;gap:24px}
+.nl{font-size:13px;color:var(--muted);font-weight:500;transition:color .15s}.nl:hover{color:var(--text)}
+.nc{font-size:13px;font-weight:700;padding:9px 20px;border-radius:8px;background:var(--gold);color:#000}
+.hero{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;padding:120px 24px 80px;max-width:1100px;margin:0 auto;position:relative}
+.hero::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 20% 50%,rgba(245,158,11,0.05) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(59,130,246,0.04) 0%,transparent 50%);pointer-events:none;z-index:-1}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--gold);letter-spacing:.08em;text-transform:uppercase;padding:5px 14px;border:1px solid var(--gold-border);border-radius:20px;background:var(--gold-dim);margin-bottom:20px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:p 2s infinite}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+h1{font-family:'Instrument Serif',serif;font-size:56px;line-height:1.08;letter-spacing:-.02em;margin-bottom:20px}
+h1 i{font-style:italic;color:var(--gold)}
+.lede{font-size:17px;color:var(--muted);line-height:1.7;max-width:460px;margin-bottom:32px}
+.ctas{display:flex;gap:12px;margin-bottom:40px;flex-wrap:wrap}
+.bp{display:inline-block;background:var(--gold);color:#000;padding:13px 26px;border-radius:10px;font-size:15px;font-weight:700;transition:opacity .15s}.bp:hover{opacity:.88}
+.bs{display:inline-block;border:1px solid var(--border);color:var(--text);padding:13px 22px;border-radius:10px;font-size:15px;font-weight:600;transition:border-color .15s}.bs:hover{border-color:var(--border-hover)}
+.proof{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.pdot{width:3px;height:3px;border-radius:50%;background:var(--subtle)}
+/* MOCK CARD */
+.mock{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:22px;animation:fl 6s ease-in-out infinite}
+@keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.ml{font-family:'Instrument Serif',serif;font-size:15px}.ml i{font-style:italic;color:var(--gold)}
+.mb{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:var(--gold-dim);color:var(--gold);border:1px solid var(--gold-border)}
+.mj{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:10px;padding:14px;margin-bottom:8px}
+.mjt{font-size:13px;font-weight:600;margin-bottom:3px}
+.mjm{font-size:11px;color:var(--muted);margin-bottom:8px}
+.mjr{font-size:11px;color:var(--muted);line-height:1.5;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px;margin-bottom:8px}
+.mjf{display:flex;justify-content:space-between;align-items:center}
+.mjs{font-size:19px;font-weight:700;color:var(--green)}
+.mja{font-size:11px;font-weight:600;padding:5px 12px;border-radius:7px;background:#0055FF;color:#fff}
+.mj2{background:var(--surface);border:1px solid var(--border);border-left:3px solid #3B82F6;border-radius:10px;padding:12px;margin-bottom:8px;opacity:.6}
+.mm{text-align:center;font-size:11px;color:var(--muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+/* STRIP */
+.strip{border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:20px 0}
+.strip-inner{display:grid;grid-template-columns:repeat(4,1fr);max-width:900px;margin:0 auto}
+.si{text-align:center;padding:0 20px;border-right:1px solid var(--border)}.si:last-child{border-right:none}
+.sn{font-family:'Instrument Serif',serif;font-size:34px;display:block;margin-bottom:4px}
+.sl{font-size:12px;color:var(--muted);font-weight:500}
+/* SECTION */
+.sec{padding:80px 0}
+.slb{font-size:12px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:14px}
+.st{font-family:'Instrument Serif',serif;font-size:38px;line-height:1.12;letter-spacing:-.01em;margin-bottom:14px}
+.ss{font-size:16px;color:var(--muted);line-height:1.7;max-width:520px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:50px}
+.step{border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;background:var(--card);transition:border-color .2s}.step:hover{border-color:var(--border-hover)}
+.snum{font-family:'Instrument Serif',serif;font-size:50px;color:var(--subtle);font-style:italic;margin-bottom:14px}
+.stit{font-size:16px;font-weight:700;margin-bottom:8px}
+.sdesc{font-size:14px;color:var(--muted);line-height:1.65}
+/* PRICING */
+.pg{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:760px;margin:48px auto 0}
+.pc{border:1px solid var(--border);border-radius:var(--radius-lg);padding:30px;background:var(--card);position:relative}
+.pc.f{border-color:var(--gold-border);background:rgba(245,158,11,0.04)}
+.pt{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--gold);color:#000;font-size:11px;font-weight:700;padding:4px 14px;border-radius:20px;white-space:nowrap}
+.pn{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.pp{font-family:'Instrument Serif',serif;font-size:42px;margin-bottom:4px}
+.pf{list-style:none;margin-bottom:24px}.pf li{font-size:14px;color:var(--muted);padding:7px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:flex-start}.pf li:last-child{border:none}.pf .ck{color:var(--green)}
+.pba{display:block;text-align:center;padding:13px;border-radius:10px;font-size:14px;font-weight:700;background:var(--gold);color:#000}
+.pbb{display:block;text-align:center;padding:13px;border-radius:10px;font-size:14px;font-weight:600;border:1px solid var(--border);color:var(--text);transition:border-color .15s}.pbb:hover{border-color:var(--border-hover)}
+/* TRUST */
+.trust{border:1px solid rgba(34,197,94,0.2);border-radius:var(--radius-lg);padding:28px;background:rgba(34,197,94,0.04);display:flex;gap:20px;max-width:760px;margin:32px auto 0}
+/* FAQ */
+.faq{max-width:660px;margin:48px auto 0}
+.fi{border-bottom:1px solid var(--border);cursor:pointer}
+.fq{padding:18px 0;font-size:15px;font-weight:600;display:flex;justify-content:space-between;gap:12px}
+.fq .ar{color:var(--muted);font-size:20px;transition:transform .2s;flex-shrink:0}
+.fi.o .ar{transform:rotate(45deg)}
+.fa{font-size:14px;color:var(--muted);line-height:1.7;max-height:0;overflow:hidden;transition:max-height .3s,padding .3s}
+.fi.o .fa{max-height:300px;padding-bottom:16px}
+/* FOOTER */
+footer{border-top:1px solid var(--border);padding:36px 0}
+.fi2{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
+.fln{font-family:'Instrument Serif',serif;font-size:18px}.fln i{font-style:italic;color:var(--gold)}
+.fll{display:flex;gap:22px}.fla{font-size:13px;color:var(--muted);transition:color .15s}.fla:hover{color:var(--text)}
+.flg{font-size:11px;color:var(--subtle);text-align:center;margin-top:14px}
+@media(max-width:780px){
+  .hero{grid-template-columns:1fr;gap:36px;padding-top:100px}
+  h1{font-size:38px}.steps{grid-template-columns:1fr}.pg{grid-template-columns:1fr}
+  .strip-inner{grid-template-columns:repeat(2,1fr)}.si{border-right:none;border-bottom:1px solid var(--border);padding:14px 0}
+  .nav-r .nl{display:none}
+}
 </style></head>
 <body>
-
-<header><div class="wrap nav">
-  <div class="logo">Job<span>Match</span> AI</div>
-  <a href="/signup" class="nav-cta">Get started →</a>
-</div></header>
-
-<section class="hero"><div class="wrap">
-  <div class="badge"><span class="live-dot"></span><span id="live-count">Loading...</span> professionals getting matches today</div>
-  <h1>Stop scrolling job boards. <em>Get curated matches every morning.</em></h1>
-  <p class="lede">JobMatch AI scans 5 platforms daily, scores every role against your resume using Claude AI, and emails only the matches worth your time. Built for Indian senior professionals.</p>
-  <div class="cta-row">
-    <a href="/signup" class="btn-primary">Get my first digest →</a>
-    <a href="#how" class="btn-ghost">See how it works</a>
+<nav>
+  <div class="logo">Job<i>Match</i> AI</div>
+  <div class="nav-r">
+    <a href="#how" class="nl">How it works</a>
+    <a href="#pricing" class="nl">Pricing</a>
+    <a href="mailto:hello@jobmatchai.co.in" class="nl">Contact</a>
+    <a href="/signup" class="nc">Get started →</a>
   </div>
-  <p class="micro">Free forever &middot; No credit card &middot; Setup in 60 seconds</p>
+</nav>
 
-  <div class="stats">
-    <div class="stat"><div class="stat-num" id="s-users">—</div><div class="stat-lbl">Active users</div></div>
-    <div class="stat"><div class="stat-num">5</div><div class="stat-lbl">Job platforms</div></div>
-    <div class="stat"><div class="stat-num">9 AM</div><div class="stat-lbl">IST daily</div></div>
-    <div class="stat"><div class="stat-num">100%</div><div class="stat-lbl">Free to apply</div></div>
+<div class="hero">
+  <div>
+    <div class="eyebrow"><span class="dot"></span><span id="lc">59</span> matched today</div>
+    <h1>Stop searching.<br>Start <i>matching.</i></h1>
+    <p class="lede">Upload your resume once. Every morning we scan 5 platforms and send you the roles that actually fit — scored by AI, ranked by relevance.</p>
+    <div class="ctas">
+      <a href="/signup" class="bp">Upload resume — free →</a>
+      <a href="#how" class="bs">How it works</a>
+    </div>
+    <div class="proof">
+      <span>✓ Free forever</span><span class="pdot"></span>
+      <span>No credit card</span><span class="pdot"></span>
+      <span>60-second setup</span><span class="pdot"></span>
+      <span>Built for India</span>
+    </div>
   </div>
-</div></section>
+  <div>
+    <div class="mock">
+      <div class="mh">
+        <div class="ml">Job<i>Match</i> AI</div>
+        <div class="mb">Today's matches</div>
+      </div>
+      <div class="mj">
+        <div class="mjt">Head of Partnerships – Fintech</div>
+        <div class="mjm">Brahma Finance · Bengaluru · <span style="color:var(--green);font-weight:600">₹30–45L</span></div>
+        <div class="mjr">Direct function match — NBFC alliances, partner commercials, distribution expansion. Domain and seniority align tightly.</div>
+        <div class="mjf">
+          <span style="font-size:11px;color:var(--green);font-weight:600;padding:3px 9px;background:rgba(34,197,94,0.1);border-radius:20px">Strong fit</span>
+          <div style="display:flex;align-items:center;gap:10px"><span class="mjs">91%</span><span class="mja">Apply →</span></div>
+        </div>
+      </div>
+      <div class="mj2">
+        <div class="mjt">VP Partnerships – Growth Stage Fintech</div>
+        <div class="mjm">Velocity · Bengaluru · LinkedIn · <span style="color:#3B82F6">77%</span></div>
+      </div>
+      <div class="mj2" style="opacity:.4">
+        <div class="mjt">Senior Manager – Strategic Alliances</div>
+        <div class="mjm">Razorpay · Bengaluru · Naukri · <span style="color:#d97706">62%</span></div>
+      </div>
+      <div class="mm">+ 12 more in your inbox →</div>
+    </div>
+  </div>
+</div>
 
-<section class="section" id="how"><div class="wrap">
-  <h2 class="h2">How it works</h2>
-  <p class="sub2">Three steps. One minute to set up. Then we do the work every day.</p>
+<div class="strip">
+  <div class="strip-inner">
+    <div class="si"><span class="sn" id="su">59</span><span class="sl">Active users</span></div>
+    <div class="si"><span class="sn">5</span><span class="sl">Job platforms</span></div>
+    <div class="si"><span class="sn">9 AM</span><span class="sl">IST daily</span></div>
+    <div class="si"><span class="sn">₹0</span><span class="sl">To apply, ever</span></div>
+  </div>
+</div>
+
+<section class="sec" id="how"><div class="w" style="text-align:center">
+  <span class="slb">How it works</span>
+  <h2 class="st">Three steps. One minute.</h2>
+  <p class="ss" style="margin:0 auto">Then we work every morning while you sleep.</p>
   <div class="steps">
-    <div class="step">
-      <div class="step-num">1</div>
-      <div class="step-title">Upload your resume</div>
-      <div class="step-desc">Claude reads your role, experience, skills, and target domain in seconds. No manual form-filling.</div>
-    </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <div class="step-title">We search 5 platforms daily</div>
-      <div class="step-desc">LinkedIn, Naukri, JSearch, Adzuna, iimjobs &mdash; every morning, fresh roles only, scored against your profile.</div>
-    </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <div class="step-title">Open one email per day</div>
-      <div class="step-desc">15 ranked matches with scores, why they fit, salary, and direct apply links. No noise. No duplicates.</div>
-    </div>
+    <div class="step"><div class="snum">01</div><div class="stit">Upload your resume</div><div class="sdesc">Claude reads your role, experience, skills, and domain in seconds. No manual form-filling.</div></div>
+    <div class="step"><div class="snum">02</div><div class="stit">We search 5 platforms</div><div class="sdesc">LinkedIn, Naukri, JSearch, Adzuna, iimjobs — every morning. Fresh roles only. Scored by AI function-matching.</div></div>
+    <div class="step"><div class="snum">03</div><div class="stit">Open one email</div><div class="sdesc">15 ranked matches with scores, fit reasoning, salary, and direct apply links. Nothing you've seen before.</div></div>
   </div>
 </div></section>
 
-<section class="section pricing"><div class="wrap">
-  <h2 class="h2">Honest pricing</h2>
-  <p class="sub2">Free works forever. Pro covers our running costs and unlocks daily delivery.</p>
-  <div class="price-grid">
-    <div class="plan">
-      <div class="plan-name">Free</div>
-      <div class="plan-price">&#8377;0<small>/forever</small></div>
-      <div class="plan-tagline">Always free, no card required</div>
-      <ul>
-        <li>2 curated digests per week</li>
-        <li>Up to 5 matches per email</li>
-        <li>Core matching engine</li>
-        <li>Unsubscribe anytime</li>
+<section class="sec" id="pricing" style="background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)"><div class="w" style="text-align:center">
+  <span class="slb">Pricing</span>
+  <h2 class="st">Simple. Transparent.</h2>
+  <p class="ss" style="margin:0 auto">Free works forever. Pro covers our costs and unlocks daily delivery.</p>
+  <div class="pg">
+    <div class="pc">
+      <div class="pn">Free</div>
+      <div class="pp">₹0<span style="font-size:15px;color:var(--muted);font-family:'Manrope',sans-serif;font-weight:500">/forever</span></div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">No card. No commitment.</p>
+      <ul class="pf">
+        <li><span class="ck">✓</span>2 digests per week</li>
+        <li><span class="ck">✓</span>Up to 5 matches per email</li>
+        <li><span class="ck">✓</span>Core AI matching</li>
+        <li><span class="ck">✓</span>Unsubscribe anytime</li>
       </ul>
-      <a href="/signup" class="plan-cta secondary">Start free</a>
+      <a href="/signup" class="pbb">Start free →</a>
     </div>
-    <div class="plan pro">
-      <div class="plan-tag">FOUNDING</div>
-      <div class="plan-name">Pro</div>
-      <div class="plan-price">&#8377;49<small>/month</small></div>
-      <div class="plan-tagline">or &#8377;499/year &middot; locked in for life</div>
-      <ul>
-        <li>Daily curated matches at 9am IST</li>
-        <li>Up to 15 matches per digest</li>
-        <li>Full search across all 5 platforms</li>
-        <li>Complete dashboard + apply history</li>
-        <li>Priority email support</li>
+    <div class="pc f">
+      <div class="pt">★ Founding rate · 100 spots only</div>
+      <div class="pn" style="color:var(--gold)">Pro</div>
+      <div class="pp" style="color:var(--gold)">₹49<span style="font-size:15px;color:var(--muted);font-family:'Manrope',sans-serif;font-weight:500">/month</span></div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">or ₹499/year · locked in for life</p>
+      <ul class="pf">
+        <li><span class="ck">✓</span>Daily matches at 9am IST</li>
+        <li><span class="ck">✓</span>Up to 15 matches per email</li>
+        <li><span class="ck">✓</span>Full LinkedIn + Naukri search</li>
+        <li><span class="ck">✓</span>Dashboard + apply history tracker</li>
+        <li><span class="ck">✓</span>Priority support</li>
       </ul>
-      <a href="/signup?plan=pro" class="plan-cta primary">Become a founding member</a>
+      <a href="/signup" class="pba">Become a founding member →</a>
+      <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px">Regular ₹149/month after spots fill</p>
     </div>
   </div>
-  <p class="micro" style="text-align:center;margin-top:24px">Founding rate available for the first 100 members. Regular price will be &#8377;149/month.</p>
-</div></section>
-
-<section class="section"><div class="wrap">
   <div class="trust">
-    <div class="trust-icon">🤝</div>
+    <div style="font-size:24px">🤝</div>
     <div>
-      <div class="trust-title">Our promise: we never charge you to apply for jobs</div>
-      <div class="trust-desc">JobMatch is a search and curation tool. Every job we surface is free to apply on the original platform. We charge only for the matching service &mdash; and only if you find it valuable enough to upgrade.</div>
+      <div style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:5px">We never charge you to apply for jobs</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.7">JobMatch is a curation tool. Every job we surface is free to apply on the original platform. Our only revenue is the optional Pro subscription — and only if you find the product worth it.</div>
     </div>
   </div>
 </div></section>
 
-<section class="section"><div class="wrap">
-  <h2 class="h2">Common questions</h2>
+<section class="sec"><div class="w" style="text-align:center">
+  <span class="slb">FAQ</span>
+  <h2 class="st">Common questions</h2>
   <div class="faq">
-    <div class="faq-item">
-      <div class="faq-q">Do you charge employers or take recruitment fees?</div>
-      <div class="faq-a">No. We have zero relationship with employers. We don't get paid when you get hired. Our only revenue is the optional Pro subscription from job seekers.</div>
-    </div>
-    <div class="faq-item">
-      <div class="faq-q">Where do the jobs come from?</div>
-      <div class="faq-a">We aggregate from LinkedIn, Naukri, iimjobs, JSearch (Google for Jobs), and Adzuna. All public listings. We never scrape protected pages or anything you couldn't find yourself &mdash; we just save you the time of doing it.</div>
-    </div>
-    <div class="faq-item">
-      <div class="faq-q">Is my resume data safe?</div>
-      <div class="faq-a">Your resume stays on our private storage and is used only to score job relevance for you. We never sell, share, or repurpose your data. You can delete your account anytime and we wipe everything within 24 hours.</div>
-    </div>
-    <div class="faq-item">
-      <div class="faq-q">What's the difference between Free and Pro?</div>
-      <div class="faq-a">Free runs on free APIs and sends 2 digests per week with our core matching. Pro runs on premium APIs (LinkedIn + Naukri scrapers cost real money) and sends daily matches with deeper coverage. Most users start free.</div>
-    </div>
-    <div class="faq-item">
-      <div class="faq-q">How do I cancel Pro?</div>
-      <div class="faq-a">Reply to any email saying "cancel" &mdash; we process within 12 hours, no questions asked. We use one-time payment links (not auto-renewal), so there are no surprise charges ever.</div>
-    </div>
+    <div class="fi" onclick="tf(this)"><div class="fq">Do you charge employers or take placement fees?<span class="ar">+</span></div><div class="fa">No. Zero relationship with employers. We don't get paid when you get hired. Our only revenue is the optional Pro subscription.</div></div>
+    <div class="fi" onclick="tf(this)"><div class="fq">Where do the jobs come from?<span class="ar">+</span></div><div class="fa">LinkedIn, Naukri, iimjobs, JSearch (Google for Jobs), and Adzuna. All public listings. We save you the 2 hours of daily searching.</div></div>
+    <div class="fi" onclick="tf(this)"><div class="fq">Is my resume data safe?<span class="ar">+</span></div><div class="fa">Stored privately, used only to score relevance for you. Never sold or shared. Delete anytime — we wipe everything within 24 hours.</div></div>
+    <div class="fi" onclick="tf(this)"><div class="fq">How is this different from Naukri or LinkedIn?<span class="ar">+</span></div><div class="fa">Naukri shows every keyword-matching job. We score each role against your specific profile — function, seniority, domain, location — and send only what's actually relevant.</div></div>
+    <div class="fi" onclick="tf(this)"><div class="fq">Can I cancel Pro anytime?<span class="ar">+</span></div><div class="fa">Yes. Email hello@jobmatchai.co.in — processed within 12 hours. We use one-time payment links, not auto-renewal, so there are no surprise charges.</div></div>
   </div>
 </div></section>
 
-<footer><div class="wrap foot">
-  <div>JobMatch AI &middot; Made in India 🇮🇳 &middot; Built with Claude</div>
-  <div><a href="mailto:hello@jobmatchai.co.in">hello@jobmatchai.co.in</a></div>
+<footer><div class="w">
+  <div class="fi2">
+    <div class="fln">Job<i>Match</i> AI</div>
+    <div class="fll">
+      <a href="/terms" class="fla">Terms & Privacy</a>
+      <a href="mailto:hello@jobmatchai.co.in" class="fla">hello@jobmatchai.co.in</a>
+    </div>
+  </div>
+  <p class="flg">Built with Claude · Made in India 🇮🇳 · ₹0 charged to apply, ever</p>
 </div></footer>
 
 <script>
-fetch('/count').then(r => r.json()).then(d => {
-  const n = d.count || 50;
-  document.getElementById('live-count').textContent = n.toLocaleString('en-IN');
-  document.getElementById('s-users').textContent = n.toLocaleString('en-IN');
-}).catch(() => {
-  document.getElementById('live-count').textContent = '50+';
-  document.getElementById('s-users').textContent = '50+';
-});
+fetch('/count').then(r=>r.json()).then(d=>{
+  const n=d.count||59;
+  document.getElementById('lc').textContent=n.toLocaleString('en-IN');
+  document.getElementById('su').textContent=n.toLocaleString('en-IN');
+}).catch(()=>{});
+function tf(el){const o=el.classList.contains('o');document.querySelectorAll('.fi').forEach(f=>f.classList.remove('o'));if(!o)el.classList.add('o');}
+// Animate counter
+const el=document.getElementById('lc'),t=parseInt(el.textContent)||59;let c=Math.max(t-12,1);
+const tmr=setInterval(()=>{c++;el.textContent=c.toLocaleString('en-IN');if(c>=t)clearInterval(tmr);},80);
 </script>
 </body></html>`);
 });
-
 // ═══════════════════════════════════════════════════════════════════
 // /terms — minimal terms page
 // ═══════════════════════════════════════════════════════════════════
