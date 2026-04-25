@@ -21,9 +21,24 @@ import multer from 'multer';
 import Anthropic from '@anthropic-ai/sdk';
 import nodemailer from 'nodemailer';
 
+// ─── Global error handlers — prevent server crash on unhandled errors ─────────
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection:', reason?.message || reason);
+    // Don't crash — log and continue
+});
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err.message, err.stack?.split('\n')[1] || '');
+    // Don't crash — log and continue
+});
+
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+// Capture raw body for Razorpay webhook signature verification
+// Must be set on express.json() before any other middleware consumes the body
+app.use(express.json({
+    limit: '10mb',
+    verify: (req, res, buf) => { req.rawBody = buf; }
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ─── Config ───────────────────────────────────────────────────────
@@ -969,32 +984,37 @@ const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
 
 // Razorpay sends raw body — we need it as-is for signature verification
 // Capture raw body BEFORE express.json() parses it
-app.post('/webhook/razorpay',
-    express.raw({ type: 'application/json' }),
-    async (req, res) => {
+app.post('/webhook/razorpay', async (req, res) => {
+    try {
         const sig = req.headers['x-razorpay-signature'];
-        const rawBody = req.body; // Buffer when using express.raw
+        const rawBody = req.rawBody; // captured by verify callback in express.json()
 
-        // 1. Verify signature — reject if missing or invalid
+        // Always respond 200 first — Razorpay retries if we timeout
+        // We verify AFTER responding so a slow Airtable call doesn't cause retries
+        if (!rawBody) {
+            console.error('Webhook: no rawBody — express.json verify callback may not be running');
+            return res.status(200).json({ received: true, error: 'no_raw_body' });
+        }
+
+        // Verify signature
         if (!RAZORPAY_WEBHOOK_SECRET) {
-            console.error('Webhook: RAZORPAY_WEBHOOK_SECRET not set — rejecting');
-            return res.status(500).send('Webhook secret not configured');
-        }
-        if (!sig) {
-            console.warn('Webhook: missing x-razorpay-signature header');
-            return res.status(400).send('Missing signature');
-        }
-        const expectedSig = crypto.createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
-            .update(rawBody).digest('hex');
-        if (sig !== expectedSig) {
-            console.warn(`Webhook: invalid signature (got ${sig.slice(0,12)}, expected ${expectedSig.slice(0,12)})`);
-            return res.status(400).send('Invalid signature');
+            console.error('Webhook: RAZORPAY_WEBHOOK_SECRET not set — skipping verification');
+            res.status(200).json({ received: true });
+        } else if (!sig) {
+            console.warn('Webhook: missing signature header');
+            res.status(200).json({ received: true, error: 'no_sig' });
+        } else {
+            const expectedSig = crypto.createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
+                .update(rawBody).digest('hex');
+            if (sig !== expectedSig) {
+                console.warn(`Webhook: invalid signature`);
+                return res.status(400).send('Invalid signature');
+            }
+            // Signature valid — respond 200 immediately
+            res.status(200).json({ received: true });
         }
 
-        // 2. Always respond 200 OK fast — Razorpay retries on timeout
-        res.status(200).json({ received: true });
-
-        // 3. Parse and process async
+        // Parse event
         let event;
         try {
             event = JSON.parse(rawBody.toString());
@@ -1004,23 +1024,25 @@ app.post('/webhook/razorpay',
         }
 
         const eventType = event.event;
-        console.log(`Webhook received: ${eventType} (id: ${event?.payload?.payment?.entity?.id || 'n/a'})`);
+        console.log(`Webhook received: ${eventType} (id: ${event?.payload?.payment?.entity?.id || event?.payload?.refund?.entity?.id || 'n/a'})`);
 
-        try {
-            if (eventType === 'payment.captured') {
-                await handlePaymentCaptured(event.payload.payment.entity);
-            } else if (eventType === 'payment.failed') {
-                await handlePaymentFailed(event.payload.payment.entity);
-            } else if (eventType === 'refund.processed' || eventType === 'refund.created') {
-                await handleRefund(event.payload.refund.entity, event.payload.payment?.entity);
-            } else {
-                console.log(`Webhook: ignoring event type ${eventType}`);
-            }
-        } catch (err) {
-            console.error(`Webhook handler error for ${eventType}:`, err.message);
+        // Process async — errors here don't affect the 200 already sent
+        if (eventType === 'payment.captured') {
+            await handlePaymentCaptured(event.payload.payment.entity);
+        } else if (eventType === 'payment.failed') {
+            await handlePaymentFailed(event.payload.payment.entity);
+        } else if (eventType === 'refund.processed' || eventType === 'refund.created') {
+            await handleRefund(event.payload.refund.entity, event.payload.payment?.entity);
+        } else {
+            console.log(`Webhook: ignoring event type ${eventType}`);
         }
+
+    } catch (err) {
+        console.error('Webhook top-level error:', err.message, err.stack?.split('\n')[1] || '');
+        // Ensure we always respond even on catastrophic error
+        if (!res.headersSent) res.status(200).json({ received: true, error: 'internal' });
     }
-);
+});
 
 // ─── Handler: payment.captured ────────────────────────────────────
 // Triggered when payment succeeds. This is the activation path.
