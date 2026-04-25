@@ -1106,7 +1106,7 @@ async function handlePaymentCaptured(payment) {
 
     // Activate Pro
     const newExpiry = addDays(new Date(), days).toISOString().split('T')[0];
-    await fetch(`https://api.airtable.com/v0/${AT_BASE}/${USERS_TABLE}/${existing.id}`, {
+    const patchResp = await fetch(`https://api.airtable.com/v0/${AT_BASE}/${USERS_TABLE}/${existing.id}`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1116,14 +1116,20 @@ async function handlePaymentCaptured(payment) {
                 LastPaymentAmount: amountRupees,
                 LastPaymentDate: new Date().toISOString(),
                 LastPaymentId: paymentId,
-                RenewalReminderSent: '', // reset so reminders fire on schedule
+                RenewalReminderSent: '',
                 Status: 'Active',
                 LastEngagement: new Date().toISOString(),
             }
         })
     });
 
-    console.log(`✅ Activated Pro for ${email} (${plan}, ₹${amountRupees}, valid until ${newExpiry})`);
+    if (!patchResp.ok) {
+        const errBody = await patchResp.json().catch(() => ({}));
+        console.error(`❌ Airtable PATCH failed for ${email}: ${patchResp.status} ${JSON.stringify(errBody)}`);
+        // Don't return — still send welcome email so user isn't left hanging
+    } else {
+        console.log(`✅ Activated Pro for ${email} (${plan}, ₹${amountRupees}, valid until ${newExpiry})`);
+    }
 
     // Send welcome email
     await sendWelcomeEmail(email, existing.fields?.Name || email.split('@')[0], plan, amountRupees, days, false);
