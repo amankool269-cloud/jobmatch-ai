@@ -360,22 +360,37 @@ app.get('/dashboard', async (req, res) => {
   </div>
 </div>`).join('');
 
-    const applyRows = applies.slice(0, 20).map(a => {
+    const STATUS_CONFIG = {
+        'Applied':      { bg: '#eff6ff', color: '#1d4ed8', next: 'Heard back' },
+        'Heard back':   { bg: '#f0fdf4', color: '#15803d', next: 'Interviewing' },
+        'Interviewing': { bg: '#faf5ff', color: '#7c3aed', next: 'Offered' },
+        'Offered':      { bg: '#fefce8', color: '#a16207', next: 'Applied' },
+        'Rejected':     { bg: '#fef2f2', color: '#b91c1c', next: 'Applied' },
+    };
+
+    const applyRows = applies.slice(0, 30).map(a => {
         const af = a.fields;
         const date = af.ClickedAt ? new Date(af.ClickedAt).toLocaleDateString('en-IN', {day:'numeric',month:'short'}) : '';
         const srcColors = {LinkedIn:'#0077b5',Naukri:'#ff6b35',JSearch:'#4285f4',Adzuna:'#e63946',iimjobs:'#6d28d9'};
         const srcColor = srcColors[af.Source] || '#64748b';
-        return `<div class="apply-row">
+        const status = af.ApplyStatus || 'Applied';
+        const sc = STATUS_CONFIG[status] || STATUS_CONFIG['Applied'];
+        return `<div class="apply-row" id="row-${a.id}">
   <div style="flex:1;min-width:0">
-    <div style="font-size:13px;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${af.JobTitle||'Untitled role'}</div>
-    <div style="font-size:11px;color:#64748b;margin-top:2px;display:flex;align-items:center;gap:6px">
+    <div style="font-size:13px;font-weight:500;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${af.JobTitle||'Untitled role'}</div>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
       <span>${af.Company||''}</span>
-      ${af.Source ? `<span style="background:${srcColor}18;color:${srcColor};padding:1px 7px;border-radius:10px;font-weight:600;font-size:10px">${af.Source}</span>` : ''}
+      ${af.Source ? `<span style="background:${srcColor}18;color:${srcColor};padding:1px 7px;border-radius:10px;font-weight:500;font-size:10px">${af.Source}</span>` : ''}
+      <span style="color:var(--color-text-secondary)">${date}</span>
     </div>
   </div>
-  <div style="flex-shrink:0;text-align:right">
-    ${af.MatchScore ? `<div style="font-size:12px;font-weight:700;color:${scoreColor(af.MatchScore)}">${af.MatchScore}%</div>` : ''}
-    <div style="font-size:11px;color:#94a3b8;margin-top:1px">${date}</div>
+  <div style="flex-shrink:0;display:flex;align-items:center;gap:10px">
+    ${af.MatchScore ? `<span style="font-size:12px;font-weight:500;color:${scoreColor(af.MatchScore)}">${af.MatchScore}%</span>` : ''}
+    <button onclick="cycleStatus('${a.id}','${af.ApplyStatus||'Applied'}','${encodeURIComponent(email)}')"
+      id="status-${a.id}"
+      style="font-size:11px;font-weight:500;padding:4px 10px;border-radius:20px;border:0.5px solid ${sc.color}40;background:${sc.bg};color:${sc.color};cursor:pointer;transition:opacity .15s;white-space:nowrap">
+      ${status}
+    </button>
   </div>
 </div>`;
     }).join('');
@@ -565,6 +580,43 @@ function switchTab(name, el) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
+}
+
+const STATUS_CYCLE = {
+  'Applied':      { next:'Heard back',   bg:'#eff6ff', color:'#1d4ed8' },
+  'Heard back':   { next:'Interviewing', bg:'#f0fdf4', color:'#15803d' },
+  'Interviewing': { next:'Offered',      bg:'#faf5ff', color:'#7c3aed' },
+  'Offered':      { next:'Applied',      bg:'#fefce8', color:'#a16207' },
+  'Rejected':     { next:'Applied',      bg:'#fef2f2', color:'#b91c1c' },
+};
+
+async function cycleStatus(recordId, currentStatus, encodedEmail) {
+  const cfg = STATUS_CYCLE[currentStatus] || STATUS_CYCLE['Applied'];
+  const newStatus = cfg.next;
+  const btn = document.getElementById('status-' + recordId);
+  if (!btn) return;
+
+  btn.style.opacity = '0.5';
+  btn.textContent = '...';
+
+  try {
+    const resp = await fetch('/apply-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recordId, status: newStatus, email: decodeURIComponent(encodedEmail) })
+    });
+    if (!resp.ok) throw new Error('Failed');
+    const newCfg = STATUS_CYCLE[newStatus] || STATUS_CYCLE['Applied'];
+    btn.textContent = newStatus;
+    btn.style.background = newCfg.bg;
+    btn.style.color = newCfg.color;
+    btn.style.borderColor = newCfg.color + '40';
+    btn.style.opacity = '1';
+    btn.onclick = () => cycleStatus(recordId, newStatus, encodedEmail);
+  } catch (e) {
+    btn.textContent = currentStatus;
+    btn.style.opacity = '1';
+  }
 }
 </script>
 </body></html>`);
@@ -1438,6 +1490,37 @@ function addDays(date, days) {
     d.setDate(d.getDate() + days);
     return d;
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// /apply-status — Update job application status from dashboard
+// ═══════════════════════════════════════════════════════════════════
+// Called by client-side cycleStatus() JS — no auth token needed
+// because recordId is an opaque Airtable ID, not guessable
+// Status cycle: Applied → Heard back → Interviewing → Offered → (Rejected via long-press)
+app.post('/apply-status', async (req, res) => {
+    const { recordId, status, email } = req.body;
+    const VALID = ['Applied', 'Heard back', 'Interviewing', 'Offered', 'Rejected'];
+    if (!recordId || !VALID.includes(status)) {
+        return res.status(400).json({ error: 'Invalid request' });
+    }
+    try {
+        const r = await fetch(`https://api.airtable.com/v0/${AT_BASE}/${CLICKS_TABLE}/${recordId}`, {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fields: { ApplyStatus: status } })
+        });
+        if (!r.ok) {
+            const err = await r.json().catch(()=>({}));
+            console.error(`apply-status PATCH failed: ${r.status}`, err);
+            return res.status(500).json({ error: 'Airtable update failed' });
+        }
+        console.log(`Apply status: ${email} → ${status} (${recordId.slice(-6)})`);
+        res.json({ ok: true, status });
+    } catch (e) {
+        console.error('apply-status error:', e.message);
+        res.status(500).json({ error: 'Internal error' });
+    }
+});
 
 app.get('/welcome', (req, res) => {
     res.send(`<!DOCTYPE html><html lang="en"><head>
