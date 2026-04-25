@@ -500,6 +500,22 @@ app.post('/signup', upload.single('resume'), async (req, res) => {
     const disposableDomains = /mailinator\.|guerrillamail\.|tempmail\.|throwaway\.|yopmail\.|sharklasers\.|trashmail\.|maildrop\.|dispostable\.|spamgourmet\.|fakeinbox\.|temp-mail\.|getairmail\.|mailnull\.|spamhole\.|discard\.email/i;
     if (disposableDomains.test(email)) return res.status(400).json({ error: 'Disposable email addresses are not allowed. Please use your work or personal email.' });
 
+    // Catch common email domain typos — gamil, gmai, gnail, outlok, yaho etc
+    const emailDomain = email.split('@')[1]?.toLowerCase() || '';
+    const typoMap = {
+        'gamil.com': 'gmail.com', 'gmai.com': 'gmail.com', 'gmial.com': 'gmail.com',
+        'gnail.com': 'gmail.com', 'gmail.co': 'gmail.com', 'gmail.con': 'gmail.com',
+        'gmaill.com': 'gmail.com', 'gmil.com': 'gmail.com', 'gmal.com': 'gmail.com',
+        'yaho.com': 'yahoo.com', 'yahooo.com': 'yahoo.com', 'yahoo.co': 'yahoo.com',
+        'hotmial.com': 'hotmail.com', 'hotmal.com': 'hotmail.com', 'hotmail.co': 'hotmail.com',
+        'outlok.com': 'outlook.com', 'outllok.com': 'outlook.com', 'outook.com': 'outlook.com',
+        'redifmail.com': 'rediffmail.com', 'redif.com': 'rediffmail.com',
+    };
+    if (typoMap[emailDomain]) {
+        const suggested = email.replace(emailDomain, typoMap[emailDomain]);
+        return res.status(400).json({ error: `Did you mean ${suggested}? Please check your email address.` });
+    }
+
     const cleanup = () => { try { unlinkSync(file.path); } catch {} };
 
     try {
@@ -931,7 +947,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
   <div class="section">
     <div class="section-title">Your latest matches${matchRunDate ? ' &middot; ' + matchRunDate : ''}</div>
-    ${matchCards ? matchCards : '<div class="info-box"><p>Your next digest arrives at <strong>9:00 AM IST</strong> tomorrow. Matches appear here automatically after each run.</p></div>'}
+    ${matchCards ? matchCards : `<div class="info-box" style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px 18px">
+      <p style="font-size:13px;color:#1e40af;line-height:1.7;margin-bottom:12px">
+        <strong>Matches load here automatically</strong> after each daily run at 9:00 AM IST.<br>
+        They'll appear here from tomorrow's digest onwards — no action needed.
+      </p>
+      <p style="font-size:12px;color:#6b7280;line-height:1.6">
+        To see <strong>today's matches</strong>, open your most recent email from JobMatch AI.<br>
+        Each email has an Apply button and outreach section per role.
+      </p>
+    </div>`}
     <div class="action-row" style="margin-top:12px">
       <a href="${SERVER_URL}/profile?email=${encodeURIComponent(email)}&token=${token}" class="btn btn-primary">Update profile</a>
       <a href="${unsubUrl}" class="btn btn-ghost">Unsubscribe</a>
