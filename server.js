@@ -103,8 +103,9 @@ app.get('/apply', async (req, res) => {
 
     const cleanUrl = decodeURIComponent(jobUrl);
 
-    // Verify signature — invalid sigs still redirect (don't break user) but skip logging
-    const payload = `${email}|${title}|${company}|${jobUrl}`;
+    // Sign on email + jobUrl only (must match buildApplyUrl in actor)
+    // Title/company/etc are not signed because they get truncated for URL length
+    const payload = `${email}|${jobUrl}`;
     const sigValid = verifyPayload(payload, sig);
 
     // 302 redirect first — zero perceived delay
@@ -319,7 +320,7 @@ app.get('/dashboard', async (req, res) => {
     </div>
     <div style="text-align:center;flex-shrink:0">
       <div style="font-size:22px;font-weight:800;color:${m.s>=85?'#059669':m.s>=70?'#0055FF':'#d97706'}">${m.s}%</div>
-      ${m.u ? `<a href="${SERVER_URL}/apply?e=${encodeURIComponent(email)}&u=${encodeURIComponent(m.u)}&t=${encodeURIComponent(m.t)}&c=${encodeURIComponent(m.c)}&s=${encodeURIComponent(m.src||'')}&sc=${m.s}&sig=${signPayload(`${email}|${m.t}|${m.c}|${m.u}`)}" style="display:inline-block;background:#1d4ed8;color:#fff;padding:6px 14px;border-radius:7px;text-decoration:none;font-size:11px;font-weight:600;margin-top:4px">Apply</a>` : ''}
+      ${m.u ? `<a href="${SERVER_URL}/apply?e=${encodeURIComponent(email)}&u=${encodeURIComponent(m.u)}&t=${encodeURIComponent(m.t)}&c=${encodeURIComponent(m.c)}&s=${encodeURIComponent(m.src||'')}&sc=${m.s}&sig=${signPayload(`${email}|${m.u}`)}" style="display:inline-block;background:#1d4ed8;color:#fff;padding:6px 14px;border-radius:7px;text-decoration:none;font-size:11px;font-weight:600;margin-top:4px">Apply</a>` : ''}
     </div>
   </div>
 </div>`).join('');
