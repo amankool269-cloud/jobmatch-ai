@@ -50,10 +50,14 @@ const FEEDBACK_TABLE = 'Feedback';
 const APIFY_TOKEN  = process.env.APIFY_TOKEN;
 const APIFY_ACTOR  = process.env.APIFY_ACTOR_ID || 'YOUR_USERNAME~jobmatch-ai';
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
-const BREVO_KEY    = process.env.BREVO_API_KEY;
+const BREVO_KEY        = process.env.BREVO_API_KEY;
+const BREVO_FROM_EMAIL = process.env.BREVO_FROM_EMAIL || 'hello@jobmatchai.co.in';
+const BREVO_FROM_NAME  = process.env.BREVO_FROM_NAME  || 'JobMatch AI';
 const UNSUB_SECRET = process.env.UNSUBSCRIBE_SECRET || 'jobmatch-secret-2026';
 const PORT = process.env.PORT || 3000;
-const SERVER_URL = process.env.SERVER_URL || 'https://jobmatch-ai-z19k.onrender.com';
+const SERVER_URL = process.env.SERVER_URL || 'https://jobmatchai.co.in';
+const RAZORPAY_LINK_MONTHLY = process.env.RAZORPAY_LINK_MONTHLY || '';
+const RAZORPAY_LINK_ANNUAL  = process.env.RAZORPAY_LINK_ANNUAL  || '';
 
 const claude = new Anthropic({ apiKey: ANTHROPIC_KEY });
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
