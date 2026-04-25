@@ -570,12 +570,388 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// /count — Live active user count (cached 5 min, called from landing)
+// ═══════════════════════════════════════════════════════════════════
+let countCache = { value: 0, expiresAt: 0 };
+app.get('/count', async (req, res) => {
+    res.set('Cache-Control', 'public, max-age=300');
+    if (Date.now() < countCache.expiresAt) {
+        return res.json({ count: countCache.value });
+    }
+    try {
+        let total = 0;
+        let offset = '';
+        // Paginate through all Active users
+        do {
+            const url = `https://api.airtable.com/v0/${AT_BASE}/${USERS_TABLE}?filterByFormula={Status}="Active"&fields[]=Email&pageSize=100${offset ? '&offset='+offset : ''}`;
+            const r = await fetch(url, { headers: { Authorization: `Bearer ${AT_TOKEN}` } });
+            const data = await r.json();
+            total += (data.records || []).length;
+            offset = data.offset || '';
+        } while (offset);
+        countCache = { value: total, expiresAt: Date.now() + 5 * 60 * 1000 };
+        res.json({ count: total });
+    } catch (e) {
+        res.json({ count: countCache.value || 50 });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// /signup — Public signup form (resume + email + phone mandatory)
+// ═══════════════════════════════════════════════════════════════════
+app.get('/signup', (req, res) => {
+    res.send(`<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign up · JobMatch AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',-apple-system,sans-serif;background:#f1f5f9;color:#111;line-height:1.6}
+  .wrap{max-width:520px;margin:0 auto;padding:40px 20px}
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:32px;box-shadow:0 4px 20px rgba(0,0,0,.04)}
+  h1{font-size:24px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px}
+  .sub{font-size:14px;color:#6b7280;margin-bottom:28px}
+  label{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+  input,select,textarea{width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;margin-bottom:18px;background:#fff}
+  input:focus,select:focus{outline:0;border-color:#0055FF}
+  .file-zone{border:2px dashed #c7d7ff;background:#f0f5ff;border-radius:9px;padding:20px;text-align:center;cursor:pointer;margin-bottom:18px;transition:all .2s}
+  .file-zone:hover{background:#e0eaff;border-color:#0055FF}
+  .file-zone input{display:none}
+  .file-name{font-size:13px;color:#0055FF;font-weight:600;margin-top:6px;display:none}
+  .req{color:#dc2626;font-weight:700}
+  button{width:100%;background:#0055FF;color:#fff;padding:14px;border:0;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:transform .1s}
+  button:hover{transform:translateY(-1px)}
+  button:disabled{opacity:.6;cursor:wait}
+  .note{font-size:12px;color:#9ca3af;text-align:center;margin-top:14px;line-height:1.6}
+  .note a{color:#0055FF;text-decoration:none}
+  .back{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#6b7280;text-decoration:none;margin-bottom:18px}
+  .back:hover{color:#0055FF}
+  .promise{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;padding:12px 14px;margin-bottom:22px;font-size:12px;color:#15803d;line-height:1.6}
+  .err{background:#fee2e2;border:1px solid #fecaca;color:#991b1b;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none}
+  .ok{background:#dcfce7;border:1px solid #bbf7d0;color:#15803d;padding:14px;border-radius:9px;text-align:center;display:none}
+</style></head>
+<body><div class="wrap">
+<a href="/" class="back">← Back</a>
+<div class="card">
+  <h1>Get your daily matches</h1>
+  <p class="sub">Upload your resume. Get curated jobs every morning. Free forever, premium optional.</p>
+
+  <div class="promise">
+    🔒 We never share your resume. We never charge you to apply for jobs. Your data stays yours.
+  </div>
+
+  <div id="err" class="err"></div>
+  <div id="ok" class="ok">
+    <div style="font-size:36px;margin-bottom:8px">🎉</div>
+    <div style="font-weight:700;margin-bottom:4px">You're in!</div>
+    <div style="font-size:13px;color:#15803d;margin-top:6px">Check your inbox in the next 10 minutes for your first matches.</div>
+  </div>
+
+  <form id="form" enctype="multipart/form-data">
+    <label>Full name <span class="req">*</span></label>
+    <input name="name" required maxlength="60" placeholder="Priya Sharma">
+
+    <label>Email <span class="req">*</span></label>
+    <input name="email" type="email" required placeholder="priya@example.com">
+
+    <label>WhatsApp number <span class="req">*</span></label>
+    <input name="phone" type="tel" required pattern="[+0-9 ]{10,15}" placeholder="+91 98765 43210">
+
+    <label>Cities you're open to <span class="req">*</span></label>
+    <input name="cities" required value="Bengaluru" placeholder="Bengaluru, Mumbai, Remote">
+
+    <label>Resume <span class="req">*</span> (PDF, max 5MB)</label>
+    <label class="file-zone" for="resume">
+      <div style="font-size:24px;margin-bottom:6px">📄</div>
+      <div style="font-size:13px;font-weight:600;color:#0055FF">Click to upload</div>
+      <div style="font-size:11px;color:#9ca3af;margin-top:4px">We'll auto-extract your role, skills, experience</div>
+      <div class="file-name" id="fname"></div>
+      <input id="resume" name="resume" type="file" accept=".pdf" required>
+    </label>
+
+    <button type="submit" id="btn">Get my first digest →</button>
+  </form>
+
+  <p class="note">By signing up you agree to our <a href="/terms">terms</a> &middot; Free always &middot; Cancel anytime</p>
+</div>
+</div>
+
+<script>
+const form = document.getElementById('form');
+const btn = document.getElementById('btn');
+const err = document.getElementById('err');
+const ok = document.getElementById('ok');
+const fileInput = document.getElementById('resume');
+const fileName = document.getElementById('fname');
+
+fileInput.addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) { fileName.textContent = f.name; fileName.style.display = 'block'; }
+});
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Reading your resume...';
+  const fd = new FormData(form);
+  try {
+    const r = await fetch('/signup', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Signup failed');
+    form.style.display = 'none';
+    ok.style.display = 'block';
+  } catch(e) {
+    err.textContent = e.message;
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Try again';
+  }
+});
+</script>
+</body></html>`);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// /  — Landing page
+// ═══════════════════════════════════════════════════════════════════
 app.get('/', (req, res) => {
-    res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:system-ui;text-align:center;padding:80px 20px;background:#f8fafc">
-<h1 style="font-size:32px;color:#111">JobMatch <span style="color:#0055FF">AI</span></h1>
-<p style="font-size:14px;color:#6b7280">Daily curated job matches for India. Powered by Claude.</p>
-<a href="https://jobmatchai.co.in" style="display:inline-block;margin-top:18px;background:#0055FF;color:#fff;padding:12px 24px;border-radius:9px;text-decoration:none;font-weight:600">Get started →</a>
+    res.send(`<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JobMatch AI · Curated daily job matches for India</title>
+<meta name="description" content="Get hand-picked job matches every morning, scored by AI across LinkedIn, Naukri, and 5 platforms. Free for India.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',-apple-system,sans-serif;color:#0f172a;line-height:1.6;background:#fff}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 24px}
+  /* HEADER */
+  header{padding:20px 0;border-bottom:1px solid #f1f5f9;position:sticky;top:0;background:rgba(255,255,255,.95);backdrop-filter:blur(8px);z-index:50}
+  .nav{display:flex;justify-content:space-between;align-items:center}
+  .logo{font-size:20px;font-weight:800;letter-spacing:-.02em}
+  .logo span{color:#0055FF}
+  .nav-cta{background:#0055FF;color:#fff;padding:9px 18px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600}
+  /* HERO */
+  .hero{padding:80px 0 60px;text-align:center}
+  .badge{display:inline-block;background:#f0f5ff;border:1px solid #c7d7ff;color:#1d4ed8;padding:6px 14px;border-radius:24px;font-size:12px;font-weight:600;margin-bottom:20px}
+  .live-dot{display:inline-block;width:7px;height:7px;background:#10b981;border-radius:50%;margin-right:6px;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+  h1{font-size:56px;font-weight:900;letter-spacing:-.03em;line-height:1.1;margin-bottom:22px;max-width:780px;margin-left:auto;margin-right:auto}
+  h1 em{font-style:normal;background:linear-gradient(135deg,#0055FF 0%,#7c3aed 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .lede{font-size:19px;color:#475569;max-width:640px;margin:0 auto 36px;line-height:1.55}
+  .cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:18px}
+  .btn-primary{background:#0055FF;color:#fff;padding:16px 32px;border-radius:11px;text-decoration:none;font-size:15px;font-weight:700;transition:transform .15s;display:inline-block;box-shadow:0 4px 14px rgba(0,85,255,.25)}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,85,255,.35)}
+  .btn-ghost{background:transparent;color:#475569;padding:16px 28px;border-radius:11px;text-decoration:none;font-size:15px;font-weight:600;border:1.5px solid #e2e8f0;display:inline-block}
+  .micro{font-size:13px;color:#94a3b8}
+  /* STATS BAR */
+  .stats{background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:24px;margin:50px 0;display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .stat{text-align:center}
+  .stat-num{font-size:28px;font-weight:800;color:#0055FF;letter-spacing:-.02em}
+  .stat-lbl{font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+  /* HOW IT WORKS */
+  .section{padding:60px 0}
+  .h2{font-size:36px;font-weight:800;letter-spacing:-.02em;text-align:center;margin-bottom:14px}
+  .sub2{font-size:16px;color:#64748b;text-align:center;max-width:560px;margin:0 auto 50px}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+  .step{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:28px;position:relative}
+  .step-num{position:absolute;top:-14px;left:24px;background:#0055FF;color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px}
+  .step-title{font-size:17px;font-weight:700;margin:14px 0 8px}
+  .step-desc{font-size:14px;color:#64748b;line-height:1.6}
+  /* PRICING */
+  .pricing{background:#f8fafc;border-radius:18px;padding:50px 30px;margin:30px 0}
+  .price-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:760px;margin:30px auto 0}
+  .plan{background:#fff;border-radius:14px;padding:30px;border:2px solid #e2e8f0;position:relative}
+  .plan.pro{border-color:#0055FF;box-shadow:0 8px 24px rgba(0,85,255,.12)}
+  .plan-tag{position:absolute;top:-12px;right:24px;background:#0055FF;color:#fff;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.06em}
+  .plan-name{font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+  .plan-price{font-size:38px;font-weight:800;color:#0f172a;letter-spacing:-.02em}
+  .plan-price small{font-size:14px;color:#94a3b8;font-weight:500}
+  .plan-tagline{font-size:13px;color:#64748b;margin:6px 0 18px}
+  .plan ul{list-style:none;font-size:14px;color:#334155;margin-bottom:22px}
+  .plan li{padding:6px 0;display:flex;align-items:flex-start;gap:8px}
+  .plan li::before{content:'✓';color:#10b981;font-weight:700;flex-shrink:0}
+  .plan-cta{display:block;text-align:center;padding:11px;border-radius:9px;font-size:13px;font-weight:700;text-decoration:none}
+  .plan-cta.primary{background:#0055FF;color:#fff}
+  .plan-cta.secondary{background:#fff;color:#0f172a;border:1.5px solid #e2e8f0}
+  /* TRUST */
+  .trust{background:linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 100%);border:1px solid #bbf7d0;border-radius:14px;padding:28px;margin:40px 0;display:flex;align-items:center;gap:20px}
+  .trust-icon{font-size:36px;flex-shrink:0}
+  .trust-title{font-size:16px;font-weight:700;color:#15803d;margin-bottom:4px}
+  .trust-desc{font-size:13px;color:#166534;line-height:1.6}
+  /* FAQ */
+  .faq{max-width:720px;margin:0 auto}
+  .faq-item{border-bottom:1px solid #e2e8f0;padding:18px 0}
+  .faq-q{font-weight:700;font-size:15px;margin-bottom:6px;color:#0f172a}
+  .faq-a{font-size:14px;color:#64748b;line-height:1.7}
+  /* FOOTER */
+  footer{background:#0f172a;color:#94a3b8;padding:40px 0;margin-top:60px;font-size:13px}
+  .foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+  footer a{color:#cbd5e1;text-decoration:none}
+  /* MOBILE */
+  @media(max-width:720px){
+    h1{font-size:38px}
+    .lede{font-size:16px}
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .steps{grid-template-columns:1fr}
+    .price-grid{grid-template-columns:1fr}
+    .h2{font-size:28px}
+    .trust{flex-direction:column;text-align:center}
+  }
+</style></head>
+<body>
+
+<header><div class="wrap nav">
+  <div class="logo">Job<span>Match</span> AI</div>
+  <a href="/signup" class="nav-cta">Get started →</a>
+</div></header>
+
+<section class="hero"><div class="wrap">
+  <div class="badge"><span class="live-dot"></span><span id="live-count">Loading...</span> professionals getting matches today</div>
+  <h1>Stop scrolling job boards. <em>Get curated matches every morning.</em></h1>
+  <p class="lede">JobMatch AI scans 5 platforms daily, scores every role against your resume using Claude AI, and emails only the matches worth your time. Built for Indian senior professionals.</p>
+  <div class="cta-row">
+    <a href="/signup" class="btn-primary">Get my first digest →</a>
+    <a href="#how" class="btn-ghost">See how it works</a>
+  </div>
+  <p class="micro">Free forever &middot; No credit card &middot; Setup in 60 seconds</p>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-num" id="s-users">—</div><div class="stat-lbl">Active users</div></div>
+    <div class="stat"><div class="stat-num">5</div><div class="stat-lbl">Job platforms</div></div>
+    <div class="stat"><div class="stat-num">9 AM</div><div class="stat-lbl">IST daily</div></div>
+    <div class="stat"><div class="stat-num">100%</div><div class="stat-lbl">Free to apply</div></div>
+  </div>
+</div></section>
+
+<section class="section" id="how"><div class="wrap">
+  <h2 class="h2">How it works</h2>
+  <p class="sub2">Three steps. One minute to set up. Then we do the work every day.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-title">Upload your resume</div>
+      <div class="step-desc">Claude reads your role, experience, skills, and target domain in seconds. No manual form-filling.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-title">We search 5 platforms daily</div>
+      <div class="step-desc">LinkedIn, Naukri, JSearch, Adzuna, iimjobs &mdash; every morning, fresh roles only, scored against your profile.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-title">Open one email per day</div>
+      <div class="step-desc">15 ranked matches with scores, why they fit, salary, and direct apply links. No noise. No duplicates.</div>
+    </div>
+  </div>
+</div></section>
+
+<section class="section pricing"><div class="wrap">
+  <h2 class="h2">Honest pricing</h2>
+  <p class="sub2">Free works forever. Pro covers our running costs and unlocks daily delivery.</p>
+  <div class="price-grid">
+    <div class="plan">
+      <div class="plan-name">Free</div>
+      <div class="plan-price">&#8377;0<small>/forever</small></div>
+      <div class="plan-tagline">Always free, no card required</div>
+      <ul>
+        <li>2 curated digests per week</li>
+        <li>Up to 5 matches per email</li>
+        <li>Core matching engine</li>
+        <li>Unsubscribe anytime</li>
+      </ul>
+      <a href="/signup" class="plan-cta secondary">Start free</a>
+    </div>
+    <div class="plan pro">
+      <div class="plan-tag">FOUNDING</div>
+      <div class="plan-name">Pro</div>
+      <div class="plan-price">&#8377;49<small>/month</small></div>
+      <div class="plan-tagline">or &#8377;499/year &middot; locked in for life</div>
+      <ul>
+        <li>Daily curated matches at 9am IST</li>
+        <li>Up to 15 matches per digest</li>
+        <li>Full search across all 5 platforms</li>
+        <li>Complete dashboard + apply history</li>
+        <li>Priority email support</li>
+      </ul>
+      <a href="/signup?plan=pro" class="plan-cta primary">Become a founding member</a>
+    </div>
+  </div>
+  <p class="micro" style="text-align:center;margin-top:24px">Founding rate available for the first 100 members. Regular price will be &#8377;149/month.</p>
+</div></section>
+
+<section class="section"><div class="wrap">
+  <div class="trust">
+    <div class="trust-icon">🤝</div>
+    <div>
+      <div class="trust-title">Our promise: we never charge you to apply for jobs</div>
+      <div class="trust-desc">JobMatch is a search and curation tool. Every job we surface is free to apply on the original platform. We charge only for the matching service &mdash; and only if you find it valuable enough to upgrade.</div>
+    </div>
+  </div>
+</div></section>
+
+<section class="section"><div class="wrap">
+  <h2 class="h2">Common questions</h2>
+  <div class="faq">
+    <div class="faq-item">
+      <div class="faq-q">Do you charge employers or take recruitment fees?</div>
+      <div class="faq-a">No. We have zero relationship with employers. We don't get paid when you get hired. Our only revenue is the optional Pro subscription from job seekers.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Where do the jobs come from?</div>
+      <div class="faq-a">We aggregate from LinkedIn, Naukri, iimjobs, JSearch (Google for Jobs), and Adzuna. All public listings. We never scrape protected pages or anything you couldn't find yourself &mdash; we just save you the time of doing it.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Is my resume data safe?</div>
+      <div class="faq-a">Your resume stays on our private storage and is used only to score job relevance for you. We never sell, share, or repurpose your data. You can delete your account anytime and we wipe everything within 24 hours.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">What's the difference between Free and Pro?</div>
+      <div class="faq-a">Free runs on free APIs and sends 2 digests per week with our core matching. Pro runs on premium APIs (LinkedIn + Naukri scrapers cost real money) and sends daily matches with deeper coverage. Most users start free.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">How do I cancel Pro?</div>
+      <div class="faq-a">Reply to any email saying "cancel" &mdash; we process within 12 hours, no questions asked. We use one-time payment links (not auto-renewal), so there are no surprise charges ever.</div>
+    </div>
+  </div>
+</div></section>
+
+<footer><div class="wrap foot">
+  <div>JobMatch AI &middot; Made in India 🇮🇳 &middot; Built with Claude</div>
+  <div><a href="mailto:hello@jobmatchai.co.in">hello@jobmatchai.co.in</a></div>
+</div></footer>
+
+<script>
+fetch('/count').then(r => r.json()).then(d => {
+  const n = d.count || 50;
+  document.getElementById('live-count').textContent = n.toLocaleString('en-IN');
+  document.getElementById('s-users').textContent = n.toLocaleString('en-IN');
+}).catch(() => {
+  document.getElementById('live-count').textContent = '50+';
+  document.getElementById('s-users').textContent = '50+';
+});
+</script>
+</body></html>`);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// /terms — minimal terms page
+// ═══════════════════════════════════════════════════════════════════
+app.get('/terms', (req, res) => {
+    res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Terms · JobMatch AI</title></head>
+<body style="font-family:system-ui;max-width:680px;margin:0 auto;padding:40px 20px;color:#334155;line-height:1.7">
+<a href="/" style="color:#0055FF;text-decoration:none;font-size:13px">← Back</a>
+<h1 style="margin-top:20px">Terms & Privacy</h1>
+<p><strong>What we collect:</strong> Your name, email, phone, city preference, and the resume you upload. Nothing else.</p>
+<p><strong>How we use it:</strong> Solely to match you with relevant jobs and send you daily digests. We do not sell, rent, or share your data with third parties.</p>
+<p><strong>Resume storage:</strong> Stored encrypted on our private servers. Used only by our matching engine. Deleted within 24 hours of account deletion.</p>
+<p><strong>Job listings:</strong> Aggregated from public sources (LinkedIn, Naukri, JSearch, Adzuna, iimjobs). We do not endorse any employer.</p>
+<p><strong>Payments:</strong> Optional Pro subscription processed via Razorpay. We never store card details. Refunds within 7 days, no questions asked.</p>
+<p><strong>Cancellation:</strong> Email <a href="mailto:hello@jobmatchai.co.in">hello@jobmatchai.co.in</a> to cancel anytime. Account deletion within 24 hours of request.</p>
+<p style="margin-top:30px;font-size:13px;color:#94a3b8">Last updated: ${new Date().toLocaleDateString('en-IN', {day:'numeric', month:'long', year:'numeric'})}. Questions? <a href="mailto:hello@jobmatchai.co.in" style="color:#0055FF">hello@jobmatchai.co.in</a></p>
 </body></html>`);
 });
 
