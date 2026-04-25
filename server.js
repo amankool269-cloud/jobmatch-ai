@@ -940,6 +940,66 @@ fetch('/count').then(r => r.json()).then(d => {
 // ═══════════════════════════════════════════════════════════════════
 // /terms — minimal terms page
 // ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// /welcome — Post-payment landing for new Pro members
+// ═══════════════════════════════════════════════════════════════════
+// Razorpay Payment Page redirects users here after successful payment.
+// We don't activate Pro from this page — that requires merchant verification.
+// activate-pro.js (run by you after Razorpay confirms) does the real work.
+// This page just shows confirmation + sets expectations.
+app.get('/welcome', (req, res) => {
+    res.send(`<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Welcome to JobMatch Pro 🎉</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',-apple-system,sans-serif;background:#f1f5f9;color:#0f172a;line-height:1.6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .card{max-width:520px;width:100%;background:#fff;border-radius:18px;padding:40px 32px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.06);border:1px solid #e5e7eb}
+  .check{width:72px;height:72px;background:linear-gradient(135deg,#10b981 0%,#059669 100%);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:18px;font-size:36px;color:#fff;box-shadow:0 8px 24px rgba(16,185,129,.3)}
+  h1{font-size:28px;font-weight:800;letter-spacing:-.02em;margin-bottom:10px}
+  .sub{font-size:15px;color:#64748b;margin-bottom:28px;line-height:1.6}
+  .info{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px;text-align:left;margin-bottom:24px}
+  .info-title{font-size:11px;font-weight:700;color:#0055FF;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+  .step{display:flex;gap:12px;margin-bottom:14px;align-items:flex-start}
+  .step:last-child{margin-bottom:0}
+  .step-num{flex-shrink:0;width:24px;height:24px;background:#0055FF;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+  .step-text{font-size:13px;color:#374151;line-height:1.5}
+  .step-text strong{color:#0f172a}
+  .cta{display:block;background:#0055FF;color:#fff;padding:13px;border-radius:9px;text-decoration:none;font-size:14px;font-weight:700;margin-bottom:12px}
+  .micro{font-size:12px;color:#94a3b8;margin-top:18px;line-height:1.6}
+  .micro a{color:#0055FF;text-decoration:none}
+</style></head>
+<body>
+<div class="card">
+  <div class="check">✓</div>
+  <h1>Payment received! 🎉</h1>
+  <p class="sub">Thank you for becoming a JobMatch Pro founding member. Your subscription is being activated.</p>
+
+  <div class="info">
+    <div class="info-title">What happens next</div>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text"><strong>Within 2 hours:</strong> Your account upgrades to Pro and you'll receive a personal welcome email confirming activation.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text"><strong>Tomorrow morning at 9am IST:</strong> Your first daily Pro digest lands in your inbox with up to 15 ranked matches.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text"><strong>Coming soon:</strong> WhatsApp alerts, ATS resume optimiser, and hiring contact directory — all free for founding members.</div>
+    </div>
+  </div>
+
+  <a href="https://jobmatchai.co.in" class="cta">Back to JobMatch AI →</a>
+
+  <p class="micro">Questions? Reply to your welcome email or write to <a href="mailto:hello@jobmatchai.co.in">hello@jobmatchai.co.in</a>. We read every message.</p>
+</div>
+</body></html>`);
+});
+
 app.get('/terms', (req, res) => {
     res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Terms · JobMatch AI</title></head>
 <body style="font-family:system-ui;max-width:680px;margin:0 auto;padding:40px 20px;color:#334155;line-height:1.7">
