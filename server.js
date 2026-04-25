@@ -301,7 +301,11 @@ app.get('/resubscribe', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════
 app.get('/dashboard', async (req, res) => {
     const { email, token } = req.query;
-    if (!email || !verifyUnsubToken(email, token)) return res.status(403).send('Invalid link — please use the dashboard link from your latest email');
+    if (!email || !verifyUnsubToken(email, token)) return res.status(403).send(`
+        <html><body style="font-family:system-ui;text-align:center;padding:80px 20px;background:#f8fafc">
+        <h2 style="color:#dc2626">Invalid or expired link</h2>
+        <p style="color:#6b7280;margin-top:12px">Please use the dashboard link from your latest JobMatch email.</p>
+        </body></html>`);
 
     const rec = await findUserRecord(email);
     if (!rec) return res.status(404).send('Profile not found');
@@ -310,103 +314,260 @@ app.get('/dashboard', async (req, res) => {
     let matches = [];
     try { matches = JSON.parse(f.LastMatches || '[]'); } catch {}
 
-    // Fetch recent apply clicks (last 30)
     let applies = [];
     try {
         const r = await fetch(
-            `https://api.airtable.com/v0/${AT_BASE}/${CLICKS_TABLE}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}&sort[0][field]=ClickedAt&sort[0][direction]=desc&maxRecords=30`,
+            `https://api.airtable.com/v0/${AT_BASE}/${CLICKS_TABLE}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}&sort[0][field]=ClickedAt&sort[0][direction]=desc&maxRecords=50`,
             { headers: { Authorization: `Bearer ${AT_TOKEN}` } }
         );
         const data = await r.json();
         applies = data.records || [];
     } catch {}
 
+    const isPro = f.PaidStatus === 'pro';
     const totalApplies = f.TotalApplyClicks || 0;
     const totalOpens = f.TotalEmailOpens || 0;
-    const tier = f.PaidStatus === 'pro' ? 'PRO' : 'FREE';
-    const planBadge = tier === 'PRO'
-        ? `<span style="background:#0055FF;color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">PRO</span>`
-        : `<span style="background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">FREE</span>`;
+    const avgScore = matches.length ? Math.round(matches.reduce((a,m) => a + (m.s||0), 0) / matches.length) : 0;
+    const paidUntil = f.PaidUntil ? new Date(f.PaidUntil).toLocaleDateString('en-IN', {day:'numeric',month:'long',year:'numeric'}) : null;
+    const daysLeft = f.PaidUntil ? Math.ceil((new Date(f.PaidUntil) - new Date()) / 86400000) : null;
 
-    const matchCards = matches.map(m => `
-<div style="background:#fff;border:1px solid #e5e7eb;border-left:4px solid ${m.s>=85?'#059669':m.s>=70?'#0055FF':'#d97706'};border-radius:10px;padding:14px 16px;margin-bottom:10px">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+    const scoreColor = s => s >= 85 ? '#059669' : s >= 70 ? '#0055FF' : '#d97706';
+    const scoreBg    = s => s >= 85 ? '#ecfdf5' : s >= 70 ? '#eff6ff' : '#fffbeb';
+    const scoreBorder= s => s >= 85 ? '#6ee7b7' : s >= 70 ? '#bfdbfe' : '#fde68a';
+    const scoreLabel = s => s >= 85 ? 'Strong fit' : s >= 70 ? 'Good fit' : 'Possible fit';
+
+    const matchCards = matches.map((m,i) => `
+<div class="card match-card" style="border-left:4px solid ${scoreColor(m.s)};animation-delay:${i*0.05}s">
+  <div style="display:flex;gap:14px;align-items:flex-start">
     <div style="flex:1;min-width:0">
-      <div style="font-weight:700;font-size:14px;color:#111;margin-bottom:4px">${m.t}</div>
-      <div style="font-size:12px;color:#6b7280;margin-bottom:6px">${m.c} · ${m.src||''}</div>
-      ${m.v ? `<div style="font-size:12px;color:#374151;line-height:1.5;margin-bottom:8px">${m.v}</div>` : ''}
-      ${m.sal ? `<div style="font-size:11px;color:#059669;font-weight:600">${m.sal}</div>` : ''}
+      <div style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:4px;line-height:1.3">${m.t}</div>
+      <div style="font-size:13px;color:#64748b;margin-bottom:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span>${m.c}</span>
+        ${m.src ? `<span style="width:3px;height:3px;background:#cbd5e1;border-radius:50%;display:inline-block"></span><span>${m.src}</span>` : ''}
+        ${m.sal ? `<span style="width:3px;height:3px;background:#cbd5e1;border-radius:50%;display:inline-block"></span><span style="color:#059669;font-weight:600">${m.sal}</span>` : ''}
+      </div>
+      ${m.v ? `<div style="font-size:13px;color:#475569;line-height:1.6;background:#f8fafc;padding:10px 12px;border-radius:8px;margin-bottom:8px">${m.v}</div>` : ''}
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:${scoreBg(m.s)};color:${scoreColor(m.s)};border:1px solid ${scoreBorder(m.s)}">${scoreLabel(m.s)}</span>
+        ${m.ap ? `<span style="font-size:11px;color:#94a3b8">${m.ap} applicants</span>` : ''}
+      </div>
     </div>
-    <div style="text-align:center;flex-shrink:0">
-      <div style="font-size:22px;font-weight:800;color:${m.s>=85?'#059669':m.s>=70?'#0055FF':'#d97706'}">${m.s}%</div>
-      ${m.u ? `<a href="${SERVER_URL}/apply?e=${encodeURIComponent(email)}&u=${encodeURIComponent(m.u)}&t=${encodeURIComponent(m.t)}&c=${encodeURIComponent(m.c)}&s=${encodeURIComponent(m.src||'')}&sc=${m.s}&sig=${signPayload(`${email}|${m.u}`)}" style="display:inline-block;background:#1d4ed8;color:#fff;padding:6px 14px;border-radius:7px;text-decoration:none;font-size:11px;font-weight:600;margin-top:4px">Apply</a>` : ''}
+    <div style="flex-shrink:0;text-align:center;min-width:64px">
+      <div style="font-size:26px;font-weight:900;color:${scoreColor(m.s)};line-height:1;margin-bottom:2px">${m.s}%</div>
+      <div style="font-size:10px;color:#94a3b8;margin-bottom:10px">match</div>
+      ${m.u ? `<a href="${SERVER_URL}/apply?e=${encodeURIComponent(email)}&u=${encodeURIComponent(m.u)}&t=${encodeURIComponent(m.t)}&c=${encodeURIComponent(m.c)}&s=${encodeURIComponent(m.src||'')}&sc=${m.s}&sig=${signPayload(`${email}|${m.u}`)}" class="apply-btn">Apply →</a>` : ''}
     </div>
   </div>
 </div>`).join('');
 
-    const appliesCards = applies.slice(0, 10).map(a => {
+    const applyRows = applies.slice(0, 20).map(a => {
         const af = a.fields;
-        const date = af.ClickedAt ? new Date(af.ClickedAt).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) : '';
-        return `<div style="padding:10px 14px;background:#f8fafc;border-radius:8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        const date = af.ClickedAt ? new Date(af.ClickedAt).toLocaleDateString('en-IN', {day:'numeric',month:'short'}) : '';
+        const srcColors = {LinkedIn:'#0077b5',Naukri:'#ff6b35',JSearch:'#4285f4',Adzuna:'#e63946',iimjobs:'#6d28d9'};
+        const srcColor = srcColors[af.Source] || '#64748b';
+        return `<div class="apply-row">
   <div style="flex:1;min-width:0">
-    <div style="font-size:13px;font-weight:600;color:#111">${af.JobTitle||''}</div>
-    <div style="font-size:11px;color:#6b7280">${af.Company||''} · ${af.Source||''}</div>
+    <div style="font-size:13px;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${af.JobTitle||'Untitled role'}</div>
+    <div style="font-size:11px;color:#64748b;margin-top:2px;display:flex;align-items:center;gap:6px">
+      <span>${af.Company||''}</span>
+      ${af.Source ? `<span style="background:${srcColor}18;color:${srcColor};padding:1px 7px;border-radius:10px;font-weight:600;font-size:10px">${af.Source}</span>` : ''}
+    </div>
   </div>
-  <div style="font-size:11px;color:#9ca3af;flex-shrink:0">${date}</div>
+  <div style="flex-shrink:0;text-align:right">
+    ${af.MatchScore ? `<div style="font-size:12px;font-weight:700;color:${scoreColor(af.MatchScore)}">${af.MatchScore}%</div>` : ''}
+    <div style="font-size:11px;color:#94a3b8;margin-top:1px">${date}</div>
+  </div>
 </div>`;
     }).join('');
 
-    res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>JobMatch AI Dashboard</title></head>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;margin:0;padding:20px 12px">
-<div style="max-width:680px;margin:0 auto">
-  <!-- Header -->
-  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px 24px;margin-bottom:14px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <div>
-        <div style="font-size:18px;font-weight:800;color:#111">Job<span style="color:#0055FF">Match</span> AI</div>
-        <div style="font-size:12px;color:#6b7280;margin-top:2px">${f.Name || email} · ${planBadge}</div>
-      </div>
-      <a href="${SERVER_URL}/profile?email=${encodeURIComponent(email)}&token=${token}" style="font-size:12px;color:#0055FF;text-decoration:none;font-weight:600">Edit profile →</a>
+    res.send(`<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard · JobMatch AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',-apple-system,sans-serif;background:#f1f5f9;color:#0f172a;min-height:100vh}
+  /* NAV */
+  .nav{background:#0f172a;padding:0 20px;position:sticky;top:0;z-index:50;border-bottom:1px solid #1e293b}
+  .nav-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .logo{font-size:18px;font-weight:800;color:#fff;letter-spacing:-.02em}
+  .logo span{color:#60a5fa}
+  .nav-right{display:flex;align-items:center;gap:14px}
+  .plan-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;${isPro ? 'background:#0055FF;color:#fff' : 'background:#334155;color:#94a3b8'}}
+  .nav-email{font-size:12px;color:#64748b;display:none}
+  @media(min-width:640px){.nav-email{display:block}}
+  /* TABS */
+  .tabs{background:#fff;border-bottom:1px solid #e5e7eb;padding:0 20px;position:sticky;top:56px;z-index:40}
+  .tabs-inner{max-width:900px;margin:0 auto;display:flex;gap:0}
+  .tab{padding:14px 18px;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;text-decoration:none;display:block}
+  .tab:hover{color:#0f172a}
+  .tab.active{color:#0055FF;border-bottom-color:#0055FF}
+  /* CONTENT */
+  .wrap{max-width:900px;margin:0 auto;padding:24px 16px}
+  /* STATS */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+  .stat{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;text-align:center}
+  .stat-num{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .stat-lbl{font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+  @media(max-width:600px){.stats{grid-template-columns:repeat(2,1fr)}}
+  /* CARDS */
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px;margin-bottom:12px;animation:fadeUp .3s ease both}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .match-card{border-left-width:4px}
+  .apply-btn{display:block;background:#0055FF;color:#fff;padding:7px 12px;border-radius:8px;text-decoration:none;font-size:12px;font-weight:700;text-align:center;transition:transform .1s}
+  .apply-btn:hover{transform:translateY(-1px)}
+  /* APPLY ROWS */
+  .apply-row{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #f1f5f9}
+  .apply-row:last-child{border-bottom:none}
+  /* PRO CARD */
+  .pro-card{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);border-radius:14px;padding:22px;margin-bottom:20px;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+  /* FREE UPSELL */
+  .upsell{background:linear-gradient(135deg,#0055FF 0%,#7c3aed 100%);border-radius:14px;padding:22px;margin-bottom:20px;color:#fff}
+  /* SECTION HEADER */
+  .section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+  .section-title{font-size:14px;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:.06em}
+  .section-count{font-size:12px;color:#94a3b8;font-weight:600}
+  /* EMPTY STATE */
+  .empty{text-align:center;padding:48px 20px;color:#94a3b8}
+  .empty-icon{font-size:40px;margin-bottom:12px}
+  .empty-title{font-size:15px;font-weight:600;color:#64748b;margin-bottom:6px}
+  .empty-sub{font-size:13px;line-height:1.6}
+  /* TAB PANELS */
+  .panel{display:none}
+  .panel.active{display:block}
+  /* PROFILE FORM */
+  .form-group{margin-bottom:18px}
+  .form-label{font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+  .form-input{width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;transition:border-color .15s}
+  .form-input:focus{outline:0;border-color:#0055FF}
+  .save-btn{background:#0055FF;color:#fff;padding:12px 24px;border:0;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;width:100%}
+</style></head>
+<body>
+
+<!-- NAV -->
+<nav class="nav"><div class="nav-inner">
+  <div class="logo">Job<span>Match</span> AI</div>
+  <div class="nav-right">
+    <span class="nav-email">${f.Name || email.split('@')[0]}</span>
+    <span class="plan-badge">${isPro ? '★ PRO' : 'FREE'}</span>
+  </div>
+</div></nav>
+
+<!-- TABS -->
+<div class="tabs"><div class="tabs-inner">
+  <a class="tab active" onclick="switchTab('matches',this)">Today's Matches <span style="background:#f1f5f9;color:#64748b;padding:1px 7px;border-radius:10px;font-size:11px;margin-left:4px">${matches.length}</span></a>
+  <a class="tab" onclick="switchTab('applied',this)">Applied <span style="background:#f1f5f9;color:#64748b;padding:1px 7px;border-radius:10px;font-size:11px;margin-left:4px">${totalApplies}</span></a>
+  <a class="tab" onclick="switchTab('profile',this)">Profile</a>
+</div></div>
+
+<div class="wrap">
+
+  <!-- STATS BAR -->
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num" style="color:#0055FF">${matches.length}</div>
+      <div class="stat-lbl">New matches</div>
     </div>
-    <div style="display:flex;gap:8px">
-      <div style="flex:1;background:#f0f5ff;border:1px solid #c7d7ff;border-radius:8px;padding:10px;text-align:center">
-        <div style="font-size:18px;font-weight:800;color:#0055FF">${matches.length}</div>
-        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">Today's matches</div>
-      </div>
-      <div style="flex:1;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:8px;padding:10px;text-align:center">
-        <div style="font-size:18px;font-weight:800;color:#059669">${totalApplies}</div>
-        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">Total applies</div>
-      </div>
-      <div style="flex:1;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px;text-align:center">
-        <div style="font-size:18px;font-weight:800;color:#374151">${totalOpens}</div>
-        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">Emails opened</div>
+    <div class="stat">
+      <div class="stat-num" style="color:#059669">${totalApplies}</div>
+      <div class="stat-lbl">Total applied</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" style="color:#7c3aed">${totalOpens}</div>
+      <div class="stat-lbl">Emails opened</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" style="color:#d97706">${avgScore || '—'}</div>
+      <div class="stat-lbl">Avg match %</div>
+    </div>
+  </div>
+
+  <!-- PLAN CARD -->
+  ${isPro ? `
+  <div class="pro-card">
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#60a5fa;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">★ Pro Member</div>
+      <div style="font-size:18px;font-weight:800;margin-bottom:4px">${f.Name || 'Welcome back'}</div>
+      <div style="font-size:13px;color:#94a3b8">${paidUntil ? `Active until ${paidUntil}${daysLeft !== null && daysLeft <= 7 ? ` <span style="color:#fbbf24;font-weight:600">(${daysLeft}d left)</span>` : ''}` : 'Active'}</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:11px;color:#64748b;margin-bottom:8px">Daily search across all 5 platforms</div>
+      <a href="mailto:hello@jobmatchai.co.in" style="font-size:12px;color:#60a5fa;text-decoration:none;font-weight:600">Contact support →</a>
+    </div>
+  </div>` : `
+  <div class="upsell">
+    <div style="font-size:16px;font-weight:800;margin-bottom:6px">Upgrade to Pro · ₹49/month</div>
+    <div style="font-size:13px;color:rgba(255,255,255,.85);margin-bottom:14px;line-height:1.6">Daily emails · LinkedIn + Naukri search · Full apply history · Priority support</div>
+    <a href="${SERVER_URL}/pricing?email=${encodeURIComponent(email)}&token=${token}" style="display:inline-block;background:#fff;color:#0055FF;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:700">Become a founding member →</a>
+  </div>`}
+
+  <!-- MATCHES TAB -->
+  <div id="tab-matches" class="panel active">
+    <div class="section-head">
+      <div class="section-title">Today's matches</div>
+      <div class="section-count">${matches.length} jobs</div>
+    </div>
+    ${matches.length ? matchCards : `<div class="empty">
+      <div class="empty-icon">🔍</div>
+      <div class="empty-title">No matches yet today</div>
+      <div class="empty-sub">Fresh matches arrive every morning at 9am IST.<br>Check back tomorrow.</div>
+    </div>`}
+  </div>
+
+  <!-- APPLIED TAB -->
+  <div id="tab-applied" class="panel">
+    <div class="section-head">
+      <div class="section-title">Apply history</div>
+      <div class="section-count">${applies.length} jobs</div>
+    </div>
+    ${applies.length ? `<div class="card" style="padding:0 18px">${applyRows}</div>` : `<div class="empty">
+      <div class="empty-icon">📋</div>
+      <div class="empty-title">No applies tracked yet</div>
+      <div class="empty-sub">When you click "Apply" in your daily emails,<br>we track them here automatically.</div>
+    </div>`}
+  </div>
+
+  <!-- PROFILE TAB -->
+  <div id="tab-profile" class="panel">
+    <div class="card">
+      <div class="section-title" style="margin-bottom:20px">Your profile</div>
+      <form method="POST" action="${SERVER_URL}/profile/save?email=${encodeURIComponent(email)}&token=${token}">
+        ${[
+            ['Name', 'Name', 'text', f.Name||''],
+            ['Target role', 'TargetRole', 'text', f['Target role']||''],
+            ['Current role', 'CurrentRole', 'text', f['Current role']||''],
+            ['Current company', 'CurrentCompany', 'text', f['Current company']||''],
+            ['Experience (e.g. 5 years)', 'Experience', 'text', f.Experience||''],
+            ['Domain / Industry', 'Domain', 'text', f.Domain||''],
+            ['Skills (comma-separated)', 'Skills', 'text', f.Skills||''],
+            ['Cities (comma-separated)', 'Cities', 'text', f.Cities||''],
+            ['WhatsApp number', 'Phone', 'tel', f.Phone||''],
+        ].map(([label, name, type, val]) => `
+        <div class="form-group">
+          <label class="form-label">${label}</label>
+          <input class="form-input" name="${name}" type="${type}" value="${(val||'').toString().replace(/"/g,'&quot;')}">
+        </div>`).join('')}
+        <button type="submit" class="save-btn">Save changes</button>
+      </form>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:#94a3b8">Joined with ${email}</span>
+        <a href="${SERVER_URL}/unsubscribe?email=${encodeURIComponent(email)}&token=${token}" style="font-size:12px;color:#dc2626;text-decoration:none">Unsubscribe</a>
       </div>
     </div>
   </div>
 
-  ${tier === 'FREE' ? `
-  <!-- Pro upsell banner -->
-  <div style="background:linear-gradient(135deg,#0055FF 0%,#1d4ed8 100%);border-radius:14px;padding:18px 22px;margin-bottom:14px;color:#fff">
-    <div style="font-size:14px;font-weight:700;margin-bottom:4px">Upgrade to Pro · ₹299/month</div>
-    <div style="font-size:12px;color:rgba(255,255,255,0.85);margin-bottom:12px">Daily emails · WhatsApp alerts · ATS resume optimiser · Hiring contact reveals</div>
-    <a href="${SERVER_URL}/pricing?email=${encodeURIComponent(email)}&token=${token}" style="display:inline-block;background:#fff;color:#0055FF;padding:8px 18px;border-radius:7px;text-decoration:none;font-size:12px;font-weight:700">See pricing →</a>
-  </div>` : ''}
+</div>
 
-  <!-- Matches -->
-  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px 20px;margin-bottom:14px">
-    <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.05em">Your latest matches</div>
-    ${matches.length ? matchCards : `<p style="font-size:13px;color:#6b7280;text-align:center;padding:24px 0;margin:0">No matches yet — check back tomorrow.</p>`}
-  </div>
-
-  <!-- Apply history -->
-  ${applies.length ? `
-  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px 20px;margin-bottom:14px">
-    <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.05em">Recent applies (${applies.length})</div>
-    ${appliesCards}
-  </div>` : ''}
-
-  <p style="text-align:center;font-size:11px;color:#9ca3af;margin:14px 0">JobMatch AI · <a href="mailto:hello@jobmatchai.co.in" style="color:#0055FF">hello@jobmatchai.co.in</a></p>
-</div></body></html>`);
+<script>
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+</script>
+</body></html>`);
 });
 
 // ═══════════════════════════════════════════════════════════════════
