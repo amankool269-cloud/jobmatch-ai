@@ -1,37 +1,62 @@
-import express from 'express';
-import multer from 'multer';
-import cors from 'cors';
-import Anthropic from '@anthropic-ai/sdk';
-import { readFileSync, unlinkSync } from 'fs';
+// ═══════════════════════════════════════════════════════════════════
+// JobMatch AI — Render Server
+// Handles: apply tracking, open pixels, feedback, unsubscribe,
+//          dashboard, profile, resume upload, actor triggers
+// ═══════════════════════════════════════════════════════════════════
+//
+// Deploy: Render web service, Node 20+
+// Required env vars:
+//   AIRTABLE_TOKEN, AIRTABLE_BASE_ID
+//   APIFY_TOKEN, APIFY_ACTOR_ID
+//   ANTHROPIC_API_KEY
+//   BREVO_API_KEY
+//   UNSUBSCRIBE_SECRET (must match the actor)
+//   PORT (Render sets this automatically)
+// ═══════════════════════════════════════════════════════════════════
 
+import express from 'express';
+import cors from 'cors';
+import crypto from 'crypto';
+import multer from 'multer';
+import Anthropic from '@anthropic-ai/sdk';
+import nodemailer from 'nodemailer';
 
 const app = express();
-const upload = multer({ dest: '/tmp/uploads/', limits: { fileSize: 5 * 1024 * 1024 } });
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // parse HTML form POST bodies
-app.use(express.static('.'));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-const {
-    ANTHROPIC_API_KEY, AIRTABLE_TOKEN, AIRTABLE_BASE_ID,
-    AIRTABLE_TABLE = 'tblJtDvebLwnXvV9i',
-    APIFY_TOKEN, APIFY_ACTOR_ID = 'flexible_transaction/my-actor',
-    PORT = 3000,
-} = process.env;
+// ─── Config ───────────────────────────────────────────────────────
+const AT_TOKEN = process.env.AIRTABLE_TOKEN;
+const AT_BASE  = process.env.AIRTABLE_BASE_ID;
+const USERS_TABLE  = 'tblJtDvebLwnXvV9i';
+const CLICKS_TABLE = 'ApplyClicks';
+const FEEDBACK_TABLE = 'Feedback';
+const APIFY_TOKEN  = process.env.APIFY_TOKEN;
+const APIFY_ACTOR  = process.env.APIFY_ACTOR_ID || 'YOUR_USERNAME~jobmatch-ai';
+const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+const BREVO_KEY    = process.env.BREVO_API_KEY;
 const UNSUB_SECRET = process.env.UNSUBSCRIBE_SECRET || 'jobmatch-secret-2026';
-const SERVER_URL   = process.env.SERVER_URL || 'https://jobmatch-ai-z19k.onrender.com';
+const PORT = process.env.PORT || 3000;
+const SERVER_URL = process.env.SERVER_URL || 'https://jobmatch-ai-z19k.onrender.com';
 
-const claude = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+const claude = new Anthropic({ apiKey: ANTHROPIC_KEY });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
-// Brevo HTTP API — no port blocking, full dashboard tracking
-const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
-const BREVO_FROM_EMAIL = process.env.BREVO_FROM_EMAIL || 'hello@jobmatchai.co.in';
-const BREVO_FROM_NAME = process.env.BREVO_FROM_NAME || 'JobMatch AI';
+// ─── Helpers ──────────────────────────────────────────────────────
+function signPayload(payload) {
+    return crypto.createHmac('sha256', UNSUB_SECRET)
+        .update(payload).digest('hex').slice(0, 12);
+}
 
-const runCache = new Map();
+function verifyPayload(payload, sig) {
+    if (!sig) return false;
+    try {
+        return crypto.timingSafeEqual(Buffer.from(signPayload(payload)), Buffer.from(sig));
+    } catch { return false; }
+}
 
-// ── Unsubscribe token helpers ─────────────────────────────────────────────────
-function makeToken(email) {
+function makeUnsubToken(email) {
     let hash = 0;
     const str = email.toLowerCase() + UNSUB_SECRET;
     for (let i = 0; i < str.length; i++) {
@@ -40,1068 +65,521 @@ function makeToken(email) {
     }
     return Math.abs(hash).toString(16).padStart(8,'0') + str.length.toString(16);
 }
-function validToken(email, token) {
-    if (!token || !email) return false;
-    // Try current secret first
-    if (makeToken(email) === token) return true;
-    // Fallback: try alternative secrets for backwards compatibility
-    // (old emails may have been generated with different secret)
-    const fallbacks = ['jobmatch-secret-2026', 'jobmatch2024', 'secret'];
-    return fallbacks.some(s => {
-        let hash = 0;
-        const str = email.toLowerCase() + s;
-        for (let i = 0; i < str.length; i++) {
-            hash = ((hash << 5) - hash) + str.charCodeAt(i);
-            hash |= 0;
-        }
-        const t = Math.abs(hash).toString(16).padStart(8,'0') + str.length.toString(16);
-        return t === token;
-    });
+
+function verifyUnsubToken(email, token) {
+    return makeUnsubToken(email) === token;
 }
 
-// ── PARSE RESUME ──────────────────────────────────────────────────────────────
-async function parseResume(buffer, filename) {
-    const isDocx = filename?.endsWith('.docx') || filename?.endsWith('.doc');
-    const prompt = `You are an expert resume parser for the Indian job market. Extract ALL information from this resume.
-
-CRITICAL: Return ONLY valid JSON. Never say "I cannot" or "I apologize". Always extract what you can see.
-
-Return ONLY this JSON object (no markdown, no explanation):
-{
-  "currentRole": "exact current or most recent job title",
-  "targetRole": "the next logical role up — if 0-3yr use current title, if 3-7yr add Senior prefix, if 7-10yr use Head/AVP/Director level, if 10+yr use VP/GM/CXO level",
-  "currentCompany": "current or most recent company name",
-  "experience": "total years as a number e.g. 6 years",
-  "location": "current city in India",
-  "domain": "PRIMARY industry the person wants to work in NEXT — based on their most recent 2 roles and stated target. Use the most specific term: Fintech / NBFC / Digital Lending / Payments / SaaS / EdTech / HealthTech / E-commerce / IT Services / FMCG / Manufacturing / Consulting. If multi-domain, pick the DOMINANT recent one.",
-  "skills": "top 8 skills comma separated",
-  "education": "highest degree e.g. MBA, B.Tech, B.Com",
-  "seniority": "one of: fresher / junior / mid-level / senior / lead / head",
-  "companyType": "one of: startup / mid-size / large enterprise / MNC / NBFC / bank"
+async function findUserRecord(email) {
+    const r = await fetch(
+        `https://api.airtable.com/v0/${AT_BASE}/${USERS_TABLE}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}&maxRecords=1`,
+        { headers: { Authorization: `Bearer ${AT_TOKEN}` } }
+    );
+    if (!r.ok) return null;
+    const data = await r.json();
+    return data.records?.[0] || null;
 }
 
-SENIORITY GUIDE:
-- fresher: 0-1 years
-- junior: 1-3 years
-- mid-level: 3-6 years
-- senior: 6-10 years
-- lead/head: 10+ years
-
-TARGET ROLE FRAMEWORK — use the right track based on education:
-
-TRACK A — Professional qualifications (CA / CFA / CPA / MBA-Finance / MBA):
-- 0-3yr  → Analyst / Associate (keep current title)
-- 3-6yr  → Senior Analyst / Manager / AVP
-- 6-9yr  → VP / Principal / Senior Manager
-- 10+yr  → Director / CFO / Partner
-
-TRACK B — General roles (Sales / Tech / Ops / Product / Marketing / HR):
-- 0-3yr  → current role (early career)
-- 3-6yr  → Senior [role] / Manager
-- 6-9yr  → Head / AVP / [function] Lead
-- 10+yr  → Director / VP / GM
-
-CRITICAL RULES for domain:
-1. Use the MOST RECENT 2 jobs to determine domain — not older jobs
-2. If the person has recently moved domains (e.g., pharma → fintech), use the LATEST domain
-3. Be specific — "Fintech" not "Financial Services", "SaaS" not "Technology"
-4. If person is in Partnerships/Growth/BD, the domain is the INDUSTRY they work in, not their function
-
-CRITICAL RULES for targetRole:
-1. For CA/CFA/CPA — use finance-specific titles (Credit Manager, AVP Credit, Investment Manager)
-2. For MBA — use management titles (Senior Manager, AVP, Deputy Director)
-3. NEVER use generic "Growth" or "Marketing" unless the current role is explicitly in those functions
-4. targetRole must stay in the SAME DOMAIN as currentRole — do not cross functions
-
-EXAMPLES:
-{"currentRole":"Credit & Investment Associate","targetRole":"Credit Manager","currentCompany":"Wint Wealth","experience":"3 years","location":"Mumbai","domain":"Financial Services / Fintech / Lending","skills":"Financial Analysis, Credit Evaluation, Due Diligence, Portfolio Monitoring","education":"CA","seniority":"mid-level","companyType":"startup"}
-
-{"currentRole":"Area Sales Manager","targetRole":"Senior Manager Sales","currentCompany":"Finnable Technologies","experience":"6 years","location":"New Delhi","domain":"Financial Services / Lending","skills":"DSA channel management, loan disbursement, NBFC, team leadership, client acquisition, B2B sales","education":"MBA","seniority":"senior","companyType":"NBFC"}
-
-{"currentRole":"Software Engineer","targetRole":"Senior Software Engineer","currentCompany":"Infosys","experience":"3 years","location":"Bengaluru","domain":"Technology / IT Services","skills":"React, Node.js, Python, AWS, REST APIs, SQL, Docker, Git","education":"B.Tech","seniority":"mid-level","companyType":"large enterprise"}
-
-{"currentRole":"Senior UI/UX Designer","targetRole":"Head of Design","currentCompany":"NeoFinity","experience":"6 years","location":"Gurugram","domain":"Fintech / EdTech","skills":"UI/UX Design, Design Systems, User Research, Interaction Design","education":"MCA","seniority":"senior","companyType":"startup"}`;
-
-    const content = isDocx
-        ? [{ type: 'text', text: `${prompt}\n\nResume text:\n${buffer.toString('utf8', 0, 5000)}` }]
-        : [
-            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: buffer.toString('base64') } },
-            { type: 'text', text: prompt }
-        ];
-
+async function patchUserField(email, fields) {
     try {
-        const msg = await claude.messages.create({
-            model: 'claude-haiku-4-5-20251001', max_tokens: 400,
-            messages: [{ role: 'user', content }]
+        const rec = await findUserRecord(email);
+        if (!rec) return false;
+        const r = await fetch(`https://api.airtable.com/v0/${AT_BASE}/${USERS_TABLE}/${rec.id}`, {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fields })
         });
-        const raw = msg.content[0].text.replace(/```json|```/g, '').trim();
-        try {
-            const p = JSON.parse(raw);
-            if (p.currentRole || p.targetRole || p.skills) {
-                // ── Post-processing: validate experience vs seniority ──
-                const expYears = parseFloat(p.experience) || 0;
-
-                // Override seniority based on actual experience
-                if (expYears < 1)        p.seniority = 'fresher';
-                else if (expYears < 3)   p.seniority = 'junior';
-                else if (expYears < 6)   p.seniority = 'mid-level';
-                else if (expYears < 10)  p.seniority = 'senior';
-                else                     p.seniority = 'lead';
-
-                // Strip inflated seniority prefixes from role if experience doesn't match
-                const seniorPrefixes = /^(senior|lead|principal|head of|director|vp|avp|chief)\s+/i;
-                if (expYears < 2 && seniorPrefixes.test(p.currentRole)) {
-                    p.currentRole = p.currentRole.replace(seniorPrefixes, '').trim();
-                    console.log(`Corrected inflated role title for ${expYears}yr experience`);
-                }
-
-                // Apply correct targetRole based on validated experience
-                const coreRole = p.currentRole.replace(seniorPrefixes, '').trim();
-                if (expYears < 1)       p.targetRole = coreRole;
-                else if (expYears < 3)  p.targetRole = coreRole;
-                else if (expYears < 6)  p.targetRole = 'Senior ' + coreRole;
-                else if (expYears < 10) p.targetRole = p.targetRole; // keep AI's suggestion
-                else                    p.targetRole = p.targetRole; // keep AI's suggestion
-
-                console.log('Profile extracted (10 fields):', JSON.stringify(p));
-                return p;
-            }
-        } catch {}
-        const m = raw.match(/\{[\s\S]*\}/);
-        if (m) {
-            try {
-                const p = JSON.parse(m[0]);
-                if (p.currentRole || p.skills) {
-                    console.log('Profile extracted via regex:', JSON.stringify(p));
-                    return p;
-                }
-            } catch {}
-        }
-        console.warn('Claude refused to parse resume — using text fallback');
-    } catch (e) {
-        console.error('Claude API error:', e.message);
-    }
-
-    const text = buffer.toString('utf8', 0, 6000).replace(/[^\x20-\x7E\n]/g, ' ');
-    const cities = ['Bengaluru','Bangalore','Mumbai','Delhi','Hyderabad','Pune','Chennai','Kolkata','Noida','Gurgaon'];
-    const foundCity = cities.find(c => text.toLowerCase().includes(c.toLowerCase())) || 'Bengaluru';
-    const expMatch = text.match(/(\d+)\+?\s*(?:years?|yrs?)(?:\s*of)?\s*(?:experience|exp)/i);
-    const expYears = expMatch ? parseInt(expMatch[1]) : 3;
-    return {
-        currentRole: 'Professional', targetRole: 'Professional',
-        currentCompany: '', experience: `${expYears} years`,
-        location: foundCity, domain: 'General', skills: '',
-        education: '', seniority: expYears <= 2 ? 'junior' : expYears <= 6 ? 'mid-level' : 'senior',
-        companyType: 'large enterprise',
-    };
+        return r.ok;
+    } catch { return false; }
 }
 
-// ── Save to Airtable ──────────────────────────────────────────────────────────
-async function saveToAirtable(name, email, phone, cities, profile) {
-    if (!AIRTABLE_TOKEN || !AIRTABLE_BASE_ID) return;
-    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
-    const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
+// ═══════════════════════════════════════════════════════════════════
+// /apply — Signed redirect with click logging (the cost-saving lever)
+// ═══════════════════════════════════════════════════════════════════
+app.get('/apply', async (req, res) => {
+    const { e: email, t: title, c: company, s: source, sc: score, u: jobUrl, sig } = req.query;
 
-    const check = await fetch(`${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`, { headers });
-    const cd = await check.json();
-    const existing = cd.records || [];
+    if (!jobUrl) return res.status(400).send('Missing job URL');
 
-    const fullFields = {
-        'Name': name, 'Email': email,
-        'Target role': profile.targetRole || profile.currentRole || '',
-        'Current role': profile.currentRole || '',
-        'Location': profile.location || 'Bengaluru',
-        'Experience': profile.experience || '',
-        'Domain': profile.domain || '',
-        'Skills': profile.skills || '',
-        'Education': profile.education || '',
-        'Seniority': profile.seniority || '',
-        'Company type': profile.companyType || '',
-        'Phone': phone || '',
-        'Cities': Array.isArray(cities) ? cities.join(', ') : '',
-        'Status': 'Active',
-    };
-    const coreFields = {
-        'Name': name, 'Email': email,
-        'Target role': profile.targetRole || profile.currentRole || '',
-        'Location': profile.location || 'Bengaluru',
-        'Experience': profile.experience || '',
-        'Domain': profile.domain || '',
-        'Skills': profile.skills || '',
-        'Status': 'Active',
-    };
+    const cleanUrl = decodeURIComponent(jobUrl);
 
-    async function upsert(fields, recordId) {
-        if (recordId) return fetch(`${url}/${recordId}`, { method: 'PATCH', headers, body: JSON.stringify({ fields }) });
-        return fetch(url, { method: 'POST', headers, body: JSON.stringify({ records: [{ fields }] }) });
+    // Verify signature — invalid sigs still redirect (don't break user) but skip logging
+    const payload = `${email}|${title}|${company}|${jobUrl}`;
+    const sigValid = verifyPayload(payload, sig);
+
+    // 302 redirect first — zero perceived delay
+    res.redirect(302, cleanUrl);
+
+    if (!sigValid) {
+        console.warn(`Invalid signature for ${email} → ${title}`);
+        return;
     }
 
-    const recordId = existing[0]?.id || null;
-    let resp = await upsert(fullFields, recordId);
-    if (resp.status === 422) {
-        console.log('Full fields failed — retrying with core fields');
-        resp = await upsert(coreFields, recordId);
-    }
-    const result = await resp.json();
-    if (!resp.ok) console.error(`Airtable error ${resp.status}:`, JSON.stringify(result?.error));
-    else console.log(`Airtable ${recordId ? 'updated' : 'created'}: ${resp.status} for ${email}`);
+    // Async logging — fire and forget
+    logApplyClick({ email, title, company, source, score, jobUrl: cleanUrl })
+        .catch(err => console.error('Apply log error:', err.message));
+});
 
-    for (const dup of existing.slice(1)) {
-        await fetch(`${url}/${dup.id}`, { method: 'DELETE', headers });
-        console.log(`Deleted duplicate row for ${email}`);
-    }
-}
+async function logApplyClick({ email, title, company, source, score, jobUrl }) {
+    const headers = { Authorization: `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' };
 
-// ── Store resume in Airtable as base64 attachment ────────────────────────────
-async function storeResume(email, buffer, filename) {
-    if (!AIRTABLE_TOKEN || !AIRTABLE_BASE_ID) return;
-    try {
-        // Wait 3s for Airtable record to be created first
-        await new Promise(r => setTimeout(r, 3000));
-        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
-        const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
-        // Find user record
-        const check = await fetch(`${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`, { headers });
-        const data = await check.json();
-        const rec = data.records?.[0];
-        if (!rec) { console.error(`Resume store: no Airtable record found for ${email}`); return; }
-        // Store resume as base64 string
-        const base64 = buffer.toString('base64');
-        const mimeType = filename?.endsWith('.docx') || filename?.endsWith('.doc')
-            ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            : 'application/pdf';
-        const patchResp = await fetch(`${url}/${rec.id}`, {
-            method: 'PATCH', headers,
-            body: JSON.stringify({ fields: {
-                'Resume Filename': filename || 'resume.pdf',
-                'Resume Base64': base64.slice(0, 99000),
-                'Resume Type': mimeType,
-                'Resume Uploaded At': new Date().toISOString(),
-            }})
-        });
-        if (!patchResp.ok) {
-            const err = await patchResp.text();
-            console.error(`Resume store PATCH failed (${patchResp.status}): ${err}`);
-            return;
-        }
-        console.log(`✅ Resume stored for ${email} (${Math.round(buffer.length/1024)}KB)`);
-    } catch (e) {
-        console.error('Resume storage error:', e.message);
-    }
-}
-
-// ── Welcome email via Brevo HTTP API (no port blocking) ──────────────────────
-async function sendWelcomeEmail(name, email, profile) {
-    if (!BREVO_API_KEY) { console.log('Brevo API key not set — skipping welcome email'); return; }
-    try {
-        const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
-            method: 'POST',
-            headers: {
-                'accept': 'application/json',
-                'api-key': BREVO_API_KEY,
-                'content-type': 'application/json',
-            },
-            body: JSON.stringify({
-                sender: { name: BREVO_FROM_NAME, email: BREVO_FROM_EMAIL },
-                to: [{ email, name }],
-                subject: `You're set, ${name} — first matches arriving within 10 minutes`,
-                htmlContent: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:540px;margin:0 auto;background:#f9fafb;padding:24px">
-<div style="background:#0055FF;border-radius:14px;padding:22px 26px;margin-bottom:20px">
-  <div style="font-size:20px;font-weight:700;color:#fff;letter-spacing:-0.02em">JobMatch AI</div>
-  <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:3px">Your AI-powered job search is now live</div>
-</div>
-<div style="background:#fff;border-radius:12px;padding:20px 22px;margin-bottom:14px;border:1px solid #e5e7eb">
-  <p style="color:#111;font-size:15px;font-weight:600;margin:0 0 12px">Hi ${name},</p>
-  <p style="color:#374151;font-size:13px;line-height:1.7;margin:0 0 16px">We've read your resume and built your profile. We're now scanning <strong>LinkedIn, Naukri, Indeed, Glassdoor</strong> and more for roles that match you specifically.</p>
-  <div style="background:#f0f4ff;border-radius:10px;padding:14px 16px;font-size:13px;color:#374151;margin-bottom:16px">
-    <div style="font-size:10px;font-weight:700;color:#0055FF;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px">Your profile</div>
-    <b>Target role:</b> ${profile.targetRole || profile.currentRole}<br>
-    <b>Industry:</b> ${profile.domain}<br>
-    <b>Experience:</b> ${profile.experience} &middot; ${profile.seniority}<br>
-    <b>Top skills:</b> ${(profile.skills||'').split(',').slice(0,4).join(', ')}
-  </div>
-  <div style="font-size:13px;color:#374151;line-height:1.8">
-    <div style="margin-bottom:6px">&#9989; First results arriving <strong>within 10 minutes</strong></div>
-    <div style="margin-bottom:6px">&#9989; Daily digest every morning at <strong>9am IST</strong></div>
-    <div style="margin-bottom:6px">&#9989; Every match includes a <strong>personalised recruiter pitch</strong></div>
-    <div>&#9989; <strong>Zero duplicate jobs</strong> — ever</div>
-  </div>
-</div>
-<p style="font-size:11px;color:#9ca3af;text-align:center;margin:0">JobMatch AI &middot; Free Beta &middot; <a href="mailto:hello@jobmatchai.co.in" style="color:#0055FF">hello@jobmatchai.co.in</a></p>
-</div>`
-            })
-        });
-        const result = await resp.json();
-        if (!resp.ok) {
-            const errMsg = result?.message || result?.error || JSON.stringify(result);
-            console.error(`Welcome email FAILED for ${email}: ${resp.status} — ${errMsg}`);
-            // Don't throw — still complete signup, just log the email failure
-            return;
-        }
-        console.log(`Welcome email sent to ${email} (messageId: ${result.messageId})`);
-    } catch (e) {
-        console.error('Welcome email error:', e.message);
-    }
-}
-
-// ── Trigger Apify actor ───────────────────────────────────────────────────────
-async function triggerApify(name, email, profile, cities) {
-    if (!APIFY_TOKEN) throw new Error('APIFY_TOKEN not set');
-    const actorId = (APIFY_ACTOR_ID || '').replace('/', '~');
-    const resp = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${APIFY_TOKEN}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+    // 1. Append to ApplyClicks table
+    await fetch(`https://api.airtable.com/v0/${AT_BASE}/${CLICKS_TABLE}`, {
+        method: 'POST', headers,
         body: JSON.stringify({
-            airtableToken: AIRTABLE_TOKEN,
-            airtableBaseId: AIRTABLE_BASE_ID,
-            anthropicApiKey: ANTHROPIC_API_KEY,
-            jsearchApiKey: process.env.JSEARCH_API_KEY || '',
-            adzunaAppId: process.env.ADZUNA_APP_ID || '',
-            adzunaAppKey: process.env.ADZUNA_APP_KEY || '',
-            brevoApiKey: BREVO_API_KEY,
-            brevoFromEmail: BREVO_FROM_EMAIL,
-            brevoFromName: BREVO_FROM_NAME,
-            maxResultsPerSource: 10,
-            filterEmail: email,
-            unsubscribeSecret: process.env.UNSUBSCRIBE_SECRET || 'jobmatch-secret-2026',
-            // Pass full profile directly so actor doesn't re-fetch from Airtable
-            // This fixes the race condition where Airtable write hasn't committed yet
-            inlineProfile: {
-                name: name || email.split('@')[0],
-                email,
-                targetRole:   profile.targetRole   || profile.currentRole || '',
-                currentRole:  profile.currentRole  || '',
-                experience:   profile.experience   || '3 years',
-                seniority:    profile.seniority    || 'mid-level',
-                domain:       profile.domain       || '',
-                skills:       profile.skills       || '',
-                education:    profile.education    || '',
-                companyType:  profile.companyType  || '',
-                location:     profile.location     || (cities?.[0] || 'Bengaluru'),
-                cities:       cities               || ['Bengaluru'],
-            },
+            fields: {
+                Email: email || '',
+                JobTitle: (title || '').slice(0, 100),
+                Company: (company || '').slice(0, 60),
+                JobUrl: jobUrl || '',
+                Source: source || '',
+                MatchScore: parseInt(score) || 0,
+                ClickedAt: new Date().toISOString()
+            }
+        })
+    }).catch(() => {});
+
+    // 2. Bump engagement on user record
+    if (!email) return;
+    const rec = await findUserRecord(email);
+    if (!rec) return;
+    const prevCount = rec.fields?.['TotalApplyClicks'] || 0;
+    await fetch(`https://api.airtable.com/v0/${AT_BASE}/${USERS_TABLE}/${rec.id}`, {
+        method: 'PATCH', headers,
+        body: JSON.stringify({
+            fields: {
+                LastApplyClick: new Date().toISOString(),
+                TotalApplyClicks: prevCount + 1,
+                LastEngagement: new Date().toISOString()
+            }
         })
     });
-    const text = await resp.text();
-    if (!resp.ok) throw new Error(`Apify: ${resp.status} — ${text.slice(0, 100)}`);
-    const runId = JSON.parse(text).data?.id;
-    console.log(`Apify run: ${runId}`);
-    return runId;
+    console.log(`Apply: ${email} → ${title} @ ${company} (${source})`);
 }
 
-// ── Poll Apify ────────────────────────────────────────────────────────────────
-// pollApifyRun is now lightweight — just warms the cache if server is awake
-// The real status check happens in /results route directly via Apify API
-// This survives Render restarts because runId is sent back to the frontend
-async function pollApifyRun(runId) {
-    // Still poll server-side to warm cache when server stays alive
-    for (let i = 0; i < 72; i++) {
-        await new Promise(r => setTimeout(r, 5000));
-        try {
-            const resp = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_TOKEN}`);
-            const data = await resp.json();
-            const status = data?.data?.status;
-            console.log(`Apify ${runId}: ${status}`);
-            if (status === 'SUCCEEDED') {
-                const dsResp = await fetch(`https://api.apify.com/v2/datasets/${data.data.defaultDatasetId}/items?token=${APIFY_TOKEN}&limit=200`);
-                const items = await dsResp.json();
-                const jobs = Array.isArray(items) ? items : [];
-                console.log(`Poll: ${runId} SUCCEEDED — ${jobs.length} jobs in dataset`);
-                runCache.set(runId, { ready: true, jobs });
-                setTimeout(() => runCache.delete(runId), 3600000);
-                return;
-            }
-            if (status === 'FAILED' || status === 'ABORTED') {
-                runCache.set(runId, { ready: true, jobs: [] });
-                return;
-            }
-        } catch (e) { console.error(`Poll error: ${e.message}`); }
-    }
-    runCache.set(runId, { ready: true, jobs: [] });
-}
+// ═══════════════════════════════════════════════════════════════════
+// /open — 1x1 GIF email open tracker
+// ═══════════════════════════════════════════════════════════════════
+const TRANSPARENT_PIXEL = Buffer.from(
+    'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'
+);
 
-// ── Routes ────────────────────────────────────────────────────────────────────
-app.get('/health', (req, res) => res.json({ status: 'ok', version: '5.1.0' }));
+app.get('/open', async (req, res) => {
+    const { e: email } = req.query;
 
-app.get('/debug', async (req, res) => {
-    let at = 'untested';
-    try {
-        const r = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}?maxRecords=1`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-        at = `HTTP ${r.status}`;
-    } catch (e) { at = e.message; }
-    res.json({
-        version: '5.1.0',
-        env: {
-            ANTHROPIC: ANTHROPIC_API_KEY ? 'SET' : 'MISSING',
-            AIRTABLE:  AIRTABLE_TOKEN    ? 'SET' : 'MISSING',
-            BREVO:     BREVO_API_KEY     ? 'SET' : 'MISSING',
-            APIFY:     APIFY_TOKEN       ? 'SET' : 'MISSING',
-            JSEARCH:   process.env.JSEARCH_API_KEY ? 'SET' : 'MISSING',
-            ADZUNA:    process.env.ADZUNA_APP_ID   ? 'SET' : 'MISSING',
-        },
-        airtableStatus: at
+    res.set({
+        'Content-Type': 'image/gif',
+        'Content-Length': TRANSPARENT_PIXEL.length,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
     });
-});
+    res.send(TRANSPARENT_PIXEL);
 
-app.get('/results', async (req, res) => {
-    const { runId } = req.query;
-    if (!runId) return res.json({ status: 'pending' });
-
-    // 1. Check in-memory cache first (fast path)
-    const cached = runCache.get(runId);
-    if (cached?.ready) return res.json({ status: 'ready', jobs: cached.jobs });
-
-    // 2. Cache miss (server restarted) — check Apify directly
-    // This is the key fix: runId is safe to pass to Apify even after restart
-    if (!APIFY_TOKEN) return res.json({ status: 'pending' });
+    if (!email) return;
     try {
-        const resp = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_TOKEN}`);
-        if (!resp.ok) return res.json({ status: 'pending' });
-        const data = await resp.json();
-        const status = data?.data?.status;
-        console.log(`/results direct Apify check: ${runId} → ${status}`);
-
-        if (status === 'SUCCEEDED') {
-            const dsResp = await fetch(`https://api.apify.com/v2/datasets/${data.data.defaultDatasetId}/items?token=${APIFY_TOKEN}&limit=200`);
-            const items = await dsResp.json();
-            const jobs = Array.isArray(items) ? items : [];
-            const above55 = jobs.filter(j => (j.matchScore||0) >= 55).length;
-            console.log(`/results: ${runId} SUCCEEDED — ${jobs.length} total jobs, ${above55} above 55%`);
-            runCache.set(runId, { ready: true, jobs });
-            setTimeout(() => runCache.delete(runId), 3600000);
-            return res.json({ status: 'ready', jobs });
-        }
-        if (status === 'FAILED' || status === 'ABORTED' || status === 'TIMED-OUT') {
-            runCache.set(runId, { ready: true, jobs: [] });
-            return res.json({ status: 'ready', jobs: [] });
-        }
-        // Still RUNNING or READY
-        return res.json({ status: 'pending' });
-    } catch (e) {
-        console.error(`/results Apify check error: ${e.message}`);
-        return res.json({ status: 'pending' });
-    }
+        const rec = await findUserRecord(email);
+        if (!rec) return;
+        const prevOpens = rec.fields?.['TotalEmailOpens'] || 0;
+        await fetch(`https://api.airtable.com/v0/${AT_BASE}/${USERS_TABLE}/${rec.id}`, {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fields: {
+                    LastEmailOpen: new Date().toISOString(),
+                    TotalEmailOpens: prevOpens + 1,
+                    LastEngagement: new Date().toISOString()
+                }
+            })
+        });
+    } catch (e) { /* silent — pixel must always succeed */ }
 });
 
-app.post('/signup', upload.single('resume'), async (req, res) => {
-    const { name, email, phone, cities: citiesRaw, industry } = req.body;
-    const file = req.file;
-    const cities = citiesRaw ? JSON.parse(citiesRaw) : ['Bengaluru'];
-
-    console.log(`\n[${new Date().toISOString()}] Signup: ${name} (${email})`);
-
-    if (!name || !email) return res.status(400).json({ error: 'Name and email required.' });
-    if (!file) return res.status(400).json({ error: 'Resume required.' });
-
-    // Basic email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-    if (!emailRegex.test(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
-
-    // Block obviously disposable/temp email domains
-    const disposableDomains = /mailinator\.|guerrillamail\.|tempmail\.|throwaway\.|yopmail\.|sharklasers\.|trashmail\.|maildrop\.|dispostable\.|spamgourmet\.|fakeinbox\.|temp-mail\.|getairmail\.|mailnull\.|spamhole\.|discard\.email/i;
-    if (disposableDomains.test(email)) return res.status(400).json({ error: 'Disposable email addresses are not allowed. Please use your work or personal email.' });
-
-    // Catch common email domain typos — gamil, gmai, gnail, outlok, yaho etc
-    const emailDomain = email.split('@')[1]?.toLowerCase() || '';
-    const typoMap = {
-        'gamil.com': 'gmail.com', 'gmai.com': 'gmail.com', 'gmial.com': 'gmail.com',
-        'gnail.com': 'gmail.com', 'gmail.co': 'gmail.com', 'gmail.con': 'gmail.com',
-        'gmaill.com': 'gmail.com', 'gmil.com': 'gmail.com', 'gmal.com': 'gmail.com',
-        'yaho.com': 'yahoo.com', 'yahooo.com': 'yahoo.com', 'yahoo.co': 'yahoo.com',
-        'hotmial.com': 'hotmail.com', 'hotmal.com': 'hotmail.com', 'hotmail.co': 'hotmail.com',
-        'outlok.com': 'outlook.com', 'outllok.com': 'outlook.com', 'outook.com': 'outlook.com',
-        'redifmail.com': 'rediffmail.com', 'redif.com': 'rediffmail.com',
-    };
-    if (typoMap[emailDomain]) {
-        const suggested = email.replace(emailDomain, typoMap[emailDomain]);
-        return res.status(400).json({ error: `Did you mean ${suggested}? Please check your email address.` });
-    }
-
-    const cleanup = () => { try { unlinkSync(file.path); } catch {} };
-
-    try {
-        const t0 = Date.now();
-        console.log('Parsing resume (10 fields)...');
-        const buffer = readFileSync(file.path);
-        const profile = await parseResume(buffer, file.originalname || 'resume.pdf');
-        cleanup();
-        // Store resume for future analysis (non-blocking)
-        storeResume(email, buffer, file.originalname || 'resume.pdf').catch(e => console.error('Resume store:', e.message));
-        console.log(`Profile (${Date.now()-t0}ms):`, JSON.stringify(profile));
-
-        // ── Guard: detect corrupted / unreadable resume ─────────────────
-        const isCorrupted = profile.currentRole?.toLowerCase().includes('unable to extract')
-            || profile.currentRole?.toLowerCase().includes('corrupted')
-            || !profile.currentRole
-            || profile.currentRole === 'Professional';
-
-        if (isCorrupted) {
-            console.warn(`Corrupted resume for ${email} — skipping Apify, sending re-upload email`);
-            saveToAirtable(name, email, phone, cities, { ...profile, Status: 'Needs Resume' }).catch(e => console.error('Airtable:', e.message));
-            // Send re-upload email instead of welcome
-            await fetch('https://api.brevo.com/v3/smtp/email', {
-                method: 'POST',
-                headers: { 'accept': 'application/json', 'api-key': BREVO_API_KEY, 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    sender: { name: BREVO_FROM_NAME, email: BREVO_FROM_EMAIL },
-                    to: [{ email, name }],
-                    subject: 'Quick fix needed for your JobMatch AI profile',
-                    htmlContent: `<div style="font-family:-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:24px">
-<div style="background:#0055FF;border-radius:12px;padding:20px 24px;margin-bottom:20px">
-  <div style="font-size:18px;font-weight:700;color:#fff">JobMatch AI</div>
-</div>
-<p style="color:#374151;font-size:14px;margin-bottom:16px">Hi <strong>${name}</strong>,</p>
-<p style="color:#374151;font-size:14px;margin-bottom:16px">Thank you for signing up! Unfortunately we were unable to read your resume — it may be password-protected, scanned as an image, or in an unsupported format.</p>
-<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:#dc2626">
-  Please re-upload your resume and make sure it is:<br><br>
-  ✓ A text-based PDF or Word document (.docx)<br>
-  ✓ Not password protected<br>
-  ✓ Under 5MB
-</div>
-<a href="https://jobmatch-ai-z19k.onrender.com" style="display:inline-block;background:#0055FF;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600">Re-upload resume →</a>
-<p style="font-size:11px;color:#9ca3af;margin-top:20px">JobMatch AI · hello@jobmatchai.co.in</p>
-</div>`
-                })
-            }).catch(e => console.error('Re-upload email error:', e.message));
-            return res.json({ success: true, runId: null, profile, corrupted: true, totalTime: Date.now()-t0 });
-        }
-
-        // Override AI-parsed domain with user-selected industry if provided
-        if (industry && industry.trim() && industry !== 'Other') {
-            profile.domain = industry.trim();
-            console.log(`Domain overridden by user selection: ${profile.domain}`);
-        }
-
-        // Await Airtable save before triggering Apify (prevents race condition)
-        await saveToAirtable(name, email, phone, cities, profile).catch(e => console.error('Airtable:', e.message));
-        sendWelcomeEmail(name, email, profile).catch(e => console.error('Email:', e.message));
-
-        const runId = await triggerApify(name, email, profile, cities);
-        pollApifyRun(runId).catch(e => console.error('Poll:', e.message));
-
-        res.json({ success: true, runId, profile, totalTime: Date.now()-t0 });
-    } catch (err) {
-        cleanup();
-        console.error('Signup error:', err.message);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// ── Feedback routes ───────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// /feedback — Rating handler with engagement tracking
+// ═══════════════════════════════════════════════════════════════════
 app.get('/feedback', async (req, res) => {
     const { email, rating, token } = req.query;
-    if (!email || !rating || !token || !validToken(email, token)) {
-        return res.status(400).send(page('Invalid link', 'This feedback link is invalid.', '', ''));
-    }
+
+    if (!email || !rating) return res.status(400).send('Missing parameters');
+    if (!verifyUnsubToken(email, token)) return res.status(403).send('Invalid token');
+
     const r = parseInt(rating);
-    if (r < 1 || r > 5) return res.status(400).send(page('Invalid rating', 'Rating must be 1-5.', '', ''));
+    if (isNaN(r) || r < 1 || r > 5) return res.status(400).send('Invalid rating');
 
+    // 1. Update user record
+    await patchUserField(email, {
+        LastFeedbackRating: r,
+        LastFeedbackAt: new Date().toISOString(),
+        LastEngagement: new Date().toISOString()
+    });
+
+    // 2. Append to feedback log
     try {
-        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
-        const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
-        const check = await fetch(`${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`, { headers });
-        const data = await check.json();
-        const rec = data.records?.[0];
-        if (!rec) return res.send(page('Not found', 'We could not find your account.', '', ''));
-
-        // Try saving rating as number, then as string
-        // Airtable field type determines which works
-        let saved = false;
-        for (const val of [r, String(r), ['😞','😐','🙂','😊','🤩'][r-1]]) {
-            const sr = await fetch(`${url}/${rec.id}`, {
-                method: 'PATCH', headers,
-                body: JSON.stringify({ fields: { 'Rating': val } })
-            });
-            const sd = await sr.json();
-            if (sr.ok) {
-                console.log(`Rating ${r} (as ${typeof val}) saved for ${email} ✅`);
-                saved = true;
-                break;
-            } else {
-                console.error(`Rating save failed with value "${val}" (${sr.status}): ${sd?.error?.message}`);
-            }
-        }
-        if (!saved) console.error(`All rating save attempts failed for ${email}`);
-
-        const stars = '★'.repeat(r) + '☆'.repeat(5 - r);
-        res.send(feedbackPage(stars, r, email, token));
-    } catch (e) {
-        res.status(500).send(page('Error', 'Something went wrong. Please try again.', '', ''));
-    }
-});
-
-app.post('/feedback/comment', async (req, res) => {
-    const email = req.query.email || req.body.email;
-    const token = req.query.token || req.body.token;
-    const rating = req.query.rating || req.body.rating;
-    const comment = req.body.comment;
-    // Token already validated on GET /feedback — just need email here
-    if (!email) {
-        return res.status(400).send(page('Invalid link', 'Email is missing.', '', ''));
-    }
-    try {
-        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
-        const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
-        const check = await fetch(`${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`, { headers });
-        const data = await check.json();
-        const rec = data.records?.[0];
-        if (!rec) {
-            console.error(`Feedback comment: user not found for ${email}`);
-            return res.send(page('Thank you!', 'Your feedback has been noted.', '', ''));
-        }
-        const saveResp = await fetch(`${url}/${rec.id}`, {
-            method: 'PATCH', headers,
-            body: JSON.stringify({ fields: { 'Feedback': comment || '' } })
+        await fetch(`https://api.airtable.com/v0/${AT_BASE}/${FEEDBACK_TABLE}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fields: {
+                    Email: email,
+                    Rating: r,
+                    SubmittedAt: new Date().toISOString()
+                }
+            })
         });
-        const saveData = await saveResp.json();
-        if (!saveResp.ok) {
-            console.error(`Feedback comment save failed: ${JSON.stringify(saveData)}`);
-        } else {
-            console.log(`Feedback comment saved for ${email}: "${(comment||'').slice(0,50)}"`);
-        }
-        res.send(page('Thank you! 🙏', 'Your feedback helps us improve the matches for everyone.', '', ''));
-    } catch (e) {
-        res.status(500).send(page('Error', 'Something went wrong.', '', ''));
-    }
+    } catch (e) { /* silent */ }
+
+    const emojis = ['', '😞', '😐', '🙂', '😊', '🤩'];
+    res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Thanks!</title></head>
+<body style="font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:60px 20px;background:#f8fafc;margin:0">
+<div style="max-width:420px;margin:0 auto;background:#fff;padding:40px 28px;border-radius:14px;border:1px solid #e5e7eb">
+<div style="font-size:64px;margin-bottom:16px">${emojis[r]}</div>
+<h2 style="font-size:22px;color:#111;margin:0 0 12px">Thanks for the feedback!</h2>
+<p style="font-size:14px;color:#6b7280;margin:0 0 28px;line-height:1.6">We use your rating to improve tomorrow's matches. The more you rate, the smarter we get.</p>
+<a href="${SERVER_URL}/dashboard?email=${encodeURIComponent(email)}&token=${makeUnsubToken(email)}" style="display:inline-block;background:#0055FF;color:#fff;padding:12px 24px;border-radius:9px;text-decoration:none;font-size:14px;font-weight:600">View your dashboard →</a>
+</div></body></html>`);
 });
 
-function feedbackPage(stars, rating, email, token) {
-    const msgs = ["", "Sorry to hear that. We'll do better.", "Thanks — we'll improve.", "Good to know, we're working on it.", "Great — glad it's useful!", "Amazing! You made our day."];
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Feedback — JobMatch AI</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;background:#FAFAFA;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}
-.card{background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:20px;padding:2.5rem;max-width:440px;width:100%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.06)}
-.logo{font-size:1.1rem;font-weight:700;color:#0055FF;margin-bottom:1.5rem}
-.stars{font-size:2rem;color:#f59e0b;margin-bottom:0.75rem;letter-spacing:4px}
-h1{font-size:1.2rem;font-weight:600;color:#111;margin-bottom:0.5rem}
-p{font-size:0.88rem;color:#666;margin-bottom:1.5rem;line-height:1.6}
-textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:0.88rem;font-family:inherit;resize:vertical;min-height:90px;outline:none;margin-bottom:1rem}
-textarea:focus{border-color:#0055FF}
-.btn{width:100%;padding:0.75rem;background:#0055FF;color:#fff;border:none;border-radius:10px;font-size:0.88rem;font-weight:600;cursor:pointer}
-.skip{display:block;margin-top:0.75rem;font-size:0.78rem;color:#999;text-decoration:none}
-.skip:hover{color:#0055FF}
-</style>
-</head>
-<body>
-<div class="card">
-  <div class="logo">JobMatch AI</div>
-  <div class="stars">${stars}</div>
-  <h1>${msgs[rating]}</h1>
-  <p>Want to tell us more? Takes 10 seconds.</p>
-  <form method="POST" action="/feedback/comment?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}">
-    <input type="hidden" name="email" value="${email}">
-    <input type="hidden" name="token" value="${token}">
-    <input type="hidden" name="rating" value="${rating}">
-    <textarea name="comment" placeholder="What would make your matches better? Any specific roles or companies you'd like to see?"></textarea>
-    <button type="submit" class="btn">Send feedback</button>
-  </form>
-  <a href="/" class="skip">Skip — go back to JobMatch AI</a>
-</div>
-</body>
-</html>`;
-}
-
-// ── Unsubscribe / Resubscribe routes ─────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// /unsubscribe + /resubscribe
+// ═══════════════════════════════════════════════════════════════════
 app.get('/unsubscribe', async (req, res) => {
     const { email, token } = req.query;
-    if (!email || !token || !validToken(email, token)) {
-        return res.status(400).send(page('Invalid link', 'This unsubscribe link is invalid or expired.', '', ''));
-    }
-    try {
-        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
-        const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
-        const check = await fetch(`${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`, { headers });
-        const data = await check.json();
-        const rec = data.records?.[0];
-        if (!rec) return res.send(page('Not found', 'We could not find your account.', '', ''));
-        await fetch(`${url}/${rec.id}`, { method: 'PATCH', headers, body: JSON.stringify({ fields: { Status: 'Inactive' } }) });
-        const resubUrl = `/resubscribe?email=${encodeURIComponent(email)}&token=${token}`;
-        res.send(page('Unsubscribed', `You've been unsubscribed from JobMatch AI daily alerts.`, 'Changed your mind?', resubUrl));
-    } catch (e) {
-        res.status(500).send(page('Error', 'Something went wrong. Please try again.', '', ''));
-    }
+    if (!email || !verifyUnsubToken(email, token)) return res.status(403).send('Invalid link');
+
+    await patchUserField(email, { Status: 'Inactive', Notes: `Unsubscribed via email on ${new Date().toISOString().split('T')[0]}` });
+
+    res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="font-family:system-ui;text-align:center;padding:60px 20px;background:#f8fafc">
+<div style="max-width:420px;margin:0 auto;background:#fff;padding:40px 28px;border-radius:14px;border:1px solid #e5e7eb">
+<h2 style="font-size:22px;color:#111;margin:0 0 12px">You're unsubscribed</h2>
+<p style="font-size:14px;color:#6b7280;margin:0 0 22px;line-height:1.6">No more daily emails. Sorry to see you go!</p>
+<a href="${SERVER_URL}/resubscribe?email=${encodeURIComponent(email)}&token=${token}" style="font-size:13px;color:#0055FF">Changed your mind? Resubscribe</a>
+</div></body></html>`);
 });
 
 app.get('/resubscribe', async (req, res) => {
     const { email, token } = req.query;
-    if (!email || !token || !validToken(email, token)) {
-        return res.status(400).send(page('Invalid link', 'This link is invalid or expired.', '', ''));
-    }
-    try {
-        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
-        const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
-        const check = await fetch(`${url}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}`, { headers });
-        const data = await check.json();
-        const rec = data.records?.[0];
-        if (!rec) return res.send(page('Not found', 'We could not find your account.', '', ''));
-        await fetch(`${url}/${rec.id}`, { method: 'PATCH', headers, body: JSON.stringify({ fields: { Status: 'Active' } }) });
-        res.send(page("You're back!", "Daily job alerts reactivated. Fresh matches arrive every morning at 8am IST.", "", ""));
-    } catch (e) {
-        res.status(500).send(page('Error', 'Something went wrong. Please try again.', '', ''));
-    }
+    if (!email || !verifyUnsubToken(email, token)) return res.status(403).send('Invalid link');
+
+    await patchUserField(email, {
+        Status: 'Active',
+        LastEngagement: new Date().toISOString(),
+        ConsecutiveSkips: 0
+    });
+
+    res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="font-family:system-ui;text-align:center;padding:60px 20px;background:#f8fafc">
+<div style="max-width:420px;margin:0 auto;background:#fff;padding:40px 28px;border-radius:14px;border:1px solid #e5e7eb">
+<h2 style="font-size:22px;color:#111;margin:0 0 12px">Welcome back! 🎉</h2>
+<p style="font-size:14px;color:#6b7280;margin:0;line-height:1.6">You'll receive your next daily digest tomorrow morning.</p>
+</div></body></html>`);
 });
 
-function page(title, message, btnText, btnUrl) {
-    const icon = title === "You're back!" ? "🎯" : title === "Unsubscribed" ? "👋" : title === "Error" ? "⚠️" : "ℹ️";
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${title} — JobMatch AI</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;background:#FAFAFA;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}
-.card{background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:20px;padding:2.5rem;max-width:420px;width:100%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.06)}
-.logo{font-size:1.1rem;font-weight:700;color:#0055FF;margin-bottom:2rem;letter-spacing:-0.02em}
-.icon{font-size:2.5rem;margin-bottom:1rem}
-h1{font-size:1.3rem;font-weight:600;color:#111;margin-bottom:0.75rem}
-p{font-size:0.9rem;color:#666;line-height:1.65;margin-bottom:1.5rem}
-.btn{display:inline-block;padding:0.75rem 1.75rem;background:#0055FF;color:#fff;border-radius:10px;text-decoration:none;font-size:0.88rem;font-weight:600;transition:background 0.2s}
-.btn:hover{background:#0044CC}
-.home{display:block;margin-top:1rem;font-size:0.78rem;color:#999;text-decoration:none}
-.home:hover{color:#0055FF}
-</style>
-</head>
-<body>
-<div class="card">
-  <div class="logo">JobMatch AI</div>
-  <div class="icon">${icon}</div>
-  <h1>${title}</h1>
-  <p>${message}</p>
-  ${btnText && btnUrl ? `<a href="${btnUrl}" class="btn">${btnText}</a>` : ''}
-  <a href="/" class="home">Back to JobMatch AI →</a>
-</div>
-</body>
-</html>`;
-}
-
 // ═══════════════════════════════════════════════════════════════════
-// DASHBOARD — /dashboard?email=x&token=y
-// Read-only personalised page. Token = same hash as unsubscribe.
-// Shows: latest matches, profile summary, feedback history
+// /dashboard — Show user's last matches + apply history + stats
 // ═══════════════════════════════════════════════════════════════════
 app.get('/dashboard', async (req, res) => {
     const { email, token } = req.query;
-    if (!email || !token) return res.redirect('/');
+    if (!email || !verifyUnsubToken(email, token)) return res.status(403).send('Invalid link — please use the dashboard link from your latest email');
 
-    // Validate token
-    const expected = makeToken(email);
-    if (token !== expected) return res.status(403).send('Invalid link. Please use the link from your email.');
+    const rec = await findUserRecord(email);
+    if (!rec) return res.status(404).send('Profile not found');
 
+    const f = rec.fields;
+    let matches = [];
+    try { matches = JSON.parse(f.LastMatches || '[]'); } catch {}
+
+    // Fetch recent apply clicks (last 30)
+    let applies = [];
     try {
-        const AT = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
-        const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` };
+        const r = await fetch(
+            `https://api.airtable.com/v0/${AT_BASE}/${CLICKS_TABLE}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}&sort[0][field]=ClickedAt&sort[0][direction]=desc&maxRecords=30`,
+            { headers: { Authorization: `Bearer ${AT_TOKEN}` } }
+        );
+        const data = await r.json();
+        applies = data.records || [];
+    } catch {}
 
-        // Fetch user profile
-        const userResp = await fetch(`${AT}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}&maxRecords=1`, { headers });
-        const userData = await userResp.json();
-        const rec = userData.records?.[0]?.fields || {};
+    const totalApplies = f.TotalApplyClicks || 0;
+    const totalOpens = f.TotalEmailOpens || 0;
+    const tier = f.PaidStatus === 'pro' ? 'PRO' : 'FREE';
+    const planBadge = tier === 'PRO'
+        ? `<span style="background:#0055FF;color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">PRO</span>`
+        : `<span style="background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">FREE</span>`;
 
-        if (!rec['Name']) return res.status(404).send('Profile not found. Please sign up at jobmatchai.co.in');
-
-        const name        = rec['Name'] || '';
-        const targetRole  = rec['Target role'] || rec['Current role'] || '';
-        const experience  = rec['Experience'] || '';
-        const domain      = rec['Domain'] || '';
-        const location    = rec['Location'] || 'Bengaluru';
-        const seniority   = rec['Seniority'] || '';
-        const skills      = rec['Skills'] || '';
-        const companyType = rec['Company type'] || '';
-        const lastRun     = rec['LastRun'] ? new Date(rec['LastRun']).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not yet';
-        const seenCount   = (rec['SeenJobs'] || '').split('|').filter(Boolean).length;
-        const initials    = name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
-
-        // Fetch last feedback ratings from Airtable if available
-        let feedbackRows = '';
-        try {
-            const fbResp = await fetch(`${AT}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}&fields[]=Rating&fields[]=RatedOn&maxRecords=7`, { headers });
-            const fbData = await fbResp.json();
-            const ratings = (fbData.records?.[0]?.fields?.['Rating'] || '').toString();
-            if (ratings) {
-                const rMap = {'1':'😞','2':'😐','3':'🙂','4':'😊','5':'🤩'};
-                feedbackRows = ratings.split(',').slice(-5).map(r => `<span style="font-size:20px">${rMap[r.trim()]||'?'}</span>`).join(' ');
-            }
-        } catch {}
-
-        // Fetch LastMatches — compact JSON saved by actor after each run
-        let matchCards = '';
-        try {
-            const rawMatches = rec['LastMatches'] || '';
-            if (rawMatches) {
-                const matches = JSON.parse(rawMatches);
-                const sc = s => s>=85?'#059669':s>=70?'#1d4ed8':'#6b7280';
-                const bb = s => s>=85?'#dcfce7':s>=70?'#dbeafe':'#f3f4f6';
-                const bc = s => s>=85?'#166534':s>=70?'#1e40af':'#4b5563';
-                const lb = s => s>=85?'#059669':s>=70?'#1d4ed8':'#d1d5db';
-                matchCards = matches.map(j => `
-<div style="background:#fff;border:0.5px solid #e2e8f0;border-left:4px solid ${lb(j.s)};border-radius:10px;padding:13px 15px;margin-bottom:10px">
+    const matchCards = matches.map(m => `
+<div style="background:#fff;border:1px solid #e5e7eb;border-left:4px solid ${m.s>=85?'#059669':m.s>=70?'#0055FF':'#d97706'};border-radius:10px;padding:14px 16px;margin-bottom:10px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
     <div style="flex:1;min-width:0">
-      <div style="font-size:14px;font-weight:500;color:#111;line-height:1.4;margin-bottom:3px">${j.t}</div>
-      <div style="font-size:12px;color:#6b7280;margin-bottom:6px">${j.c}${j.src ? ' · ' + j.src : ''}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
-        <span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;background:${bb(j.s)};color:${bc(j.s)}">${j.f||'Match'}</span>
-        ${j.sal ? `<span style="font-size:10px;color:#059669;font-weight:500;padding:2px 8px;border-radius:20px;background:#f0fdf4">${j.sal}</span>` : ''}
-        ${j.exp ? `<span style="font-size:10px;color:#6b7280;padding:2px 8px;border-radius:20px;background:#f9fafb">${j.exp}</span>` : ''}
-        ${j.ap ? `<span style="font-size:10px;color:${parseInt(j.ap)>200?'#dc2626':parseInt(j.ap)<25?'#059669':'#d97706'};padding:2px 8px;border-radius:20px;background:#f9fafb">${j.ap} applicants</span>` : ''}
-      </div>
-      ${j.v ? `<div style="font-size:11px;color:#6b7280;line-height:1.6;border-left:2px solid ${lb(j.s)};padding-left:8px">${j.v}</div>` : ''}
+      <div style="font-weight:700;font-size:14px;color:#111;margin-bottom:4px">${m.t}</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:6px">${m.c} · ${m.src||''}</div>
+      ${m.v ? `<div style="font-size:12px;color:#374151;line-height:1.5;margin-bottom:8px">${m.v}</div>` : ''}
+      ${m.sal ? `<div style="font-size:11px;color:#059669;font-weight:600">${m.sal}</div>` : ''}
     </div>
-    <div style="text-align:center;flex-shrink:0;min-width:52px">
-      <div style="font-size:22px;font-weight:500;color:${sc(j.s)};line-height:1.1">${j.s}%</div>
-      <div style="font-size:9px;color:#9ca3af;margin-bottom:6px">match</div>
-      ${j.u ? `<a href="${j.u}" style="display:block;background:#1d4ed8;color:#fff;padding:6px 4px;border-radius:7px;text-decoration:none;font-size:10px;font-weight:500">Apply</a>` : ''}
+    <div style="text-align:center;flex-shrink:0">
+      <div style="font-size:22px;font-weight:800;color:${m.s>=85?'#059669':m.s>=70?'#0055FF':'#d97706'}">${m.s}%</div>
+      ${m.u ? `<a href="${SERVER_URL}/apply?e=${encodeURIComponent(email)}&u=${encodeURIComponent(m.u)}&t=${encodeURIComponent(m.t)}&c=${encodeURIComponent(m.c)}&s=${encodeURIComponent(m.src||'')}&sc=${m.s}&sig=${signPayload(`${email}|${m.t}|${m.c}|${m.u}`)}" style="display:inline-block;background:#1d4ed8;color:#fff;padding:6px 14px;border-radius:7px;text-decoration:none;font-size:11px;font-weight:600;margin-top:4px">Apply</a>` : ''}
     </div>
   </div>
 </div>`).join('');
-            }
-        } catch {}
 
-        const matchRunDate = rec['LastRun'] ? new Date(rec['LastRun']).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : null;
-        const unsubUrl = `/unsubscribe?email=${encodeURIComponent(email)}&token=${token}`;
+    const appliesCards = applies.slice(0, 10).map(a => {
+        const af = a.fields;
+        const date = af.ClickedAt ? new Date(af.ClickedAt).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) : '';
+        return `<div style="padding:10px 14px;background:#f8fafc;border-radius:8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+  <div style="flex:1;min-width:0">
+    <div style="font-size:13px;font-weight:600;color:#111">${af.JobTitle||''}</div>
+    <div style="font-size:11px;color:#6b7280">${af.Company||''} · ${af.Source||''}</div>
+  </div>
+  <div style="font-size:11px;color:#9ca3af;flex-shrink:0">${date}</div>
+</div>`;
+    }).join('');
 
-        res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JobMatch AI – ${name}'s Dashboard</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f8;color:#111;min-height:100vh}
-.topbar{background:#0055FF;padding:14px 22px;display:flex;align-items:center;justify-content:space-between}
-.logo{font-size:16px;font-weight:500;color:#fff;letter-spacing:-0.02em}
-.logo span{color:rgba(255,255,255,0.7)}
-.topbar-right{font-size:12px;color:rgba(255,255,255,0.65)}
-.page{max-width:640px;margin:0 auto;padding:20px 16px 40px}
-.section{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px 20px;margin-bottom:14px}
-.section-title{font-size:12px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #f1f5f9}
-.profile-header{display:flex;align-items:center;gap:14px;margin-bottom:16px}
-.avatar{width:48px;height:48px;border-radius:50%;background:#1d4ed8;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:500;color:#fff;flex-shrink:0}
-.profile-name{font-size:18px;font-weight:500;color:#111}
-.profile-sub{font-size:13px;color:#6b7280;margin-top:2px}
-.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
-.stat{background:#f8fafc;border-radius:10px;padding:12px;text-align:center;border:1px solid #e2e8f0}
-.stat-n{font-size:22px;font-weight:500;color:#111;line-height:1}
-.stat-n.green{color:#059669}
-.stat-n.blue{color:#1d4ed8}
-.stat-l{font-size:11px;color:#6b7280;margin-top:3px}
-.field-row{display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f1f5f9}
-.field-row:last-child{border-bottom:none}
-.field-label{font-size:12px;color:#9ca3af}
-.field-value{font-size:13px;color:#111;text-align:right;max-width:60%;line-height:1.5}
-.action-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-.btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;text-decoration:none;border:none;display:inline-block;text-align:center}
-.btn-primary{background:#1d4ed8;color:#fff}
-.btn-outline{background:transparent;color:#1d4ed8;border:1px solid #1d4ed8}
-.btn-ghost{background:#f1f5f9;color:#6b7280}
-.info-box{background:#f0f7ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px}
-.info-box p{font-size:13px;color:#1e40af;line-height:1.7}
-.feedback-area{font-size:22px;letter-spacing:4px;margin-bottom:8px}
-.feedback-sub{font-size:12px;color:#9ca3af}
-.footer{text-align:center;margin-top:24px;font-size:11px;color:#9ca3af}
-.footer a{color:#1d4ed8;text-decoration:none}
-@media(max-width:480px){
-  .stat-grid{grid-template-columns:repeat(2,1fr)}
-  .action-row{flex-direction:column}
-  .btn{width:100%;text-align:center}
-}
-</style>
-</head>
-<body>
-<div class="topbar">
-  <div class="logo">Job<span>Match</span> AI</div>
-  <div class="topbar-right">Free Beta</div>
-</div>
-
-<div class="page">
-
-  <div class="section">
-    <div class="profile-header">
-      <div class="avatar">${initials}</div>
+    res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>JobMatch AI Dashboard</title></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;margin:0;padding:20px 12px">
+<div style="max-width:680px;margin:0 auto">
+  <!-- Header -->
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px 24px;margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <div>
-        <div class="profile-name">${name}</div>
-        <div class="profile-sub">${targetRole || 'No role set'}</div>
+        <div style="font-size:18px;font-weight:800;color:#111">Job<span style="color:#0055FF">Match</span> AI</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px">${f.Name || email} · ${planBadge}</div>
+      </div>
+      <a href="${SERVER_URL}/profile?email=${encodeURIComponent(email)}&token=${token}" style="font-size:12px;color:#0055FF;text-decoration:none;font-weight:600">Edit profile →</a>
+    </div>
+    <div style="display:flex;gap:8px">
+      <div style="flex:1;background:#f0f5ff;border:1px solid #c7d7ff;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:18px;font-weight:800;color:#0055FF">${matches.length}</div>
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">Today's matches</div>
+      </div>
+      <div style="flex:1;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:18px;font-weight:800;color:#059669">${totalApplies}</div>
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">Total applies</div>
+      </div>
+      <div style="flex:1;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:18px;font-weight:800;color:#374151">${totalOpens}</div>
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">Emails opened</div>
       </div>
     </div>
-    <div class="stat-grid">
-      <div class="stat"><div class="stat-n green">${seenCount}</div><div class="stat-l">roles seen</div></div>
-      <div class="stat"><div class="stat-n blue">${experience}</div><div class="stat-l">experience</div></div>
-      <div class="stat"><div class="stat-n">${lastRun}</div><div class="stat-l">last digest</div></div>
-    </div>
-    <div class="section-title" style="margin-top:4px">Your profile</div>
-    <div class="field-row"><span class="field-label">Domain</span><span class="field-value">${domain||'—'}</span></div>
-    <div class="field-row"><span class="field-label">Location</span><span class="field-value">${location}</span></div>
-    <div class="field-row"><span class="field-label">Seniority</span><span class="field-value">${seniority||'—'}</span></div>
-    <div class="field-row"><span class="field-label">Company pref.</span><span class="field-value">${companyType||'Open to all'}</span></div>
-    <div class="field-row"><span class="field-label">Key skills</span><span class="field-value">${skills ? skills.split(',').slice(0,4).join(', ') : '—'}</span></div>
   </div>
 
-  <div class="section">
-    <div class="section-title">Your latest matches${matchRunDate ? ' &middot; ' + matchRunDate : ''}</div>
-    ${matchCards ? matchCards : `<div class="info-box" style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px 18px">
-      <p style="font-size:13px;color:#1e40af;line-height:1.7;margin-bottom:12px">
-        <strong>Matches load here automatically</strong> after each daily run at 9:00 AM IST.<br>
-        They'll appear here from tomorrow's digest onwards — no action needed.
-      </p>
-      <p style="font-size:12px;color:#6b7280;line-height:1.6">
-        To see <strong>today's matches</strong>, open your most recent email from JobMatch AI.<br>
-        Each email has an Apply button and outreach section per role.
-      </p>
-    </div>`}
-    <div class="action-row" style="margin-top:12px">
-      <a href="${SERVER_URL}/profile?email=${encodeURIComponent(email)}&token=${token}" class="btn btn-primary">Update profile</a>
-      <a href="${unsubUrl}" class="btn btn-ghost">Unsubscribe</a>
-    </div>
-  </div>
-
-  ${feedbackRows ? `<div class="section">
-    <div class="section-title">Your recent ratings</div>
-    <div class="feedback-area">${feedbackRows}</div>
-    <div class="feedback-sub">Your ratings help us improve tomorrow's matches</div>
+  ${tier === 'FREE' ? `
+  <!-- Pro upsell banner -->
+  <div style="background:linear-gradient(135deg,#0055FF 0%,#1d4ed8 100%);border-radius:14px;padding:18px 22px;margin-bottom:14px;color:#fff">
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">Upgrade to Pro · ₹299/month</div>
+    <div style="font-size:12px;color:rgba(255,255,255,0.85);margin-bottom:12px">Daily emails · WhatsApp alerts · ATS resume optimiser · Hiring contact reveals</div>
+    <a href="${SERVER_URL}/pricing?email=${encodeURIComponent(email)}&token=${token}" style="display:inline-block;background:#fff;color:#0055FF;padding:8px 18px;border-radius:7px;text-decoration:none;font-size:12px;font-weight:700">See pricing →</a>
   </div>` : ''}
 
-  <div class="section">
-    <div class="section-title">How it works</div>
-    <div class="field-row"><span class="field-label">Sources searched</span><span class="field-value">LinkedIn, Naukri, JSearch, Adzuna</span></div>
-    <div class="field-row"><span class="field-label">Scoring engine</span><span class="field-value">Function + skills + seniority + domain</span></div>
-    <div class="field-row"><span class="field-label">Outreach</span><span class="field-value">Hiring contact + referral path per match</span></div>
-    <div class="field-row"><span class="field-label">Duplicates</span><span class="field-value">0 — every role is new every day</span></div>
+  <!-- Matches -->
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px 20px;margin-bottom:14px">
+    <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.05em">Your latest matches</div>
+    ${matches.length ? matchCards : `<p style="font-size:13px;color:#6b7280;text-align:center;padding:24px 0;margin:0">No matches yet — check back tomorrow.</p>`}
   </div>
 
-  <div class="footer">
-    JobMatch AI · Free Beta ·
-    <a href="mailto:hello@jobmatchai.co.in">hello@jobmatchai.co.in</a> ·
-    <a href="${unsubUrl}">Unsubscribe</a>
-  </div>
+  <!-- Apply history -->
+  ${applies.length ? `
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px 20px;margin-bottom:14px">
+    <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.05em">Recent applies (${applies.length})</div>
+    ${appliesCards}
+  </div>` : ''}
 
-</div>
-</body>
-</html>`);
-
-    } catch (e) {
-        console.error('Dashboard error:', e.message);
-        res.status(500).send('Something went wrong. Please try again or email hello@jobmatchai.co.in');
-    }
+  <p style="text-align:center;font-size:11px;color:#9ca3af;margin:14px 0">JobMatch AI · <a href="mailto:hello@jobmatchai.co.in" style="color:#0055FF">hello@jobmatchai.co.in</a></p>
+</div></body></html>`);
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// PROFILE EDITOR — /profile?email=x&token=y
-// Lets users update their target role, location, skills, company pref
-// Saves directly to Airtable
+// /profile — Edit user profile (light version — extend as needed)
 // ═══════════════════════════════════════════════════════════════════
 app.get('/profile', async (req, res) => {
-    const { email, token, saved } = req.query;
-    if (!email || !token || token !== makeToken(email))
-        return res.status(403).send('Invalid link.');
+    const { email, token, resume } = req.query;
+    if (!email || !verifyUnsubToken(email, token)) return res.status(403).send('Invalid link');
 
-    try {
-        const AT = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
-        const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` };
-        const r = await fetch(`${AT}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}&maxRecords=1`, { headers });
-        const d = await r.json();
-        const rec = d.records?.[0];
-        if (!rec) return res.status(404).send('Profile not found.');
-        const f = rec.fields;
+    const rec = await findUserRecord(email);
+    if (!rec) return res.status(404).send('Profile not found');
 
-        res.send(`<!DOCTYPE html>
-<html lang="en"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Update Profile — JobMatch AI</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f8;min-height:100vh}
-.topbar{background:#0055FF;padding:14px 22px;display:flex;align-items:center;justify-content:space-between}
-.logo{font-size:16px;font-weight:500;color:#fff;letter-spacing:-0.02em}
-.page{max-width:540px;margin:0 auto;padding:24px 16px 40px}
-.section{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px;margin-bottom:14px}
-.section-title{font-size:12px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #f1f5f9}
-label{display:block;font-size:12px;color:#6b7280;margin-bottom:4px;margin-top:14px}
-label:first-of-type{margin-top:0}
-input,select,textarea{width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;color:#111;background:#fff;outline:none;font-family:inherit}
-input:focus,select:focus,textarea:focus{border-color:#1d4ed8}
-textarea{resize:vertical;min-height:70px}
-.btn{display:block;width:100%;padding:11px;background:#0055FF;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;margin-top:20px;text-align:center}
-.back{font-size:13px;color:#1d4ed8;text-decoration:none;display:inline-block;margin-top:14px}
-.saved-banner{background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:12px 16px;font-size:13px;color:#166534;margin-bottom:14px;font-weight:500}
-.hint{font-size:11px;color:#9ca3af;margin-top:3px}
-</style></head><body>
-<div class="topbar"><div class="logo">JobMatch AI</div></div>
-<div class="page">
-${saved === '1' ? '<div class="saved-banner">Profile updated — your next digest will use the new details.</div>' : ''}
-<div class="section">
-<div class="section-title">Update your profile</div>
-<form method="POST" action="/profile">
-<input type="hidden" name="email" value="${email}">
-<input type="hidden" name="token" value="${token}">
-<label>Target role</label>
-<input type="text" name="targetRole" value="${(f['Target role']||'').replace(/"/g,'&quot;')}" placeholder="e.g. Director of Partnerships">
-<label>Current role</label>
-<input type="text" name="currentRole" value="${(f['Current role']||'').replace(/"/g,'&quot;')}" placeholder="e.g. Senior Manager Partnerships">
-<label>Experience</label>
-<input type="text" name="experience" value="${(f['Experience']||'').replace(/"/g,'&quot;')}" placeholder="e.g. 9 years">
-<label>Domain / Industry</label>
-<input type="text" name="domain" value="${(f['Domain']||'').replace(/"/g,'&quot;')}" placeholder="e.g. Fintech / NBFC / Digital Lending">
-<label>Location</label>
-<input type="text" name="location" value="${(f['Location']||'').replace(/"/g,'&quot;')}" placeholder="e.g. Bengaluru">
-<label>Company preference</label>
-<select name="companyType">
-  <option value="">Open to all</option>
-  ${['startup','growth-stage','enterprise','MNC','NBFC','agency'].map(v => `<option value="${v}" ${(f['Company type']||'').toLowerCase()===v?'selected':''}>${v.charAt(0).toUpperCase()+v.slice(1)}</option>`).join('')}
-</select>
-<label>Key skills <span class="hint">(comma separated, top 5-8)</span></label>
-<textarea name="skills">${f['Skills']||''}</textarea>
-<button type="submit" class="btn">Save profile</button>
-</form>
-</div>
-<a href="/dashboard?email=${encodeURIComponent(email)}&token=${token}" class="back">← Back to dashboard</a>
-</div></body></html>`);
-    } catch(e) {
-        res.status(500).send('Error loading profile. Please try again.');
+    // If ?resume=1, set Status back to Active (from re-engagement email)
+    if (resume === '1') {
+        await patchUserField(email, {
+            Status: 'Active',
+            LastEngagement: new Date().toISOString(),
+            ConsecutiveSkips: 0
+        });
     }
+
+    const f = rec.fields;
+    res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Edit Profile</title></head>
+<body style="font-family:system-ui;background:#f8fafc;padding:24px 16px;margin:0">
+<form method="POST" action="${SERVER_URL}/profile/save?email=${encodeURIComponent(email)}&token=${token}" style="max-width:520px;margin:0 auto;background:#fff;padding:28px;border-radius:14px;border:1px solid #e5e7eb">
+<h2 style="font-size:20px;color:#111;margin:0 0 6px">Edit your profile</h2>
+<p style="font-size:13px;color:#6b7280;margin:0 0 22px">Updating these fields improves match quality immediately.</p>
+${[
+    ['Name','Name','text'],
+    ['Target role','TargetRole','text'],
+    ['Current role','CurrentRole','text'],
+    ['Current company','CurrentCompany','text'],
+    ['Experience','Experience','text'],
+    ['Domain','Domain','text'],
+    ['Skills (comma-separated)','Skills','text'],
+    ['Cities (comma-separated)','Cities','text'],
+    ['WhatsApp number (with country code)','Phone','tel'],
+].map(([label, key, type]) => `
+<label style="display:block;font-size:12px;color:#374151;font-weight:600;margin-bottom:4px">${label}</label>
+<input name="${key}" type="${type}" value="${(f[label] || f[key] || '').toString().replace(/"/g,'&quot;')}" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;margin-bottom:14px;font-size:14px;box-sizing:border-box" />`).join('')}
+<button type="submit" style="background:#0055FF;color:#fff;padding:12px 22px;border:0;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;width:100%">Save changes</button>
+</form></body></html>`);
 });
 
-app.post('/profile', async (req, res) => {
-    const { email, token, targetRole, currentRole, experience, domain, location, companyType, skills } = req.body;
-    if (!email || !token || token !== makeToken(email))
-        return res.status(403).send('Invalid link.');
+app.post('/profile/save', async (req, res) => {
+    const { email, token } = req.query;
+    if (!email || !verifyUnsubToken(email, token)) return res.status(403).send('Invalid link');
+
+    const fieldMap = {
+        Name: 'Name', TargetRole: 'Target role', CurrentRole: 'Current role',
+        CurrentCompany: 'Current company', Experience: 'Experience', Domain: 'Domain',
+        Skills: 'Skills', Cities: 'Cities', Phone: 'Phone'
+    };
+    const updates = {};
+    for (const [k, airtableField] of Object.entries(fieldMap)) {
+        if (req.body[k] !== undefined) updates[airtableField] = req.body[k];
+    }
+    updates.LastEngagement = new Date().toISOString();
+
+    await patchUserField(email, updates);
+    res.redirect(302, `${SERVER_URL}/dashboard?email=${encodeURIComponent(email)}&token=${token}&saved=1`);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// /signup — Resume upload + Claude profile extraction
+// ═══════════════════════════════════════════════════════════════════
+app.post('/signup', upload.single('resume'), async (req, res) => {
+    const { email, name, phone, cities } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email required' });
+    if (!phone) return res.status(400).json({ error: 'Phone required for WhatsApp alerts' });
+    if (!req.file) return res.status(400).json({ error: 'Resume required' });
 
     try {
-        const AT = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}`;
-        const headers = { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
-        const r = await fetch(`${AT}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}&maxRecords=1`, { headers });
-        const d = await r.json();
-        const rec = d.records?.[0];
-        if (!rec) return res.status(404).send('Profile not found.');
-
-        await fetch(`${AT}/${rec.id}`, {
-            method: 'PATCH', headers,
-            body: JSON.stringify({ fields: {
-                'Target role':  targetRole  || rec.fields['Target role']  || '',
-                'Current role': currentRole || rec.fields['Current role'] || '',
-                'Experience':   experience  || rec.fields['Experience']  || '',
-                'Domain':       domain      || rec.fields['Domain']      || '',
-                'Location':     location    || rec.fields['Location']    || '',
-                'Company type': companyType || rec.fields['Company type']|| '',
-                'Skills':       skills      || rec.fields['Skills']      || '',
-            }})
+        // Extract profile from resume via Claude
+        const base64 = req.file.buffer.toString('base64');
+        const msg = await claude.messages.create({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 800,
+            messages: [{
+                role: 'user',
+                content: [
+                    { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+                    { type: 'text', text: `Extract from this resume and return JSON only:
+{"targetRole":"...","currentRole":"...","currentCompany":"...","experience":"X years","seniority":"junior|mid|senior|lead","domain":"...","skills":"comma,separated","education":"..."}
+For seniority: 0-2yr=junior, 3-6=mid, 7-12=senior, 13+=lead. Domain examples: Fintech/NBFC, SaaS, Healthcare, FMCG.` }
+                ]
+            }]
         });
 
-        res.redirect(`/profile?email=${encodeURIComponent(email)}&token=${token}&saved=1`);
-    } catch(e) {
-        res.status(500).send('Error saving profile. Please try again.');
+        let profile = {};
+        try {
+            const raw = msg.content[0].text.replace(/```json|```/g, '').trim();
+            profile = JSON.parse(raw);
+        } catch (e) {
+            profile = { targetRole: '', currentRole: '', experience: '3 years', seniority: 'mid' };
+        }
+
+        // Save to Airtable
+        await fetch(`https://api.airtable.com/v0/${AT_BASE}/${USERS_TABLE}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fields: {
+                    Email: email,
+                    Name: name || email.split('@')[0],
+                    Phone: phone,
+                    'Target role': profile.targetRole || '',
+                    'Current role': profile.currentRole || '',
+                    'Current company': profile.currentCompany || '',
+                    Experience: profile.experience || '3 years',
+                    Seniority: profile.seniority || 'mid',
+                    Domain: profile.domain || '',
+                    Skills: profile.skills || '',
+                    Education: profile.education || '',
+                    Cities: cities || 'Bengaluru',
+                    Status: 'Active',
+                    PaidStatus: 'free',
+                    LastEngagement: new Date().toISOString()
+                }
+            })
+        });
+
+        // Trigger Apify actor for immediate first digest
+        if (APIFY_TOKEN) {
+            fetch(`https://api.apify.com/v2/acts/${APIFY_ACTOR}/runs?token=${APIFY_TOKEN}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filterEmail: email, inlineProfile: { ...profile, email, name, cities: cities ? cities.split(',') : ['Bengaluru'] } })
+            }).catch(() => {});
+        }
+
+        res.json({ success: true, profile, dashboardUrl: `${SERVER_URL}/dashboard?email=${encodeURIComponent(email)}&token=${makeUnsubToken(email)}` });
+    } catch (e) {
+        console.error('Signup error:', e.message);
+        res.status(500).json({ error: 'Signup failed — please try again' });
     }
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// /pricing — Pro tier upsell page (placeholder — wire Razorpay next)
+// ═══════════════════════════════════════════════════════════════════
+app.get('/pricing', async (req, res) => {
+    const { email, token } = req.query;
+    if (!email || !verifyUnsubToken(email, token)) return res.status(403).send('Invalid link');
+
+    res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pricing</title></head>
+<body style="font-family:system-ui;background:#f8fafc;padding:32px 16px;margin:0">
+<div style="max-width:520px;margin:0 auto">
+<h1 style="text-align:center;font-size:24px;color:#111;margin:0 0 6px">Upgrade to JobMatch Pro</h1>
+<p style="text-align:center;font-size:13px;color:#6b7280;margin:0 0 28px">More matches, faster, with WhatsApp + ATS optimiser</p>
+
+<div style="background:#fff;border:2px solid #0055FF;border-radius:14px;padding:24px;text-align:center">
+  <div style="font-size:13px;color:#0055FF;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">PRO</div>
+  <div style="font-size:32px;font-weight:800;color:#111">₹299<span style="font-size:14px;color:#6b7280;font-weight:500">/month</span></div>
+  <div style="font-size:12px;color:#6b7280;margin-bottom:18px">or ₹2,499/year (save 30%)</div>
+  <ul style="list-style:none;padding:0;text-align:left;margin:0 0 22px;font-size:13px;color:#374151;line-height:2">
+    <li>✓ Daily email digests (vs 2/week free)</li>
+    <li>✓ WhatsApp alerts at 9am IST</li>
+    <li>✓ Full LinkedIn + Naukri search</li>
+    <li>✓ ATS resume optimiser (10/month)</li>
+    <li>✓ Hiring contact reveals</li>
+    <li>✓ Apply tracking + reminders</li>
+  </ul>
+  <a href="${SERVER_URL}/checkout?email=${encodeURIComponent(email)}&token=${token}&plan=monthly" style="display:block;background:#0055FF;color:#fff;padding:14px;border-radius:9px;text-decoration:none;font-size:14px;font-weight:700">Upgrade now →</a>
+</div>
+
+<p style="text-align:center;font-size:11px;color:#9ca3af;margin-top:18px">Cancel anytime. Secure payment via Razorpay (UPI / cards).</p>
+</div></body></html>`);
+});
+
+// Placeholder — wire Razorpay in the next iteration
+app.get('/checkout', (req, res) => {
+    res.send('Razorpay checkout coming next — for now, email hello@jobmatchai.co.in for early Pro access at ₹199/month.');
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// /health — uptime check
+// ═══════════════════════════════════════════════════════════════════
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
+app.get('/', (req, res) => {
+    res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="font-family:system-ui;text-align:center;padding:80px 20px;background:#f8fafc">
+<h1 style="font-size:32px;color:#111">JobMatch <span style="color:#0055FF">AI</span></h1>
+<p style="font-size:14px;color:#6b7280">Daily curated job matches for India. Powered by Claude.</p>
+<a href="https://jobmatchai.co.in" style="display:inline-block;margin-top:18px;background:#0055FF;color:#fff;padding:12px 24px;border-radius:9px;text-decoration:none;font-weight:600">Get started →</a>
+</body></html>`);
+});
+
+// ─── Boot ─────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-    console.log(`JobMatch API v5.1 on port ${PORT}`);
-    console.log(`Brevo API: ${BREVO_API_KEY?'SET':'MISSING'} | Anthropic: ${ANTHROPIC_API_KEY?'SET':'MISSING'}`);
+    console.log(`🚀 JobMatch server live on :${PORT}`);
+    console.log(`   AT_BASE=${AT_BASE ? '✓' : '✗'} | APIFY=${APIFY_TOKEN ? '✓' : '✗'} | BREVO=${BREVO_KEY ? '✓' : '✗'} | CLAUDE=${ANTHROPIC_KEY ? '✓' : '✗'}`);
 });
