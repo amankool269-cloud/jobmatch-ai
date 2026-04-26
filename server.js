@@ -907,82 +907,79 @@ app.get('/signup', (req, res) => {
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sign up free · JobMatch AI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,700&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#0A0A0B;--ink2:#111114;--ink3:#18181C;--gold:#F5A623;--gold2:#FFB940;--text:#F2F2F0;--muted:#8A8A8F;--faint:rgba(255,255,255,0.06);--green:#00C48C;--r:12px}
+:root{--bg:#FAFAF8;--surface:#FFFFFF;--ink:#0F0F0E;--ink2:#1A1A18;--muted:#6B7280;--faint:#E5E7EB;--faint2:#F9FAFB;--accent:#2563EB;--amber:#D97706;--amber-bg:#FFFBEB;--amber-border:#FDE68A;--green:#059669;--green-bg:#ECFDF5;--green-border:#A7F3D0;--r:10px}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;-webkit-font-smoothing:antialiased}
-body{font-family:'Inter',system-ui,sans-serif;background:var(--ink);color:var(--text);display:flex;min-height:100vh}
+body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);display:flex;min-height:100vh}
 a{text-decoration:none;color:inherit}
 
-/* LEFT */
-.left{width:46%;background:var(--ink2);border-right:1px solid var(--faint);padding:44px 52px;display:flex;flex-direction:column;position:relative;overflow:hidden}
-.left::before{content:'';position:absolute;top:-100px;right:-80px;width:320px;height:320px;background:radial-gradient(circle,rgba(245,166,35,0.07) 0%,transparent 70%);pointer-events:none}
-.left-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:700;letter-spacing:-.03em;margin-bottom:60px;display:block;color:var(--text)}
-.left-logo span{color:var(--gold)}
-.left-h{font-family:'Bricolage Grotesque',sans-serif;font-size:36px;font-weight:800;line-height:1.1;letter-spacing:-.04em;margin-bottom:14px}
-.left-h em{font-style:italic;color:var(--gold)}
-.left-sub{font-size:15px;color:var(--muted);line-height:1.7;margin-bottom:40px;max-width:360px}
-.feats{display:flex;flex-direction:column;gap:18px;margin-bottom:auto}
+/* LEFT PANEL */
+.left{width:44%;background:var(--surface);border-right:1px solid var(--faint);padding:44px 48px;display:flex;flex-direction:column;position:relative}
+.left-logo{font-size:19px;font-weight:800;letter-spacing:-.03em;margin-bottom:52px;display:block;color:var(--ink)}.left-logo .dot{color:var(--amber)}
+.left-h{font-size:32px;font-weight:800;line-height:1.1;letter-spacing:-.04em;margin-bottom:12px;color:var(--ink)}
+.left-h em{font-style:italic;color:var(--accent)}
+.left-sub{font-size:15px;color:var(--muted);line-height:1.72;margin-bottom:36px;max-width:340px}
+.feats{display:flex;flex-direction:column;gap:20px;margin-bottom:auto}
 .feat{display:flex;gap:14px;align-items:flex-start}
-.feat-icon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
-.feat-t{font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px;letter-spacing:-.01em}
+.feat-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;border:1px solid var(--faint)}
+.feat-t{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:3px;letter-spacing:-.01em}
 .feat-d{font-size:12.5px;color:var(--muted);line-height:1.55}
-.sample{background:var(--ink3);border:1px solid var(--faint);border-left:3px solid var(--green);border-radius:14px;padding:16px;margin-top:36px}
-.sample-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
-.sample-t{font-family:'Bricolage Grotesque',sans-serif;font-size:14px;font-weight:700;margin-bottom:4px;letter-spacing:-.01em}
-.sample-m{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+.sample{background:var(--green-bg);border:1px solid var(--green-border);border-radius:14px;padding:16px;margin-top:36px}
+.sample-lbl{font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+.sample-t{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:3px;letter-spacing:-.01em}
+.sample-m{font-size:11.5px;color:var(--muted);margin-bottom:9px}
 .sample-f{display:flex;justify-content:space-between;align-items:center}
-.sample-badge{font-size:11px;font-weight:700;color:var(--green);background:rgba(0,196,140,0.1);border:1px solid rgba(0,196,140,0.2);padding:3px 10px;border-radius:20px}
-.sample-score{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;color:var(--green);letter-spacing:-.03em}
+.sample-badge{font-size:11px;font-weight:700;color:var(--green);background:rgba(5,150,105,0.08);border:1px solid var(--green-border);padding:3px 10px;border-radius:20px}
+.sample-score{font-size:22px;font-weight:800;color:var(--green);letter-spacing:-.04em}
 
-/* RIGHT */
-.right{flex:1;display:flex;align-items:center;justify-content:center;padding:48px 64px}
-.form-wrap{width:100%;max-width:460px}
-.form-h{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;letter-spacing:-.04em;margin-bottom:6px}
-.form-sub{font-size:14px;color:var(--muted);margin-bottom:32px}
+/* RIGHT PANEL */
+.right{flex:1;display:flex;align-items:center;justify-content:center;padding:48px 64px;background:var(--bg)}
+.form-box{width:100%;max-width:460px}
+.form-h{font-size:26px;font-weight:800;letter-spacing:-.04em;margin-bottom:6px;color:var(--ink)}
+.form-sub{font-size:14px;color:var(--muted);margin-bottom:30px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.field{margin-bottom:18px}
-.field label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
-.field input{width:100%;padding:13px 16px;background:var(--ink2);border:1px solid rgba(255,255,255,0.08);border-radius:10px;font-size:14px;color:var(--text);font-family:inherit;transition:all .2s;outline:none}
-.field input:focus{border-color:rgba(245,166,35,0.4);background:rgba(245,166,35,0.03);box-shadow:0 0 0 3px rgba(245,166,35,0.06)}
-.field input::placeholder{color:rgba(255,255,255,0.18)}
-.upload-zone{display:block;width:100%;border:1.5px dashed rgba(255,255,255,0.1);border-radius:14px;padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:18px;background:transparent}
-.upload-zone:hover,.upload-zone.has-file{border-color:rgba(245,166,35,0.35);background:rgba(245,166,35,0.03)}
+.fd{margin-bottom:18px}
+.fd label{display:block;font-size:11.5px;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px}
+.fd input{width:100%;padding:12px 15px;background:var(--surface);border:1.5px solid var(--faint);border-radius:var(--r);font-size:14px;color:var(--ink);font-family:inherit;transition:all .2s;outline:none;-webkit-font-smoothing:antialiased}
+.fd input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,0.08)}
+.fd input::placeholder{color:#9CA3AF}
+.upload-zone{display:block;width:100%;border:1.5px dashed var(--faint);border-radius:14px;padding:26px 20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:18px;background:var(--faint2)}
+.upload-zone:hover,.upload-zone.active{border-color:var(--accent);background:#EFF6FF}
 .upload-zone input{display:none}
-.upload-icon{font-size:26px;margin-bottom:8px;display:block}
-.upload-main{font-size:14px;font-weight:600;color:var(--gold);margin-bottom:4px}
+.upload-icon{font-size:26px;margin-bottom:7px;display:block}
+.upload-main{font-size:14px;font-weight:700;color:var(--accent);margin-bottom:3px}
 .upload-sub{font-size:12px;color:var(--muted)}
-.upload-name{font-size:12px;color:var(--green);font-weight:600;margin-top:8px;display:none}
-.submit-btn{width:100%;padding:15px;background:var(--gold);color:#000;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:-.01em;transition:all .2s}
-.submit-btn:hover{background:var(--gold2);box-shadow:0 10px 30px rgba(245,166,35,0.3);transform:translateY(-1px)}
-.submit-btn:disabled{opacity:.5;cursor:wait;transform:none;box-shadow:none}
-.fine-print{font-size:12px;color:var(--muted);text-align:center;margin-top:14px;line-height:1.6}
-.fine-print a{color:var(--gold)}
-.err{background:rgba(255,91,91,0.08);border:1px solid rgba(255,91,91,0.2);color:#FCA5A5;padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:16px;display:none}
-.success{background:rgba(0,196,140,0.06);border:1px solid rgba(0,196,140,0.2);border-radius:16px;padding:40px 32px;text-align:center;display:none}
-.success-icon{font-size:52px;margin-bottom:14px}
-.success-t{font-family:'Bricolage Grotesque',sans-serif;font-size:24px;font-weight:800;letter-spacing:-.03em;margin-bottom:8px}
-.success-d{font-size:14px;color:var(--muted);line-height:1.65}
+.upload-name{font-size:12px;color:var(--green);font-weight:600;margin-top:6px;display:none}
+.sbtn{width:100%;padding:14px;background:var(--ink);color:#fff;border:none;border-radius:var(--r);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:-.01em;transition:all .2s}
+.sbtn:hover{background:var(--ink2);box-shadow:0 10px 24px rgba(0,0,0,0.15);transform:translateY(-1px)}
+.sbtn:disabled{opacity:.5;cursor:wait;transform:none;box-shadow:none}
+.fine-print{font-size:12px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.6}.fine-print a{color:var(--accent)}
+.err-box{background:#FEF2F2;border:1px solid #FECACA;color:#DC2626;padding:12px 15px;border-radius:var(--r);font-size:13px;margin-bottom:14px;display:none}
+.ok-box{background:var(--green-bg);border:1px solid var(--green-border);border-radius:16px;padding:36px 28px;text-align:center;display:none}
+.ok-icon{font-size:48px;margin-bottom:12px}
+.ok-t{font-size:22px;font-weight:800;letter-spacing:-.03em;margin-bottom:6px;color:var(--ink)}
+.ok-d{font-size:14px;color:var(--muted);line-height:1.65}
 
-@media(max-width:900px){body{flex-direction:column}.left{width:100%;padding:32px 28px;min-height:auto}.left::before{display:none}.feats{display:none}.right{padding:32px 24px}.form-wrap{max-width:100%}.row2{grid-template-columns:1fr}}
+@media(max-width:900px){body{flex-direction:column}.left{width:100%;padding:28px 24px}.left-logo{margin-bottom:20px}.feats{display:none}.right{padding:28px 20px}.form-box{max-width:100%}.row2{grid-template-columns:1fr}}
 </style></head>
 <body>
 <div class="left">
-  <a href="/" class="left-logo">Job<span>Match</span> AI</a>
+  <a href="/" class="left-logo">JobMatch<span class="dot">.</span>AI</a>
   <h1 class="left-h">Your next role,<br><em>every morning.</em></h1>
-  <p class="left-sub">Upload your resume once. We scan 5 job platforms daily and send you the matches that actually fit — scored by AI, ranked by relevance.</p>
+  <p class="left-sub">Upload your resume once. We scan 5 job platforms daily and send you the matches that actually fit your profile, seniority, and domain.</p>
   <div class="feats">
     <div class="feat">
-      <div class="feat-icon" style="background:rgba(245,166,35,0.1)">🎯</div>
+      <div class="feat-icon" style="background:#FEF3C7">🎯</div>
       <div><div class="feat-t">AI function matching</div><div class="feat-d">Role, seniority, domain, location — all scored against your exact profile</div></div>
     </div>
     <div class="feat">
-      <div class="feat-icon" style="background:rgba(75,139,255,0.1)">⚡</div>
-      <div><div class="feat-t">5 platforms, one email</div><div class="feat-d">LinkedIn, Naukri, JSearch, Adzuna, iimjobs — de-duplicated daily</div></div>
+      <div class="feat-icon" style="background:#DBEAFE">⚡</div>
+      <div><div class="feat-t">5 platforms, one email</div><div class="feat-d">LinkedIn, Naukri, JSearch, Adzuna, iimjobs — fresh, de-duplicated daily</div></div>
     </div>
     <div class="feat">
-      <div class="feat-icon" style="background:rgba(0,196,140,0.1)">🔒</div>
+      <div class="feat-icon" style="background:#D1FAE5">🔒</div>
       <div><div class="feat-t">Zero noise, zero spam</div><div class="feat-d">Only fresh, relevant roles. Nothing repeated. Unsubscribe in one click.</div></div>
     </div>
   </div>
@@ -990,30 +987,26 @@ a{text-decoration:none;color:inherit}
     <div class="sample-lbl">Sample match from yesterday</div>
     <div class="sample-t">Head of Partnerships – Fintech</div>
     <div class="sample-m">Brahma Finance · Bengaluru · Naukri · ₹30–45L</div>
-    <div class="sample-f">
-      <span class="sample-badge">Strong fit</span>
-      <span class="sample-score">91%</span>
-    </div>
+    <div class="sample-f"><span class="sample-badge">Strong fit</span><span class="sample-score">91%</span></div>
   </div>
 </div>
-
 <div class="right">
-  <div class="form-wrap">
+  <div class="form-box">
     <h2 class="form-h">Create your free account</h2>
     <p class="form-sub">Takes 60 seconds. No credit card needed.</p>
-    <div id="err" class="err"></div>
-    <div id="success" class="success">
-      <div class="success-icon">🎉</div>
-      <div class="success-t">You're in!</div>
-      <div class="success-d">Check your inbox in the next few minutes.<br>Your first matches are on their way.</div>
+    <div id="err-box" class="err-box"></div>
+    <div id="ok-box" class="ok-box">
+      <div class="ok-icon">🎉</div>
+      <div class="ok-t">You're in!</div>
+      <div class="ok-d">Check your inbox in the next few minutes.<br>Your first matches are on their way.</div>
     </div>
     <form id="form" enctype="multipart/form-data">
       <div class="row2">
-        <div class="field"><label>Full name *</label><input name="name" required maxlength="60" placeholder="Priya Sharma"></div>
-        <div class="field"><label>WhatsApp *</label><input name="phone" type="tel" required placeholder="+91 98765 43210"></div>
+        <div class="fd"><label>Full name *</label><input name="name" required maxlength="60" placeholder="Priya Sharma"></div>
+        <div class="fd"><label>WhatsApp *</label><input name="phone" type="tel" required placeholder="+91 98765 43210"></div>
       </div>
-      <div class="field"><label>Work email *</label><input name="email" type="email" required placeholder="priya@company.com"></div>
-      <div class="field"><label>Cities you're open to *</label><input name="cities" required value="Bengaluru" placeholder="Bengaluru, Mumbai, Remote"></div>
+      <div class="fd"><label>Work email *</label><input name="email" type="email" required placeholder="priya@company.com"></div>
+      <div class="fd"><label>Cities you're open to *</label><input name="cities" required value="Bengaluru" placeholder="Bengaluru, Mumbai, Remote"></div>
       <label class="upload-zone" for="resume" id="uzone">
         <input id="resume" name="resume" type="file" accept=".pdf" required>
         <span class="upload-icon">📄</span>
@@ -1021,7 +1014,7 @@ a{text-decoration:none;color:inherit}
         <div class="upload-sub">PDF only · Max 5MB · We never share it</div>
         <div class="upload-name" id="uname"></div>
       </label>
-      <button type="submit" id="sbtn" class="submit-btn">Get my first matches →</button>
+      <button type="submit" id="sbtn" class="sbtn">Get my first matches →</button>
       <p class="fine-print">Free forever · No spam · <a href="/terms">Privacy policy</a></p>
     </form>
   </div>
@@ -1029,18 +1022,18 @@ a{text-decoration:none;color:inherit}
 <script>
 document.getElementById('resume').addEventListener('change',e=>{
   const f=e.target.files[0],n=document.getElementById('uname'),z=document.getElementById('uzone');
-  if(f){n.textContent='✓ '+f.name;n.style.display='block';z.classList.add('has-file');}
+  if(f){n.textContent='✓ '+f.name;n.style.display='block';z.classList.add('active');}
 });
 document.getElementById('form').addEventListener('submit',async e=>{
   e.preventDefault();
-  const err=document.getElementById('err'),suc=document.getElementById('success'),btn=document.getElementById('sbtn');
-  err.style.display='none';btn.disabled=true;btn.textContent='Reading your resume...';
+  const eb=document.getElementById('err-box'),ob=document.getElementById('ok-box'),btn=document.getElementById('sbtn');
+  eb.style.display='none';btn.disabled=true;btn.textContent='Reading your resume...';
   try{
     const r=await fetch('/signup',{method:'POST',body:new FormData(e.target)});
     const d=await r.json();
     if(!r.ok)throw new Error(d.error||'Signup failed');
-    e.target.style.display='none';suc.style.display='block';
-  }catch(er){err.textContent=er.message;err.style.display='block';btn.disabled=false;btn.textContent='Try again';}
+    e.target.style.display='none';ob.style.display='block';
+  }catch(er){eb.textContent=er.message;eb.style.display='block';btn.disabled=false;btn.textContent='Try again';}
 });
 </script>
 </body></html>`);
@@ -1053,154 +1046,162 @@ app.get('/', (req, res) => {
 <title>JobMatch AI — Curated daily job matches for India</title>
 <meta name="description" content="AI-powered job matching across LinkedIn, Naukri, and 5 platforms. Free for India.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --ink:#0A0A0B;--ink2:#111114;--ink3:#18181C;
-  --gold:#F5A623;--gold2:#FFB940;--gold-glow:rgba(245,166,35,0.15);
-  --text:#F2F2F0;--muted:#8A8A8F;--faint:#3A3A3F;
-  --green:#00C48C;--blue:#4B8BFF;--red:#FF5B5B;
-  --r:14px;--r2:20px;
+  --bg:#FAFAF8;--surface:#FFFFFF;--card:#FFFFFF;
+  --ink:#0F0F0E;--ink2:#1A1A18;--muted:#6B7280;--faint:#E5E7EB;--faint2:#F3F4F6;
+  --amber:#D97706;--amber-bg:#FFFBEB;--amber-border:#FDE68A;
+  --green:#059669;--green-bg:#ECFDF5;--green-border:#A7F3D0;
+  --blue:#2563EB;--blue-bg:#EFF6FF;--blue-border:#BFDBFE;
+  --accent:#1D4ED8;--accent-light:#EFF6FF;
+  --r:10px;--r2:16px;--r3:24px;
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.05);
+  --shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);
+  --shadow-md:0 10px 15px -3px rgba(0,0,0,0.08),0 4px 6px -4px rgba(0,0,0,0.05);
+  --shadow-lg:0 20px 25px -5px rgba(0,0,0,0.08),0 8px 10px -6px rgba(0,0,0,0.04);
+  --shadow-xl:0 25px 50px -12px rgba(0,0,0,0.15);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
-body{font-family:'Inter',system-ui,sans-serif;background:var(--ink);color:var(--text);line-height:1.6;overflow-x:hidden}
+body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;overflow-x:hidden}
 a{text-decoration:none;color:inherit}
-::selection{background:var(--gold-glow);color:var(--gold)}
+::selection{background:#FDE68A;color:var(--ink)}
 
-/* ── NAV ── */
-nav{position:fixed;top:0;left:0;right:0;z-index:100;height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 32px;background:rgba(10,10,11,0.7);backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid rgba(255,255,255,0.06)}
-.nav-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:700;letter-spacing:-.03em;color:var(--text)}
-.nav-logo span{color:var(--gold)}
-.nav-links{display:flex;align-items:center;gap:36px}
-.nav-link{font-size:13px;font-weight:500;color:var(--muted);transition:color .15s}.nav-link:hover{color:var(--text)}
-.nav-cta{background:var(--gold);color:#000;font-size:13px;font-weight:700;padding:9px 22px;border-radius:9px;letter-spacing:-.01em;transition:all .15s}.nav-cta:hover{background:var(--gold2);transform:translateY(-1px);box-shadow:0 6px 20px rgba(245,166,35,0.3)}
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 32px;background:rgba(250,250,248,0.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--faint)}
+.nav-logo{font-size:19px;font-weight:800;letter-spacing:-.03em;color:var(--ink);display:flex;align-items:center;gap:2px}
+.nav-logo .dot{color:var(--amber)}
+.nav-links{display:flex;align-items:center;gap:32px}
+.nav-link{font-size:14px;font-weight:500;color:var(--muted);transition:color .15s}.nav-link:hover{color:var(--ink)}
+.nav-cta{background:var(--ink);color:#fff;font-size:14px;font-weight:700;padding:10px 22px;border-radius:var(--r);letter-spacing:-.01em;transition:all .15s}.nav-cta:hover{background:var(--ink2);box-shadow:var(--shadow-md)}
 
-/* ── HERO ── */
-.hero{padding:110px 0 70px;max-width:1200px;margin:0 auto;padding-left:40px;padding-right:40px;display:grid;grid-template-columns:52% 48%;gap:60px;align-items:center}
-.hero-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(245,166,35,0.08);border:1px solid rgba(245,166,35,0.2);color:var(--gold);padding:5px 14px 5px 10px;border-radius:40px;font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:26px}
-.badge-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:blink 2s ease-in-out infinite}
-@keyframes blink{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(245,166,35,0)}50%{opacity:.5;box-shadow:0 0 0 4px rgba(245,166,35,0.2)}}
-.hero h1{font-family:'Bricolage Grotesque',sans-serif;font-size:58px;font-weight:800;line-height:1.05;letter-spacing:-.04em;margin-bottom:20px;color:var(--text)}
-.hero h1 em{font-style:italic;color:var(--gold);background:linear-gradient(135deg,var(--gold) 0%,var(--gold2) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.hero-sub{font-size:17px;color:var(--muted);line-height:1.72;max-width:460px;margin-bottom:36px;font-weight:400}
-.hero-ctas{display:flex;gap:12px;margin-bottom:40px;align-items:center;flex-wrap:wrap}
-.cta-primary{background:var(--gold);color:#000;font-size:15px;font-weight:700;padding:14px 30px;border-radius:12px;letter-spacing:-.02em;transition:all .2s;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:8px}
-.cta-primary:hover{background:var(--gold2);transform:translateY(-2px);box-shadow:0 12px 36px rgba(245,166,35,0.35)}
-.cta-secondary{background:transparent;color:var(--text);font-size:15px;font-weight:500;padding:14px 24px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);transition:all .2s;cursor:pointer;font-family:inherit}
-.cta-secondary:hover{border-color:rgba(255,255,255,0.25);background:rgba(255,255,255,0.04)}
-.hero-proof{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.proof-item{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:5px}
-.proof-item::before{content:'✓';color:var(--green);font-weight:700;font-size:11px}
-.proof-sep{width:3px;height:3px;border-radius:50%;background:var(--faint)}
+/* HERO */
+.hero{padding:108px 32px 72px;max-width:1180px;margin:0 auto;display:grid;grid-template-columns:54% 46%;gap:56px;align-items:center}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);padding:5px 14px 5px 10px;border-radius:40px;font-size:12px;font-weight:700;letter-spacing:.03em;margin-bottom:22px}
+.badge-live{width:7px;height:7px;border-radius:50%;background:var(--amber);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(217,119,6,0.4)}70%{box-shadow:0 0 0 6px rgba(217,119,6,0)}}
+h1{font-size:56px;font-weight:800;line-height:1.07;letter-spacing:-.04em;margin-bottom:20px;color:var(--ink)}
+h1 span.hl{color:var(--accent)}
+.hero-sub{font-size:17px;color:var(--muted);line-height:1.75;max-width:450px;margin-bottom:34px;font-weight:400}
+.hero-ctas{display:flex;gap:12px;margin-bottom:36px;flex-wrap:wrap;align-items:center}
+.btn-primary{background:var(--ink);color:#fff;font-size:15px;font-weight:700;padding:14px 28px;border-radius:var(--r);letter-spacing:-.01em;transition:all .18s;display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer;font-family:inherit}.btn-primary:hover{background:var(--ink2);transform:translateY(-1px);box-shadow:var(--shadow-md)}
+.btn-secondary{background:var(--surface);color:var(--ink);font-size:15px;font-weight:600;padding:14px 22px;border-radius:var(--r);border:1.5px solid var(--faint);transition:all .18s;cursor:pointer;font-family:inherit}.btn-secondary:hover{border-color:#D1D5DB;box-shadow:var(--shadow-sm)}
+.trust-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.trust-item{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:5px;font-weight:500}
+.trust-item::before{content:'✓';color:var(--green);font-weight:700;font-size:11px}
+.trust-sep{width:3px;height:3px;border-radius:50%;background:var(--faint)}
 
-/* ── CARD MOCKUP ── */
-.card-wrap{position:relative}
-.card-wrap::before{content:'';position:absolute;top:-60px;right:-40px;width:300px;height:300px;background:radial-gradient(circle,rgba(245,166,35,0.08) 0%,transparent 70%);pointer-events:none;z-index:0}
-.email-card{background:var(--ink2);border:1px solid rgba(255,255,255,0.08);border-radius:20px;overflow:hidden;position:relative;z-index:1;box-shadow:0 40px 80px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.04)}
-.ec-header{background:var(--ink3);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.06)}
-.ec-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:14px;font-weight:700;letter-spacing:-.02em}
-.ec-logo span{color:var(--gold)}
-.ec-badge{background:rgba(245,166,35,0.12);border:1px solid rgba(245,166,35,0.25);color:var(--gold);font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.05em}
-.ec-body{padding:16px}
-.job-card{border-radius:12px;padding:14px 16px;margin-bottom:10px;border:1px solid rgba(255,255,255,0.06);position:relative;overflow:hidden}
-.job-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
-.job-card.green{background:rgba(0,196,140,0.05)}.job-card.green::before{background:var(--green)}
-.job-card.blue{background:rgba(75,139,255,0.04);opacity:.75}.job-card.blue::before{background:var(--blue)}
-.job-card.amber{background:rgba(245,166,35,0.04);opacity:.45}.job-card.amber::before{background:var(--gold)}
-.jc-title{font-family:'Bricolage Grotesque',sans-serif;font-size:13px;font-weight:700;margin-bottom:4px;letter-spacing:-.01em}
-.jc-meta{font-size:11px;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.jc-meta span{display:inline-flex;align-items:center;gap:3px}
-.jc-salary{color:var(--green);font-weight:600}
-.jc-reason{font-size:10.5px;color:var(--muted);line-height:1.55;padding:8px 10px;background:rgba(0,0,0,0.2);border-radius:7px;margin-bottom:10px}
-.jc-foot{display:flex;align-items:center;justify-content:space-between}
-.fit-tag{font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:20px;letter-spacing:.02em}
-.fit-strong{background:rgba(0,196,140,0.12);color:var(--green);border:1px solid rgba(0,196,140,0.2)}
-.jc-score{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;color:var(--green);letter-spacing:-.03em}
-.jc-apply{background:#2563EB;color:#fff;font-size:11px;font-weight:700;padding:6px 14px;border-radius:8px;letter-spacing:-.01em}
-.ec-more{text-align:center;font-size:11px;color:var(--muted);padding:10px 0 2px;border-top:1px solid rgba(255,255,255,0.05);margin-top:2px}
+/* EMAIL CARD MOCKUP */
+.mock-wrap{filter:drop-shadow(0 20px 40px rgba(0,0,0,0.1)) drop-shadow(0 4px 8px rgba(0,0,0,0.06))}
+.mock{background:var(--surface);border:1px solid var(--faint);border-radius:var(--r2);overflow:hidden}
+.mock-header{background:var(--faint2);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--faint)}
+.mock-logo{font-size:14px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}.mock-logo .dot{color:var(--amber)}
+.mock-badge{background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.04em}
+.mock-body{padding:14px}
+.jc{border-radius:var(--r);padding:14px 16px;margin-bottom:8px;border:1px solid;position:relative;overflow:hidden}
+.jc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.jc.g{background:var(--green-bg);border-color:var(--green-border)}.jc.g::before{background:var(--green)}
+.jc.b{background:var(--blue-bg);border-color:var(--blue-border);opacity:.8}.jc.b::before{background:var(--blue)}
+.jc.a{background:var(--amber-bg);border-color:var(--amber-border);opacity:.55}.jc.a::before{background:var(--amber)}
+.jc-t{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:4px;letter-spacing:-.01em}
+.jc-m{font-size:11px;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:5px}
+.jc-sal{color:var(--green);font-weight:600}
+.jc-r{font-size:10.5px;color:var(--muted);line-height:1.55;background:rgba(0,0,0,0.03);padding:8px 10px;border-radius:6px;margin-bottom:9px}
+.jc-f{display:flex;align-items:center;justify-content:space-between}
+.fit{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px}
+.fit-s{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.sc{font-size:21px;font-weight:800;letter-spacing:-.03em}
+.sc-g{color:var(--green)}.sc-b{color:var(--blue)}.sc-a{color:var(--amber)}
+.apply-btn{background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:6px 14px;border-radius:7px}
+.mock-more{text-align:center;font-size:11px;color:var(--muted);padding:8px 0 2px;border-top:1px solid var(--faint);margin-top:2px}
 
-/* ── STRIP ── */
-.strip{background:var(--ink2);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06)}
-.strip-inner{max-width:1200px;margin:0 auto;padding:0 40px;display:grid;grid-template-columns:repeat(4,1fr)}
-.stat{padding:28px 0;text-align:center;border-right:1px solid rgba(255,255,255,0.06)}.stat:last-child{border:none}
-.stat-n{font-family:'Bricolage Grotesque',sans-serif;font-size:38px;font-weight:800;letter-spacing:-.04em;color:var(--text);display:block;margin-bottom:4px;line-height:1}
-.stat-l{font-size:12px;color:var(--muted);font-weight:500;letter-spacing:.01em}
+/* STRIP */
+.strip{background:var(--surface);border-top:1px solid var(--faint);border-bottom:1px solid var(--faint)}
+.strip-in{max-width:1180px;margin:0 auto;padding:0 32px;display:grid;grid-template-columns:repeat(4,1fr)}
+.stat{padding:26px 0;text-align:center;border-right:1px solid var(--faint)}.stat:last-child{border:none}
+.stat-n{font-size:36px;font-weight:800;letter-spacing:-.04em;color:var(--ink);display:block;margin-bottom:4px;line-height:1}
+.stat-l{font-size:12.5px;color:var(--muted);font-weight:500}
 
-/* ── HOW IT WORKS ── */
-.section{padding:90px 0}
-.section-inner{max-width:1200px;margin:0 auto;padding:0 40px}
-.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.12em;margin-bottom:14px}
-.eyebrow::before{content:'';display:block;width:20px;height:1px;background:var(--gold);opacity:.6}
-.section-title{font-family:'Bricolage Grotesque',sans-serif;font-size:42px;font-weight:800;letter-spacing:-.04em;line-height:1.1;margin-bottom:14px}
-.section-sub{font-size:16px;color:var(--muted);line-height:1.7;max-width:520px}
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-top:52px;border:1px solid rgba(255,255,255,0.06);border-radius:20px;overflow:hidden;background:rgba(255,255,255,0.04)}
-.step{background:var(--ink2);padding:36px 32px;position:relative;transition:background .2s}
-.step:hover{background:var(--ink3)}
-.step::after{content:'';position:absolute;top:0;right:0;bottom:0;width:1px;background:rgba(255,255,255,0.06)}
-.step:last-child::after{display:none}
-.step-n{font-family:'Bricolage Grotesque',sans-serif;font-size:56px;font-weight:900;color:rgba(255,255,255,0.04);line-height:1;margin-bottom:20px;letter-spacing:-.06em}
-.step-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:16px}
-.step-t{font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:700;margin-bottom:10px;letter-spacing:-.02em}
+/* SECTIONS */
+.section{padding:88px 0}
+.section-in{max-width:1180px;margin:0 auto;padding:0 32px}
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;padding:4px 12px;background:var(--accent-light);border-radius:20px}
+.sec-title{font-size:40px;font-weight:800;letter-spacing:-.04em;line-height:1.1;margin-bottom:14px;color:var(--ink)}
+.sec-sub{font-size:16px;color:var(--muted);line-height:1.7;max-width:520px}
+
+/* HOW IT WORKS */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:52px}
+.step{background:var(--surface);border:1px solid var(--faint);border-radius:var(--r2);padding:32px;box-shadow:var(--shadow-sm);transition:all .2s;position:relative;overflow:hidden}
+.step::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.step:nth-child(1)::before{background:linear-gradient(90deg,var(--amber),#F59E0B)}
+.step:nth-child(2)::before{background:linear-gradient(90deg,var(--accent),#3B82F6)}
+.step:nth-child(3)::before{background:linear-gradient(90deg,var(--green),#10B981)}
+.step:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.step-num{font-size:52px;font-weight:900;letter-spacing:-.06em;color:var(--faint2);line-height:1;margin-bottom:20px}
+.step-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px}
+.step-t{font-size:18px;font-weight:800;letter-spacing:-.02em;margin-bottom:9px;color:var(--ink)}
 .step-d{font-size:14px;color:var(--muted);line-height:1.7}
 
-/* ── PRICING ── */
-.pricing-section{background:var(--ink2);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06)}
-.pricing-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:860px;margin:52px auto 0}
-.plan{border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:36px;background:var(--ink);position:relative;overflow:hidden}
-.plan::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.1),transparent)}
-.plan.featured{border-color:rgba(245,166,35,0.3);background:linear-gradient(160deg,rgba(245,166,35,0.06) 0%,var(--ink) 50%)}
-.plan.featured::before{background:linear-gradient(90deg,transparent,rgba(245,166,35,0.4),transparent)}
-.plan-tag{position:absolute;top:-1px;left:50%;transform:translateX(-50%);background:var(--gold);color:#000;font-size:11px;font-weight:800;padding:5px 18px;border-radius:0 0 12px 12px;letter-spacing:.04em;white-space:nowrap}
-.plan-name{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
-.plan-price{font-family:'Bricolage Grotesque',sans-serif;font-size:52px;font-weight:900;letter-spacing:-.05em;line-height:1;margin-bottom:6px}
-.plan-period{font-family:'Inter',sans-serif;font-size:15px;color:var(--muted);font-weight:400}
-.plan-tagline{font-size:13px;color:var(--muted);margin-bottom:28px}
-.plan-features{list-style:none;margin-bottom:28px}
-.plan-features li{font-size:14px;color:var(--muted);padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:flex-start;gap:10px}
-.plan-features li:last-child{border:none}
-.plan-features .ck{color:var(--green);font-size:12px;flex-shrink:0;margin-top:2px}
-.btn-plan-primary{display:block;text-align:center;background:var(--gold);color:#000;font-size:14px;font-weight:700;padding:14px;border-radius:12px;letter-spacing:-.01em;transition:all .2s}.btn-plan-primary:hover{background:var(--gold2);box-shadow:0 8px 24px rgba(245,166,35,0.3);transform:translateY(-1px)}
-.btn-plan-secondary{display:block;text-align:center;background:transparent;color:var(--text);font-size:14px;font-weight:600;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);transition:all .2s}.btn-plan-secondary:hover{border-color:rgba(255,255,255,0.2);background:rgba(255,255,255,0.04)}
-.trust-bar{display:flex;align-items:flex-start;gap:18px;max-width:860px;margin:24px auto 0;padding:22px 28px;border:1px solid rgba(0,196,140,0.15);border-radius:16px;background:rgba(0,196,140,0.04)}
-.trust-icon{font-size:22px;flex-shrink:0;margin-top:1px}
-.trust-t{font-size:14px;font-weight:600;color:var(--green);margin-bottom:4px}
-.trust-d{font-size:13px;color:var(--muted);line-height:1.65}
+/* PRICING */
+.pricing-bg{background:linear-gradient(180deg,var(--faint2) 0%,var(--bg) 100%);border-top:1px solid var(--faint)}
+.plans{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:840px;margin:52px auto 0}
+.plan{background:var(--surface);border:1.5px solid var(--faint);border-radius:var(--r2);padding:36px;box-shadow:var(--shadow-sm);position:relative}
+.plan.pro{border-color:var(--accent);box-shadow:var(--shadow-md),0 0 0 4px rgba(37,99,235,0.06)}
+.plan-tag{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:11px;font-weight:800;padding:5px 18px;border-radius:20px;white-space:nowrap;letter-spacing:.03em}
+.plan-name{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+.plan-price{font-size:50px;font-weight:900;letter-spacing:-.06em;line-height:1;margin-bottom:5px;color:var(--ink)}
+.plan-period{font-size:16px;font-weight:500;color:var(--muted);letter-spacing:0}
+.plan-desc{font-size:13px;color:var(--muted);margin-bottom:24px}
+.plan-feats{list-style:none;margin-bottom:28px}
+.plan-feats li{font-size:14px;color:var(--ink);padding:9px 0;border-bottom:1px solid var(--faint);display:flex;align-items:flex-start;gap:10px}.plan-feats li:last-child{border:none}
+.ck{color:var(--green);font-size:13px;flex-shrink:0;margin-top:1px;font-weight:700}
+.btn-plan-dark{display:block;text-align:center;background:var(--ink);color:#fff;font-size:14px;font-weight:700;padding:13px;border-radius:var(--r);transition:all .18s;letter-spacing:-.01em}.btn-plan-dark:hover{background:var(--ink2);box-shadow:var(--shadow-md)}
+.btn-plan-outline{display:block;text-align:center;background:transparent;color:var(--ink);font-size:14px;font-weight:600;padding:13px;border-radius:var(--r);border:1.5px solid var(--faint);transition:all .18s}.btn-plan-outline:hover{border-color:#D1D5DB;background:var(--faint2)}
+.trust-note{display:flex;align-items:flex-start;gap:14px;max-width:840px;margin:22px auto 0;padding:18px 22px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:var(--r2)}
+.trust-note-icon{font-size:20px;flex-shrink:0}
+.trust-note-t{font-size:14px;font-weight:600;color:var(--green);margin-bottom:3px}
+.trust-note-d{font-size:13px;color:var(--muted);line-height:1.6}
 
-/* ── FAQ ── */
-.faq-wrap{max-width:720px;margin:52px auto 0}
-.faq-item{border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;user-select:none}
-.faq-q{padding:20px 0;font-size:15px;font-weight:500;display:flex;justify-content:space-between;align-items:center;gap:16px;transition:color .15s}
-.faq-q:hover{color:var(--gold)}
-.faq-icon{width:24px;height:24px;border-radius:50%;border:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);flex-shrink:0;transition:all .2s;font-weight:300}
-.faq-item.open .faq-icon{border-color:var(--gold);color:var(--gold);transform:rotate(45deg)}
+/* FAQ */
+.faq-wrap{max-width:700px;margin:48px auto 0}
+.faq-item{border-bottom:1px solid var(--faint);cursor:pointer;user-select:none}
+.faq-q{padding:18px 0;font-size:15px;font-weight:600;color:var(--ink);display:flex;justify-content:space-between;align-items:center;gap:16px;transition:color .15s}.faq-q:hover{color:var(--accent)}
+.faq-ic{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--faint);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:18px;font-weight:300;flex-shrink:0;transition:all .2s}
+.faq-item.open .faq-ic{border-color:var(--accent);color:var(--accent);transform:rotate(45deg)}
 .faq-a{font-size:14px;color:var(--muted);line-height:1.75;max-height:0;overflow:hidden;transition:max-height .35s ease,padding .3s}
-.faq-item.open .faq-a{max-height:200px;padding-bottom:20px}
+.faq-item.open .faq-a{max-height:200px;padding-bottom:18px}
 
-/* ── FOOTER ── */
-footer{border-top:1px solid rgba(255,255,255,0.06);padding:44px 0}
-.footer-inner{max-width:1200px;margin:0 auto;padding:0 40px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px}
-.footer-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:700;letter-spacing:-.03em}.footer-logo span{color:var(--gold)}
-.footer-links{display:flex;gap:28px}.footer-link{font-size:13px;color:var(--muted);transition:color .15s}.footer-link:hover{color:var(--text)}
-.footer-copy{text-align:center;font-size:11.5px;color:rgba(255,255,255,0.15);margin-top:18px;max-width:1200px;margin-left:auto;margin-right:auto;padding:0 40px}
+/* FOOTER */
+footer{background:var(--ink);padding:52px 0 36px}
+.footer-in{max-width:1180px;margin:0 auto;padding:0 32px}
+.footer-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:40px;flex-wrap:wrap;gap:24px}
+.footer-brand .fl{font-size:18px;font-weight:800;letter-spacing:-.03em;color:#fff}.footer-brand .fl .dot{color:var(--amber)}
+.footer-tagline{font-size:13px;color:rgba(255,255,255,0.4);margin-top:6px}
+.footer-links-grid{display:flex;gap:48px;flex-wrap:wrap}
+.footer-col-title{font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
+.footer-link{display:block;font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:8px;transition:color .15s}.footer-link:hover{color:#fff}
+.footer-bottom{border-top:1px solid rgba(255,255,255,0.08);padding-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.footer-copy{font-size:12px;color:rgba(255,255,255,0.3)}
+.footer-india{font-size:12px;color:rgba(255,255,255,0.3)}
 
-/* ── RESPONSIVE ── */
+/* RESPONSIVE */
 @media(max-width:900px){
   .hero{grid-template-columns:1fr;gap:40px;padding-top:100px}
-  .hero h1{font-size:40px}
-  .steps{grid-template-columns:1fr}
-  .step::after{display:none;border-bottom:1px solid rgba(255,255,255,0.06)}
-  .pricing-grid{grid-template-columns:1fr}
-  .strip-inner{grid-template-columns:repeat(2,1fr)}
-  .stat{border-right:none;border-bottom:1px solid rgba(255,255,255,0.06)}.stat:nth-child(even){border:none}
+  h1{font-size:38px}
+  .steps{grid-template-columns:1fr;gap:16px}
+  .plans{grid-template-columns:1fr}
+  .strip-in{grid-template-columns:repeat(2,1fr)}
+  .stat{border-right:none;border-bottom:1px solid var(--faint)}.stat:nth-child(2n){border-right:none}.stat:nth-last-child(-n+2){border-bottom:none}
   .nav-links .nav-link{display:none}
+  .footer-top{flex-direction:column}
 }
-@media(max-width:480px){.hero h1{font-size:34px}.section-title{font-size:32px}}
+@media(max-width:480px){h1{font-size:32px}.sec-title{font-size:30px}}
 </style></head>
 <body>
 
 <nav>
-  <a href="/" class="nav-logo">Job<span>Match</span> AI</a>
+  <a href="/" class="nav-logo">JobMatch<span class="dot">.</span>AI</a>
   <div class="nav-links">
     <a href="#how" class="nav-link">How it works</a>
     <a href="#pricing" class="nav-link">Pricing</a>
@@ -1213,68 +1214,56 @@ footer{border-top:1px solid rgba(255,255,255,0.06);padding:44px 0}
 <section>
 <div class="hero">
   <div>
-    <div class="hero-badge"><span class="badge-dot"></span><span id="lc">59</span> professionals matched today</div>
-    <h1>Stop searching.<br>Start <em>matching.</em></h1>
+    <div class="hero-badge"><span class="badge-live"></span><span id="lc">59</span> professionals matched today</div>
+    <h1>Stop searching.<br>Start <span class="hl">matching.</span></h1>
     <p class="hero-sub">Upload your resume once. Every morning we scan LinkedIn, Naukri, and 3 more platforms — sending you the roles that actually fit. Scored by AI, ranked by relevance.</p>
     <div class="hero-ctas">
-      <a href="/signup"><button class="cta-primary">Upload resume — free <span style="opacity:.7">→</span></button></a>
-      <a href="#how"><button class="cta-secondary">How it works</button></a>
+      <a href="/signup"><button class="btn-primary">Upload resume — it's free →</button></a>
+      <a href="#how"><button class="btn-secondary">How it works</button></a>
     </div>
-    <div class="hero-proof">
-      <span class="proof-item">Free forever</span>
-      <span class="proof-sep"></span>
-      <span class="proof-item">No credit card</span>
-      <span class="proof-sep"></span>
-      <span class="proof-item">60-second setup</span>
-      <span class="proof-sep"></span>
-      <span class="proof-item">Built for India</span>
+    <div class="trust-row">
+      <span class="trust-item">Free forever</span><span class="trust-sep"></span>
+      <span class="trust-item">No credit card</span><span class="trust-sep"></span>
+      <span class="trust-item">60 seconds to set up</span><span class="trust-sep"></span>
+      <span class="trust-item">Built for India</span>
     </div>
   </div>
-  <div class="card-wrap">
-    <div class="email-card">
-      <div class="ec-header">
-        <div class="ec-logo">Job<span>Match</span> AI</div>
-        <div class="ec-badge">TODAY'S MATCHES</div>
+  <div class="mock-wrap">
+    <div class="mock">
+      <div class="mock-header">
+        <div class="mock-logo">JobMatch<span class="dot">.</span>AI</div>
+        <div class="mock-badge">TODAY'S MATCHES</div>
       </div>
-      <div class="ec-body">
-        <div class="job-card green">
-          <div class="jc-title">Head of Partnerships – Fintech (NBFC/LSP)</div>
-          <div class="jc-meta">
-            <span>Brahma Finance</span>
-            <span style="color:rgba(255,255,255,.15)">·</span>
-            <span>Bengaluru</span>
-            <span style="color:rgba(255,255,255,.15)">·</span>
-            <span class="jc-salary">₹30–45L</span>
-          </div>
-          <div class="jc-reason">Direct function match — NBFC alliances, partner commercials, distribution expansion. Domain and seniority align tightly.</div>
-          <div class="jc-foot">
-            <span class="fit-tag fit-strong">Strong fit</span>
-            <div style="display:flex;align-items:center;gap:10px">
-              <span class="jc-score">91%</span>
-              <span class="jc-apply">Apply →</span>
-            </div>
+      <div class="mock-body">
+        <div class="jc g">
+          <div class="jc-t">Head of Partnerships – Fintech (NBFC/LSP)</div>
+          <div class="jc-m"><span>Brahma Finance</span><span style="color:#D1D5DB">·</span><span>Bengaluru</span><span style="color:#D1D5DB">·</span><span class="jc-sal">₹30–45L</span></div>
+          <div class="jc-r">Direct function match — NBFC alliances, partner commercials, distribution expansion. Domain and seniority align tightly.</div>
+          <div class="jc-f">
+            <span class="fit fit-s">Strong fit</span>
+            <div style="display:flex;align-items:center;gap:10px"><span class="sc sc-g">91%</span><span class="apply-btn">Apply →</span></div>
           </div>
         </div>
-        <div class="job-card blue">
-          <div class="jc-title">VP Partnerships – Growth Stage Fintech</div>
-          <div class="jc-meta"><span>Velocity</span><span style="color:rgba(255,255,255,.15)">·</span><span>Bengaluru</span><span style="color:rgba(255,255,255,.15)">·</span><span style="color:var(--blue);font-weight:600">77%</span></div>
+        <div class="jc b">
+          <div class="jc-t">VP Partnerships – Growth Stage Fintech</div>
+          <div class="jc-m"><span>Velocity</span><span style="color:#D1D5DB">·</span><span>Bengaluru</span><span style="color:#D1D5DB">·</span><span class="sc sc-b" style="font-size:13px">77%</span></div>
         </div>
-        <div class="job-card amber">
-          <div class="jc-title">Senior Manager – Strategic Alliances</div>
-          <div class="jc-meta"><span>Razorpay</span><span style="color:rgba(255,255,255,.15)">·</span><span>Bengaluru</span><span style="color:rgba(255,255,255,.15)">·</span><span style="color:var(--gold);font-weight:600">62%</span></div>
+        <div class="jc a">
+          <div class="jc-t">Senior Manager – Strategic Alliances</div>
+          <div class="jc-m"><span>Razorpay</span><span style="color:#D1D5DB">·</span><span>Bengaluru</span><span style="color:#D1D5DB">·</span><span class="sc sc-a" style="font-size:13px">62%</span></div>
         </div>
-        <div class="ec-more">+ 12 more in your inbox →</div>
+        <div class="mock-more">+ 12 more in your inbox →</div>
       </div>
     </div>
   </div>
 </div>
 </section>
 
-<!-- STATS -->
+<!-- STATS STRIP -->
 <div class="strip">
-  <div class="strip-inner">
+  <div class="strip-in">
     <div class="stat"><span class="stat-n" id="su">59</span><span class="stat-l">Active users</span></div>
-    <div class="stat"><span class="stat-n">5</span><span class="stat-l">Job platforms</span></div>
+    <div class="stat"><span class="stat-n">5</span><span class="stat-l">Job platforms searched</span></div>
     <div class="stat"><span class="stat-n">9 AM</span><span class="stat-l">IST daily delivery</span></div>
     <div class="stat"><span class="stat-n">₹0</span><span class="stat-l">To apply, ever</span></div>
   </div>
@@ -1282,73 +1271,73 @@ footer{border-top:1px solid rgba(255,255,255,0.06);padding:44px 0}
 
 <!-- HOW IT WORKS -->
 <section class="section" id="how">
-<div class="section-inner">
-  <div class="eyebrow">How it works</div>
-  <h2 class="section-title">Three steps.<br>One minute setup.</h2>
-  <p class="section-sub">Then we do the work every single morning, automatically — while you sleep.</p>
+<div class="section-in">
+  <div class="tag">How it works</div>
+  <h2 class="sec-title">Three steps.<br>One minute setup.</h2>
+  <p class="sec-sub">Then we work every morning automatically — while you focus on preparing for the role you want.</p>
   <div class="steps">
     <div class="step">
-      <div class="step-n">01</div>
-      <div class="step-icon" style="background:rgba(245,166,35,0.1)">📄</div>
+      <div class="step-num">01</div>
+      <div class="step-icon" style="background:#FEF3C7">📄</div>
       <div class="step-t">Upload your resume</div>
-      <div class="step-d">Claude reads your role, experience, skills, and domain in seconds. No manual form-filling. No guesswork. Just drop your PDF.</div>
+      <div class="step-d">Claude reads your role, experience, skills, and domain in seconds. No forms. No manual input. Just drop your PDF.</div>
     </div>
     <div class="step">
-      <div class="step-n">02</div>
-      <div class="step-icon" style="background:rgba(75,139,255,0.1)">🔍</div>
+      <div class="step-num">02</div>
+      <div class="step-icon" style="background:#DBEAFE">🔍</div>
       <div class="step-t">We search 5 platforms</div>
-      <div class="step-d">LinkedIn, Naukri, JSearch, Adzuna, iimjobs — every morning. Fresh roles scored against your exact profile by our AI function-matching engine.</div>
+      <div class="step-d">LinkedIn, Naukri, JSearch, Adzuna, iimjobs — every morning. Fresh roles scored against your exact profile by our function-matching engine.</div>
     </div>
     <div class="step">
-      <div class="step-n">03</div>
-      <div class="step-icon" style="background:rgba(0,196,140,0.1)">📬</div>
+      <div class="step-num">03</div>
+      <div class="step-icon" style="background:#D1FAE5">📬</div>
       <div class="step-t">Open one email</div>
-      <div class="step-d">Up to 15 ranked matches with fit scores, reasoning, salary ranges, and direct apply links. Nothing you've seen before. Nothing irrelevant.</div>
+      <div class="step-d">Up to 15 ranked matches with fit scores, reasoning, salary ranges, and direct apply links. Nothing repeated. Nothing irrelevant.</div>
     </div>
   </div>
 </div>
 </section>
 
 <!-- PRICING -->
-<section class="pricing-section section" id="pricing">
-<div class="section-inner" style="text-align:center">
-  <div class="eyebrow" style="justify-content:center">Pricing</div>
-  <h2 class="section-title">Simple. Honest. No surprises.</h2>
-  <p class="section-sub" style="margin:0 auto">Free works forever. Pro covers our running costs and unlocks daily delivery.</p>
-  <div class="pricing-grid">
+<section class="section pricing-bg" id="pricing">
+<div class="section-in" style="text-align:center">
+  <div class="tag" style="margin:0 auto 12px">Pricing</div>
+  <h2 class="sec-title">Simple. Honest. No surprises.</h2>
+  <p class="sec-sub" style="margin:0 auto">Free works forever. Pro covers our running costs and unlocks daily delivery.</p>
+  <div class="plans">
     <div class="plan">
       <div class="plan-name">Free</div>
       <div class="plan-price">₹0<span class="plan-period"> /forever</span></div>
-      <div class="plan-tagline">No card. No commitment.</div>
-      <ul class="plan-features">
+      <div class="plan-desc">No card. No commitment. Always free.</div>
+      <ul class="plan-feats">
         <li><span class="ck">✓</span>2 curated digests per week</li>
         <li><span class="ck">✓</span>Up to 5 matches per email</li>
         <li><span class="ck">✓</span>Core AI matching engine</li>
         <li><span class="ck">✓</span>Unsubscribe anytime</li>
       </ul>
-      <a href="/signup" class="btn-plan-secondary">Start free →</a>
+      <a href="/signup" class="btn-plan-outline">Start free →</a>
     </div>
-    <div class="plan featured">
+    <div class="plan pro">
       <div class="plan-tag">★ FOUNDING RATE — 100 SPOTS</div>
-      <div class="plan-name" style="color:var(--gold);margin-top:18px">Pro</div>
-      <div class="plan-price" style="color:var(--gold)">₹49<span class="plan-period" style="color:var(--muted)"> /month</span></div>
-      <div class="plan-tagline">or ₹499/year · rate locked for life</div>
-      <ul class="plan-features">
+      <div class="plan-name" style="color:var(--accent);margin-top:16px">Pro</div>
+      <div class="plan-price" style="color:var(--accent)">₹49<span class="plan-period" style="color:var(--muted)"> /month</span></div>
+      <div class="plan-desc">or ₹499/year · rate locked in for life</div>
+      <ul class="plan-feats">
         <li><span class="ck">✓</span>Daily matches at 9am IST</li>
         <li><span class="ck">✓</span>Up to 15 matches per email</li>
         <li><span class="ck">✓</span>Full LinkedIn + Naukri search</li>
-        <li><span class="ck">✓</span>Dashboard + apply history</li>
+        <li><span class="ck">✓</span>Dashboard + apply history tracker</li>
         <li><span class="ck">✓</span>Priority email support</li>
       </ul>
-      <a href="/signup" class="btn-plan-primary">Become a founding member →</a>
-      <p style="font-size:11.5px;color:var(--muted);text-align:center;margin-top:12px">Regular price ₹149/month after spots fill</p>
+      <a href="/signup" class="btn-plan-dark">Become a founding member →</a>
+      <p style="font-size:11.5px;color:var(--muted);text-align:center;margin-top:10px">Regular price ₹149/month after spots fill</p>
     </div>
   </div>
-  <div class="trust-bar">
-    <div class="trust-icon">🤝</div>
+  <div class="trust-note" style="text-align:left">
+    <div class="trust-note-icon">🤝</div>
     <div>
-      <div class="trust-t">We never charge you to apply for jobs</div>
-      <div class="trust-d">JobMatch is a curation tool. Every job is free to apply on the original platform. Our only revenue is the optional Pro subscription — and only if you find it worth it.</div>
+      <div class="trust-note-t">We never charge you to apply for jobs</div>
+      <div class="trust-note-d">JobMatch is a curation tool. Every job we surface is free to apply on the original platform. Our only revenue is the optional Pro subscription — and only if you find it worth it.</div>
     </div>
   </div>
 </div>
@@ -1356,30 +1345,48 @@ footer{border-top:1px solid rgba(255,255,255,0.06);padding:44px 0}
 
 <!-- FAQ -->
 <section class="section">
-<div class="section-inner" style="text-align:center">
-  <div class="eyebrow" style="justify-content:center">FAQ</div>
-  <h2 class="section-title">Common questions</h2>
+<div class="section-in" style="text-align:center">
+  <div class="tag" style="margin:0 auto 12px">FAQ</div>
+  <h2 class="sec-title">Common questions</h2>
   <div class="faq-wrap" style="text-align:left">
     ${[
-      ['Do you charge employers or take placement fees?','No. Zero relationship with employers. We do not get paid when you get hired. Our only revenue is the optional Pro subscription from job seekers who find value in the product.'],
-      ['Where do the jobs come from?','LinkedIn, Naukri, iimjobs, JSearch (Google for Jobs), and Adzuna. All public listings. We save you 2 hours of daily searching.'],
-      ['Is my resume safe?','Stored privately, used only to score relevance for you. Never sold or shared. Delete anytime — we wipe everything within 24 hours.'],
-      ['How is this different from Naukri or LinkedIn?','Naukri shows every keyword-matching job. We score each role against your specific profile — function, seniority, domain, location — and send only what is actually relevant. Fewer emails, better matches.'],
-      ['Can I cancel Pro anytime?','Yes. Email hello@jobmatchai.co.in — processed within 12 hours. We use one-time payment links, not auto-renewal, so no surprise charges.'],
-    ].map(([q,a])=>`<div class="faq-item" onclick="tf(this)"><div class="faq-q"><span>${q}</span><span class="faq-icon">+</span></div><div class="faq-a">${a}</div></div>`).join('')}
+      ['Do you charge employers or take placement fees?','No. Zero relationship with employers. We do not get paid when you get hired. Our only revenue is the optional Pro subscription from job seekers who find the product valuable.'],
+      ['Where do the jobs come from?','LinkedIn, Naukri, iimjobs, JSearch (Google for Jobs), and Adzuna. All public listings. We save you the 2 hours of daily searching and apply our AI scoring layer on top.'],
+      ['Is my resume safe?','Stored privately, used only to score job relevance for you. Never sold, shared, or repurposed. Delete your account anytime — we wipe everything within 24 hours.'],
+      ['How is this different from Naukri or LinkedIn?','Those platforms show you every keyword-matching job. We score each role against your specific profile — function, seniority, domain, location — and send only what is genuinely relevant. Fewer emails, much better matches.'],
+      ['Can I cancel Pro anytime?','Yes. Email hello@jobmatchai.co.in — processed within 12 hours, no questions asked. We use one-time payment links, not auto-renewal, so there are no surprise charges.'],
+    ].map(([q,a])=>`<div class="faq-item" onclick="tf(this)"><div class="faq-q"><span>${q}</span><span class="faq-ic">+</span></div><div class="faq-a">${a}</div></div>`).join('')}
   </div>
 </div>
 </section>
 
+<!-- FOOTER -->
 <footer>
-  <div class="footer-inner">
-    <div class="footer-logo">Job<span>Match</span> AI</div>
-    <div class="footer-links">
-      <a href="/terms" class="footer-link">Terms & Privacy</a>
-      <a href="mailto:hello@jobmatchai.co.in" class="footer-link">hello@jobmatchai.co.in</a>
+  <div class="footer-in">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="fl">JobMatch<span class="dot">.</span>AI</div>
+        <div class="footer-tagline">Curated daily job matches for India 🇮🇳</div>
+      </div>
+      <div class="footer-links-grid">
+        <div>
+          <div class="footer-col-title">Product</div>
+          <a href="#how" class="footer-link">How it works</a>
+          <a href="#pricing" class="footer-link">Pricing</a>
+          <a href="/signup" class="footer-link">Sign up free</a>
+        </div>
+        <div>
+          <div class="footer-col-title">Company</div>
+          <a href="/terms" class="footer-link">Terms & Privacy</a>
+          <a href="mailto:hello@jobmatchai.co.in" class="footer-link">Contact us</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-copy">© 2026 JobMatch AI · Built with Claude</div>
+      <div class="footer-india">₹0 charged to apply for jobs, ever</div>
     </div>
   </div>
-  <p class="footer-copy">Built with Claude · Made in India 🇮🇳 · ₹0 charged to apply, ever</p>
 </footer>
 
 <script>
@@ -1388,9 +1395,8 @@ fetch('/count').then(r=>r.json()).then(d=>{
   ['lc','su'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=n.toLocaleString('en-IN');});
 }).catch(()=>{});
 function tf(el){const o=el.classList.contains('open');document.querySelectorAll('.faq-item').forEach(f=>f.classList.remove('open'));if(!o)el.classList.add('open');}
-// Animate counter
 const lc=document.getElementById('lc');
-if(lc){let c=Math.max(parseInt(lc.textContent)-10,1),t=parseInt(lc.textContent);const ti=setInterval(()=>{c++;lc.textContent=c.toLocaleString('en-IN');if(c>=t)clearInterval(ti);},90);}
+if(lc){let c=Math.max(parseInt(lc.textContent)-10,1),t=parseInt(lc.textContent);const ti=setInterval(()=>{c++;lc.textContent=c.toLocaleString('en-IN');if(c>=t)clearInterval(ti);},80);}
 </script>
 </body></html>`);
 });
