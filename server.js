@@ -342,6 +342,7 @@ app.get('/dashboard', async (req, res) => {
     const avgScore = matches.length ? Math.round(matches.reduce((a,m) => a + (m.s||0), 0) / matches.length) : 0;
     const paidUntil = f.PaidUntil ? new Date(f.PaidUntil).toLocaleDateString('en-IN', {day:'numeric',month:'long',year:'numeric'}) : null;
     const daysLeft = f.PaidUntil ? Math.ceil((new Date(f.PaidUntil) - new Date()) / 86400000) : null;
+    const unsubUrl = `${SERVER_URL}/unsubscribe?email=${encodeURIComponent(email)}&token=${token}`;
 
     const scoreColor = s => s >= 85 ? '#059669' : s >= 70 ? '#0055FF' : '#d97706';
     const scoreBg    = s => s >= 85 ? '#ecfdf5' : s >= 70 ? '#eff6ff' : '#fffbeb';
@@ -349,7 +350,7 @@ app.get('/dashboard', async (req, res) => {
     const scoreLabel = s => s >= 85 ? 'Strong fit' : s >= 70 ? 'Good fit' : 'Possible fit';
 
     const matchCards = matches.map((m,i) => `
-<div class="card match-card" style="border-left:4px solid ${scoreColor(m.s)};animation-delay:${i*0.05}s">
+<div class="card match-card" style="border-left:4px solid ${scoreColor(m.s)};animation-delay:${i*0.05}s" data-score="${m.s}" data-city="${(m.c||'').toLowerCase()}" data-src="${(m.src||'').toLowerCase()}">
   <div style="display:flex;gap:14px;align-items:flex-start">
     <div style="flex:1;min-width:0">
       <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;line-height:1.3">${m.t}</div>
@@ -534,6 +535,36 @@ app.get('/dashboard', async (req, res) => {
       <div class="section-title">Today's matches</div>
       <div class="section-count">${matches.length} jobs</div>
     </div>
+
+    <!-- FILTER BAR -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;align-items:center">
+      <select id="f-city" onchange="applyFilters()" style="flex:1;min-width:130px;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);font-family:inherit;cursor:pointer;outline:none">
+        <option value="">All cities</option>
+        ${[...new Set(matches.map(m=>m.c?.split('·')[1]?.trim()).filter(Boolean))].map(c=>`<option value="${c}">${c}</option>`).join('')}
+        <option value="Bengaluru">Bengaluru</option>
+        <option value="Mumbai">Mumbai</option>
+        <option value="Delhi">Delhi NCR</option>
+        <option value="Hyderabad">Hyderabad</option>
+        <option value="Pune">Pune</option>
+        <option value="Remote">Remote</option>
+      </select>
+      <select id="f-score" onchange="applyFilters()" style="flex:1;min-width:130px;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);font-family:inherit;cursor:pointer;outline:none">
+        <option value="0">All scores</option>
+        <option value="85">Strong fit only (85%+)</option>
+        <option value="70">Good fit+ (70%+)</option>
+        <option value="55">All relevant (55%+)</option>
+      </select>
+      <select id="f-src" onchange="applyFilters()" style="flex:1;min-width:130px;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);font-family:inherit;cursor:pointer;outline:none">
+        <option value="">All sources</option>
+        <option value="LinkedIn">LinkedIn</option>
+        <option value="Naukri">Naukri</option>
+        <option value="JSearch">JSearch</option>
+        <option value="Adzuna">Adzuna</option>
+        <option value="iimjobs">iimjobs</option>
+      </select>
+      <button onclick="clearFilters()" style="padding:8px 14px;background:transparent;border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;white-space:nowrap;transition:border-color .15s" onmouseover="this.style.borderColor='rgba(255,255,255,0.2)'" onmouseout="this.style.borderColor='var(--border)'">Clear filters</button>
+      <span id="filter-count" style="font-size:12px;color:var(--muted);white-space:nowrap"></span>
+    </div>
     ${matches.length ? matchCards : `<div class="empty">
       <div class="empty-icon">🔍</div>
       <div class="empty-title">No matches yet today</div>
@@ -578,7 +609,7 @@ app.get('/dashboard', async (req, res) => {
       </form>
       <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:12px;color:#94a3b8">Joined with ${email}</span>
-        <a href="${SERVER_URL}/unsubscribe?email=${encodeURIComponent(email)}&token=${token}" style="font-size:12px;color:#dc2626;text-decoration:none">Unsubscribe</a>
+        <a href="${unsubUrl}" style="font-size:12px;color:#dc2626;text-decoration:none">Unsubscribe</a>
       </div>
     </div>
   </div>
@@ -591,6 +622,36 @@ function switchTab(name, el) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
+}
+
+// Filter logic for match cards
+function applyFilters() {
+  const city = document.getElementById('f-city')?.value.toLowerCase() || '';
+  const minScore = parseInt(document.getElementById('f-score')?.value || '0');
+  const src = document.getElementById('f-src')?.value.toLowerCase() || '';
+  const cards = document.querySelectorAll('.match-card');
+  let visible = 0;
+  cards.forEach(card => {
+    const cardCity = (card.dataset.city || '').toLowerCase();
+    const cardScore = parseInt(card.dataset.score || '0');
+    const cardSrc = (card.dataset.src || '').toLowerCase();
+    const cityOk = !city || cardCity.includes(city) || city.includes(cardCity);
+    const scoreOk = cardScore >= minScore;
+    const srcOk = !src || cardSrc.includes(src);
+    const show = cityOk && scoreOk && srcOk;
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  const fc = document.getElementById('filter-count');
+  if (fc) fc.textContent = visible < cards.length ? (visible + ' of ' + cards.length + ' shown') : '';
+}
+
+function clearFilters() {
+  ['f-city','f-score','f-src'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = el.tagName === 'SELECT' ? el.options[0].value : '';
+  });
+  applyFilters();
 }
 
 const STATUS_CYCLE = {
@@ -606,10 +667,8 @@ async function cycleStatus(recordId, currentStatus, encodedEmail) {
   const newStatus = cfg.next;
   const btn = document.getElementById('status-' + recordId);
   if (!btn) return;
-
   btn.style.opacity = '0.5';
   btn.textContent = '...';
-
   try {
     const resp = await fetch('/apply-status', {
       method: 'POST',
@@ -849,108 +908,114 @@ app.get('/signup', (req, res) => {
 <title>Sign up free · JobMatch AI</title>
 ${BRAND_HEAD}
 <style>
-.pg{min-height:100vh;display:grid;grid-template-columns:1fr 1fr}
-.lp{background:var(--surface);border-right:1px solid var(--border);padding:48px 40px;display:flex;flex-direction:column;justify-content:space-between}
-.logo{font-family:'Instrument Serif',serif;font-size:20px;display:block;margin-bottom:56px}.logo i{font-style:italic;color:var(--gold)}
-.lt{font-family:'Instrument Serif',serif;font-size:34px;line-height:1.15;margin-bottom:14px}.lt i{font-style:italic;color:var(--gold)}
-.ls{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:36px}
-.fl{display:flex;flex-direction:column;gap:14px;margin-bottom:36px}
-.fe{display:flex;gap:12px;align-items:flex-start}
-.fi{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;font-size:14px}
-.ftt strong{display:block;font-size:13px;font-weight:600;margin-bottom:2px}
-.ftt span{font-size:12px;color:var(--muted)}
-.sc{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:10px;padding:14px}
-.rp{padding:48px 40px;display:flex;flex-direction:column;justify-content:center}
-.rh{margin-bottom:28px}
-.rh h2{font-size:24px;font-weight:700;margin-bottom:6px}
+*{box-sizing:border-box}
+body{display:flex;flex-direction:column;min-height:100vh}
+.pg{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:100vh}
+/* LEFT */
+.lp{background:#111113;border-right:1px solid var(--border);padding:40px 48px;display:flex;flex-direction:column}
+.llogo{font-family:'Instrument Serif',serif;font-size:20px;margin-bottom:48px;display:block;text-decoration:none;color:var(--text)}.llogo i{font-style:italic;color:var(--gold)}
+.lt{font-family:'Instrument Serif',serif;font-size:36px;line-height:1.12;margin-bottom:16px}.lt i{font-style:italic;color:var(--gold)}
+.ls{font-size:15px;color:var(--muted);line-height:1.7;margin-bottom:36px;max-width:380px}
+.feats{display:flex;flex-direction:column;gap:16px;margin-bottom:40px}
+.feat{display:flex;gap:14px;align-items:flex-start}
+.ficon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.ftxt strong{display:block;font-size:14px;font-weight:600;margin-bottom:3px;color:var(--text)}
+.ftxt span{font-size:13px;color:var(--muted);line-height:1.5}
+.scard{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-left:3px solid var(--green);border-radius:12px;padding:16px;margin-top:auto}
+.scard-t{font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text)}
+.scard-m{font-size:11px;color:var(--muted);margin-bottom:10px}
+.scard-f{display:flex;justify-content:space-between;align-items:center}
+.scard-b{font-size:11px;color:var(--green);font-weight:600;background:rgba(34,197,94,0.1);padding:3px 9px;border-radius:20px}
+.scard-s{font-size:20px;font-weight:700;color:var(--green)}
+/* RIGHT */
+.rp{padding:40px 56px;display:flex;flex-direction:column;justify-content:center;max-width:560px}
+.rh{margin-bottom:32px}
+.rh h2{font-size:26px;font-weight:700;margin-bottom:6px;color:var(--text)}
 .rh p{font-size:14px;color:var(--muted)}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.fd{margin-bottom:16px}
-.fd label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px}
-.fd input{width:100%;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);transition:border-color .15s;outline:none}
-.fd input:focus{border-color:var(--gold)}
-.fd input::placeholder{color:var(--subtle)}
-.fz{width:100%;border:1.5px dashed var(--border);border-radius:10px;padding:22px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px;background:transparent;display:block}
-.fz:hover{border-color:var(--gold-border);background:var(--gold-dim)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fd{margin-bottom:18px}
+.fd label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
+.fd input{width:100%;padding:13px 16px;background:#1A1A1C;border:1px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);transition:border-color .2s;outline:none;font-family:inherit}
+.fd input:focus{border-color:var(--gold);background:#1E1C17}
+.fd input::placeholder{color:#52525B}
+.fz{width:100%;border:1.5px dashed rgba(255,255,255,0.1);border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:20px;display:block;background:rgba(255,255,255,0.01)}
+.fz:hover,.fz.active{border-color:rgba(245,158,11,0.4);background:rgba(245,158,11,0.04)}
 .fz input{display:none}
-.fz-icon{font-size:20px;margin-bottom:6px}
-.fz-main{font-size:13px;font-weight:600;color:var(--gold);margin-bottom:3px}
-.fz-sub{font-size:11px;color:var(--muted)}
-.fname{font-size:12px;color:var(--green);margin-top:6px;font-weight:600;display:none}
-.sb{width:100%;padding:14px;background:var(--gold);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s}
-.sb:hover{opacity:.88}.sb:disabled{opacity:.5;cursor:wait}
-.fn{font-size:12px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.6}.fn a{color:var(--gold)}
-.eb{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#FCA5A5;padding:11px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none}
-.ob{background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:28px;text-align:center;display:none}
-@media(max-width:720px){.pg{grid-template-columns:1fr}.lp{display:none}.rp{padding:40px 24px}.row{grid-template-columns:1fr}}
+.fz-icon{font-size:28px;margin-bottom:8px}
+.fz-main{font-size:14px;font-weight:600;color:var(--gold);margin-bottom:4px}
+.fz-sub{font-size:12px;color:var(--muted)}
+.fname{font-size:12px;color:var(--green);margin-top:8px;font-weight:600;display:none}
+.sbtn{width:100%;padding:15px;background:var(--gold);color:#000;border:none;border-radius:11px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.sbtn:hover{opacity:.88}.sbtn:disabled{opacity:.5;cursor:wait}
+.sfine{font-size:12px;color:var(--muted);text-align:center;margin-top:14px;line-height:1.6}.sfine a{color:var(--gold);text-decoration:none}
+.ebox{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#FCA5A5;padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:16px;display:none}
+.obox{background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:14px;padding:36px;text-align:center;display:none}
+@media(max-width:820px){
+  .pg{grid-template-columns:1fr}
+  .lp{display:none}
+  .rp{padding:32px 24px;max-width:100%}
+}
 </style></head>
 <body>
 <div class="pg">
   <div class="lp">
-    <div>
-      <a href="/" class="logo">Job<i>Match</i> AI</a>
-      <h1 class="lt">Your next role,<br><i>every morning.</i></h1>
-      <p class="ls">Upload your resume once. We scan 5 job platforms daily and send you the matches that actually fit your profile, seniority, and domain.</p>
-      <div class="fl">
-        <div class="fe"><div class="fi" style="background:rgba(34,197,94,0.1)">🔍</div><div class="ftt"><strong>AI-powered scoring</strong><span>Function fit, seniority, domain, location — all scored against your profile</span></div></div>
-        <div class="fe"><div class="fi" style="background:rgba(245,158,11,0.1)">⚡</div><div class="ftt"><strong>5 platforms in one email</strong><span>LinkedIn, Naukri, JSearch, Adzuna, iimjobs — aggregated daily</span></div></div>
-        <div class="fe"><div class="fi" style="background:rgba(59,130,246,0.1)">🎯</div><div class="ftt"><strong>No noise, ever</strong><span>Fresh roles only. Nothing repeated. Only what's worth your time.</span></div></div>
-      </div>
-      <p style="font-size:10px;color:var(--subtle);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:10px">Sample from yesterday</p>
-      <div class="sc">
-        <div style="font-size:13px;font-weight:600;margin-bottom:3px">Head of Partnerships – Fintech</div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Brahma Finance · Bengaluru · ₹30–45L</div>
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:11px;color:var(--green);background:rgba(34,197,94,0.1);padding:3px 9px;border-radius:20px;font-weight:600">Strong fit</span>
-          <span style="font-size:19px;font-weight:700;color:var(--green)">91%</span>
-        </div>
-      </div>
+    <a href="/" class="llogo">Job<i>Match</i> AI</a>
+    <h1 class="lt">Your next role,<br><i>every morning.</i></h1>
+    <p class="ls">Upload your resume once. We scan 5 job platforms daily and send you the matches that actually fit your profile, seniority, and domain.</p>
+    <div class="feats">
+      <div class="feat"><div class="ficon" style="background:rgba(34,197,94,0.1)">🔍</div><div class="ftxt"><strong>AI-powered matching</strong><span>Function fit, seniority, domain, location — all scored against your exact profile</span></div></div>
+      <div class="feat"><div class="ficon" style="background:rgba(245,158,11,0.1)">⚡</div><div class="ftxt"><strong>5 platforms, one email</strong><span>LinkedIn, Naukri, JSearch, Adzuna, iimjobs — fresh roles daily</span></div></div>
+      <div class="feat"><div class="ficon" style="background:rgba(59,130,246,0.1)">🎯</div><div class="ftxt"><strong>No noise, ever</strong><span>Only fresh, relevant roles. Nothing repeated. Nothing irrelevant.</span></div></div>
     </div>
-    <p style="font-size:11px;color:var(--subtle)">59+ Indian professionals matched · Free forever · Built with Claude</p>
+    <div class="scard">
+      <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Sample match</div>
+      <div class="scard-t">Head of Partnerships – Fintech</div>
+      <div class="scard-m">Brahma Finance · Bengaluru · Naukri · ₹30–45L</div>
+      <div class="scard-f"><span class="scard-b">Strong fit</span><span class="scard-s">91%</span></div>
+    </div>
   </div>
-
-  <div class="rp">
-    <div class="rh"><h2>Create your free account</h2><p>Takes 60 seconds. No credit card needed.</p></div>
-    <div id="eb" class="eb"></div>
-    <div id="ob" class="ob">
-      <div style="font-size:36px;margin-bottom:10px">🎉</div>
-      <div style="font-size:18px;font-weight:700;margin-bottom:6px">You're in!</div>
-      <div style="font-size:14px;color:var(--muted);line-height:1.6">Check your inbox — your first matches are on their way.</div>
-    </div>
-    <form id="form" enctype="multipart/form-data">
-      <div class="row">
-        <div class="fd"><label>Full name *</label><input name="name" required maxlength="60" placeholder="Priya Sharma"></div>
-        <div class="fd"><label>WhatsApp *</label><input name="phone" type="tel" required placeholder="+91 98765 43210"></div>
+  <div style="display:flex;justify-content:center;align-items:center;background:var(--bg);padding:40px 28px">
+    <div class="rp" style="padding:0;width:100%">
+      <div class="rh"><h2>Create your free account</h2><p>Takes 60 seconds. No credit card needed.</p></div>
+      <div id="ebox" class="ebox"></div>
+      <div id="obox" class="obox">
+        <div style="font-size:48px;margin-bottom:12px">🎉</div>
+        <div style="font-size:20px;font-weight:700;margin-bottom:8px;color:var(--text)">You're in!</div>
+        <div style="font-size:14px;color:var(--muted);line-height:1.6">Check your inbox in the next few minutes.<br>Your first matches are on their way.</div>
       </div>
-      <div class="fd"><label>Email *</label><input name="email" type="email" required placeholder="priya@company.com"></div>
-      <div class="fd"><label>Cities *</label><input name="cities" required value="Bengaluru" placeholder="Bengaluru, Mumbai, Remote"></div>
-      <label class="fz" for="resume">
-        <input id="resume" name="resume" type="file" accept=".pdf" required>
-        <div class="fz-icon">📄</div>
-        <div class="fz-main">Click to upload your resume</div>
-        <div class="fz-sub">PDF only · Max 5MB · We never share it</div>
-        <div class="fname" id="fname"></div>
-      </label>
-      <button type="submit" id="btn" class="sb">Get my first matches →</button>
-      <p class="fn">Free forever · No spam · <a href="/terms">Privacy policy</a></p>
-    </form>
+      <form id="form" enctype="multipart/form-data">
+        <div class="row2">
+          <div class="fd"><label>Full name *</label><input name="name" required maxlength="60" placeholder="Priya Sharma"></div>
+          <div class="fd"><label>WhatsApp *</label><input name="phone" type="tel" required placeholder="+91 98765 43210"></div>
+        </div>
+        <div class="fd"><label>Work email *</label><input name="email" type="email" required placeholder="priya@company.com"></div>
+        <div class="fd"><label>Cities you're open to *</label><input name="cities" required value="Bengaluru" placeholder="Bengaluru, Mumbai, Remote"></div>
+        <label class="fz" for="resume" id="fzone">
+          <input id="resume" name="resume" type="file" accept=".pdf" required>
+          <div class="fz-icon">📄</div>
+          <div class="fz-main">Click to upload your resume</div>
+          <div class="fz-sub">PDF only · Max 5MB · We never share it</div>
+          <div class="fname" id="fname"></div>
+        </label>
+        <button type="submit" id="sbtn" class="sbtn">Get my first matches →</button>
+        <p class="sfine">Free forever · No spam · <a href="/terms">Privacy policy</a></p>
+      </form>
+    </div>
   </div>
 </div>
 <script>
-document.getElementById('resume').addEventListener('change',e=>{
-  const f=e.target.files[0],fn=document.getElementById('fname');
-  if(f){fn.textContent='✓ '+f.name;fn.style.display='block';}
-});
+const fi=document.getElementById('resume'),fz=document.getElementById('fzone'),fn=document.getElementById('fname');
+fi.addEventListener('change',e=>{const f=e.target.files[0];if(f){fn.textContent='✓ '+f.name;fn.style.display='block';fz.classList.add('active');}});
 document.getElementById('form').addEventListener('submit',async e=>{
   e.preventDefault();
-  const err=document.getElementById('eb'),ok=document.getElementById('ob'),btn=document.getElementById('btn');
-  err.style.display='none';btn.disabled=true;btn.textContent='Reading your resume...';
+  const eb=document.getElementById('ebox'),ob=document.getElementById('obox'),btn=document.getElementById('sbtn');
+  eb.style.display='none';btn.disabled=true;btn.textContent='Reading your resume...';
   try{
     const r=await fetch('/signup',{method:'POST',body:new FormData(e.target)});
     const d=await r.json();
     if(!r.ok)throw new Error(d.error||'Signup failed');
-    e.target.style.display='none';ok.style.display='block';
-  }catch(er){err.textContent=er.message;err.style.display='block';btn.disabled=false;btn.textContent='Try again';}
+    e.target.style.display='none';ob.style.display='block';
+  }catch(er){eb.textContent=er.message;eb.style.display='block';btn.disabled=false;btn.textContent='Try again';}
 });
 </script>
 </body></html>`);
@@ -961,244 +1026,295 @@ document.getElementById('form').addEventListener('submit',async e=>{
 app.get('/', (req, res) => {
     res.send(`<!DOCTYPE html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JobMatch AI — Daily curated job matches for India</title>
+<title>JobMatch AI — Curated daily job matches for India</title>
 <meta name="description" content="AI-powered job matching across LinkedIn, Naukri, and 5 platforms. Free for India.">
 ${BRAND_HEAD}
 <style>
-.w{max-width:1100px;margin:0 auto;padding:0 24px}
-nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(9,9,11,0.9);backdrop-filter:blur(12px)}
-.logo{font-family:'Instrument Serif',serif;font-size:20px;letter-spacing:-.01em}
-.logo i{font-style:italic;color:var(--gold)}
-.nav-r{display:flex;align-items:center;gap:24px}
-.nl{font-size:13px;color:var(--muted);font-weight:500;transition:color .15s}.nl:hover{color:var(--text)}
-.nc{font-size:13px;font-weight:700;padding:9px 20px;border-radius:8px;background:var(--gold);color:#000}
-.hero{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;padding:120px 24px 80px;max-width:1100px;margin:0 auto;position:relative}
-.hero::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 20% 50%,rgba(245,158,11,0.05) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(59,130,246,0.04) 0%,transparent 50%);pointer-events:none;z-index:-1}
-.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--gold);letter-spacing:.08em;text-transform:uppercase;padding:5px 14px;border:1px solid var(--gold-border);border-radius:20px;background:var(--gold-dim);margin-bottom:20px}
-.dot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:p 2s infinite}
-@keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
-h1{font-family:'Instrument Serif',serif;font-size:56px;line-height:1.08;letter-spacing:-.02em;margin-bottom:20px}
+*{box-sizing:border-box}
+.w{max-width:1140px;margin:0 auto;padding:0 28px}
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;height:64px;display:flex;align-items:center;padding:0 28px;justify-content:space-between;background:rgba(9,9,11,0.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+.logo{font-family:'Instrument Serif',serif;font-size:21px}.logo i{font-style:italic;color:var(--gold)}
+.nav-links{display:flex;align-items:center;gap:32px}
+.nl{font-size:13px;color:var(--muted);font-weight:500;cursor:pointer;transition:color .15s}.nl:hover{color:var(--text)}
+.nc{background:var(--gold);color:#000;padding:10px 22px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s}.nc:hover{opacity:.88}
+/* HERO */
+.hero{padding:140px 28px 100px;max-width:1140px;margin:0 auto;display:grid;grid-template-columns:55% 45%;gap:48px;align-items:center;min-height:100vh}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);color:var(--gold);padding:6px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:24px}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:pl 2s infinite}
+@keyframes pl{0%,100%{opacity:1}50%{opacity:.3}}
+h1{font-family:'Instrument Serif',serif;font-size:60px;line-height:1.06;letter-spacing:-.02em;margin-bottom:20px;color:var(--text)}
 h1 i{font-style:italic;color:var(--gold)}
-.lede{font-size:17px;color:var(--muted);line-height:1.7;max-width:460px;margin-bottom:32px}
-.ctas{display:flex;gap:12px;margin-bottom:40px;flex-wrap:wrap}
-.bp{display:inline-block;background:var(--gold);color:#000;padding:13px 26px;border-radius:10px;font-size:15px;font-weight:700;transition:opacity .15s}.bp:hover{opacity:.88}
-.bs{display:inline-block;border:1px solid var(--border);color:var(--text);padding:13px 22px;border-radius:10px;font-size:15px;font-weight:600;transition:border-color .15s}.bs:hover{border-color:var(--border-hover)}
-.proof{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
-.pdot{width:3px;height:3px;border-radius:50%;background:var(--subtle)}
+.lede{font-size:17px;color:var(--muted);line-height:1.75;max-width:500px;margin-bottom:36px}
+.cta-row{display:flex;gap:12px;align-items:center;margin-bottom:32px;flex-wrap:wrap}
+.btn-gold{background:var(--gold);color:#000;padding:15px 30px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:all .15s}.btn-gold:hover{opacity:.88;transform:translateY(-1px)}
+.btn-outline{background:transparent;color:var(--text);padding:14px 24px;border-radius:10px;font-size:15px;font-weight:600;border:1px solid var(--border);cursor:pointer;font-family:inherit;transition:border-color .15s}.btn-outline:hover{border-color:rgba(255,255,255,0.25)}
+.trust-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tr{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.tr::before{content:'✓';color:var(--green)}
+.tdot{width:3px;height:3px;border-radius:50%;background:var(--subtle)}
 /* MOCK CARD */
-.mock{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:22px;animation:fl 6s ease-in-out infinite}
-@keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-.mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.mock{background:#161618;border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:20px;box-shadow:0 32px 80px rgba(0,0,0,0.6)}
+.mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.07)}
 .ml{font-family:'Instrument Serif',serif;font-size:15px}.ml i{font-style:italic;color:var(--gold)}
-.mb{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:var(--gold-dim);color:var(--gold);border:1px solid var(--gold-border)}
-.mj{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:10px;padding:14px;margin-bottom:8px}
-.mjt{font-size:13px;font-weight:600;margin-bottom:3px}
-.mjm{font-size:11px;color:var(--muted);margin-bottom:8px}
-.mjr{font-size:11px;color:var(--muted);line-height:1.5;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px;margin-bottom:8px}
-.mjf{display:flex;justify-content:space-between;align-items:center}
-.mjs{font-size:19px;font-weight:700;color:var(--green)}
-.mja{font-size:11px;font-weight:600;padding:5px 12px;border-radius:7px;background:#0055FF;color:#fff}
-.mj2{background:var(--surface);border:1px solid var(--border);border-left:3px solid #3B82F6;border-radius:10px;padding:12px;margin-bottom:8px;opacity:.6}
-.mm{text-align:center;font-size:11px;color:var(--muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.mb{font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;background:rgba(245,158,11,0.12);color:var(--gold);border:1px solid rgba(245,158,11,0.25);letter-spacing:.05em}
+.mj{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-left:3px solid;border-radius:12px;padding:16px;margin-bottom:10px}
+.mj-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:5px}
+.mj-meta{font-size:11px;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.mj-reason{font-size:11px;color:var(--muted);line-height:1.55;padding:9px 11px;background:rgba(0,0,0,0.2);border-radius:8px;margin-bottom:10px}
+.mj-foot{display:flex;justify-content:space-between;align-items:center}
+.fit-badge{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px}
+.mj-score{font-size:22px;font-weight:700}
+.mj-apply{font-size:11px;font-weight:700;padding:7px 14px;border-radius:8px;background:#2563EB;color:#fff}
+.more{text-align:center;font-size:11px;color:var(--muted);margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.07)}
 /* STRIP */
-.strip{border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:20px 0}
-.strip-inner{display:grid;grid-template-columns:repeat(4,1fr);max-width:900px;margin:0 auto}
-.si{text-align:center;padding:0 20px;border-right:1px solid var(--border)}.si:last-child{border-right:none}
-.sn{font-family:'Instrument Serif',serif;font-size:34px;display:block;margin-bottom:4px}
-.sl{font-size:12px;color:var(--muted);font-weight:500}
-/* SECTION */
-.sec{padding:80px 0}
-.slb{font-size:12px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:14px}
-.st{font-family:'Instrument Serif',serif;font-size:38px;line-height:1.12;letter-spacing:-.01em;margin-bottom:14px}
-.ss{font-size:16px;color:var(--muted);line-height:1.7;max-width:520px}
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:50px}
-.step{border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;background:var(--card);transition:border-color .2s}.step:hover{border-color:var(--border-hover)}
-.snum{font-family:'Instrument Serif',serif;font-size:50px;color:var(--subtle);font-style:italic;margin-bottom:14px}
-.stit{font-size:16px;font-weight:700;margin-bottom:8px}
-.sdesc{font-size:14px;color:var(--muted);line-height:1.65}
+.strip{border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(255,255,255,0.01)}
+.strip-in{max-width:1140px;margin:0 auto;padding:0 28px;display:grid;grid-template-columns:repeat(4,1fr)}
+.si{text-align:center;padding:28px 20px;border-right:1px solid var(--border)}.si:last-child{border:none}
+.sn{font-family:'Instrument Serif',serif;font-size:36px;color:var(--text);display:block;margin-bottom:4px}
+.sl{font-size:12px;color:var(--muted);font-weight:500;letter-spacing:.02em}
+/* HOW IT WORKS */
+.sec{padding:88px 0}
+.sec-label{font-size:11px;font-weight:700;color:var(--gold);letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px;display:block}
+.sec-title{font-family:'Instrument Serif',serif;font-size:40px;line-height:1.12;margin-bottom:14px;letter-spacing:-.01em}
+.sec-sub{font-size:16px;color:var(--muted);line-height:1.7;max-width:540px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:52px}
+.step{border:1px solid var(--border);border-radius:16px;padding:32px;background:rgba(255,255,255,0.02);position:relative;transition:border-color .2s}.step:hover{border-color:rgba(255,255,255,0.15)}
+.step-n{font-family:'Instrument Serif',serif;font-size:54px;color:rgba(255,255,255,0.08);font-style:italic;line-height:1;margin-bottom:18px}
+.step-t{font-size:17px;font-weight:700;margin-bottom:10px;color:var(--text)}
+.step-d{font-size:14px;color:var(--muted);line-height:1.65}
 /* PRICING */
-.pg{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:760px;margin:48px auto 0}
-.pc{border:1px solid var(--border);border-radius:var(--radius-lg);padding:30px;background:var(--card);position:relative}
-.pc.f{border-color:var(--gold-border);background:rgba(245,158,11,0.04)}
-.pt{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--gold);color:#000;font-size:11px;font-weight:700;padding:4px 14px;border-radius:20px;white-space:nowrap}
-.pn{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
-.pp{font-family:'Instrument Serif',serif;font-size:42px;margin-bottom:4px}
-.pf{list-style:none;margin-bottom:24px}.pf li{font-size:14px;color:var(--muted);padding:7px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:flex-start}.pf li:last-child{border:none}.pf .ck{color:var(--green)}
-.pba{display:block;text-align:center;padding:13px;border-radius:10px;font-size:14px;font-weight:700;background:var(--gold);color:#000}
-.pbb{display:block;text-align:center;padding:13px;border-radius:10px;font-size:14px;font-weight:600;border:1px solid var(--border);color:var(--text);transition:border-color .15s}.pbb:hover{border-color:var(--border-hover)}
-/* TRUST */
-.trust{border:1px solid rgba(34,197,94,0.2);border-radius:var(--radius-lg);padding:28px;background:rgba(34,197,94,0.04);display:flex;gap:20px;max-width:760px;margin:32px auto 0}
+.pricing-sec{background:rgba(255,255,255,0.01);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.pg{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:820px;margin:52px auto 0}
+.pc{border:1px solid var(--border);border-radius:18px;padding:34px;background:rgba(255,255,255,0.02);position:relative}
+.pc.pro{border-color:rgba(245,158,11,0.3);background:linear-gradient(160deg,rgba(245,158,11,0.06) 0%,rgba(255,255,255,0.02) 60%)}
+.ptag{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--gold);color:#000;font-size:11px;font-weight:700;padding:5px 16px;border-radius:20px;white-space:nowrap;letter-spacing:.03em}
+.pname{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
+.pprice{font-family:'Instrument Serif',serif;font-size:48px;line-height:1;margin-bottom:6px}
+.pprice small{font-family:'Manrope',sans-serif;font-size:16px;color:var(--muted);font-weight:500}
+.pline{font-size:13px;color:var(--muted);margin-bottom:26px}
+.pfeats{list-style:none;margin-bottom:28px}
+.pfeats li{font-size:14px;color:var(--muted);padding:8px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:flex-start}.pfeats li:last-child{border:none}
+.pfeats .ck{color:var(--green);flex-shrink:0;font-size:15px}
+.pbtn-g{display:block;text-align:center;padding:14px;border-radius:10px;background:var(--gold);color:#000;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s}.pbtn-g:hover{opacity:.88}
+.pbtn-o{display:block;text-align:center;padding:14px;border-radius:10px;border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:600;cursor:pointer;transition:border-color .15s}.pbtn-o:hover{border-color:rgba(255,255,255,0.25)}
+.trust{border:1px solid rgba(34,197,94,0.2);border-radius:16px;padding:28px 32px;background:rgba(34,197,94,0.04);display:flex;gap:18px;align-items:flex-start;max-width:820px;margin:28px auto 0}
+.trust-t{font-size:15px;font-weight:700;color:var(--green);margin-bottom:6px}
+.trust-d{font-size:13px;color:var(--muted);line-height:1.7}
 /* FAQ */
-.faq{max-width:660px;margin:48px auto 0}
+.faq{max-width:700px;margin:52px auto 0}
 .fi{border-bottom:1px solid var(--border);cursor:pointer}
-.fq{padding:18px 0;font-size:15px;font-weight:600;display:flex;justify-content:space-between;gap:12px}
-.fq .ar{color:var(--muted);font-size:20px;transition:transform .2s;flex-shrink:0}
-.fi.o .ar{transform:rotate(45deg)}
-.fa{font-size:14px;color:var(--muted);line-height:1.7;max-height:0;overflow:hidden;transition:max-height .3s,padding .3s}
-.fi.o .fa{max-height:300px;padding-bottom:16px}
+.fq{padding:20px 0;font-size:15px;font-weight:600;color:var(--text);display:flex;justify-content:space-between;align-items:center;gap:12px;user-select:none}
+.fq .ar{color:var(--muted);font-size:22px;transition:transform .2s;flex-shrink:0;font-weight:300}
+.fi.o .ar{transform:rotate(45deg);color:var(--gold)}
+.fa{font-size:14px;color:var(--muted);line-height:1.7;max-height:0;overflow:hidden;transition:max-height .35s ease,padding .3s}
+.fi.o .fa{max-height:250px;padding-bottom:18px}
 /* FOOTER */
-footer{border-top:1px solid var(--border);padding:36px 0}
-.fi2{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
-.fln{font-family:'Instrument Serif',serif;font-size:18px}.fln i{font-style:italic;color:var(--gold)}
-.fll{display:flex;gap:22px}.fla{font-size:13px;color:var(--muted);transition:color .15s}.fla:hover{color:var(--text)}
-.flg{font-size:11px;color:var(--subtle);text-align:center;margin-top:14px}
-@media(max-width:780px){
-  .hero{grid-template-columns:1fr;gap:36px;padding-top:100px}
-  h1{font-size:38px}.steps{grid-template-columns:1fr}.pg{grid-template-columns:1fr}
-  .strip-inner{grid-template-columns:repeat(2,1fr)}.si{border-right:none;border-bottom:1px solid var(--border);padding:14px 0}
-  .nav-r .nl{display:none}
+footer{border-top:1px solid var(--border);padding:44px 0}
+.ft{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+.fl{font-family:'Instrument Serif',serif;font-size:19px}.fl i{font-style:italic;color:var(--gold)}
+.flinks{display:flex;gap:28px}.fa2{font-size:13px;color:var(--muted);transition:color .15s}.fa2:hover{color:var(--text)}
+.fcopy{text-align:center;font-size:11px;color:rgba(255,255,255,0.2);margin-top:20px}
+/* MOBILE */
+@media(max-width:820px){
+  .hero{grid-template-columns:1fr;gap:40px;padding:110px 20px 60px;min-height:auto}
+  h1{font-size:40px}
+  .steps{grid-template-columns:1fr}
+  .pg{grid-template-columns:1fr}
+  .strip-in{grid-template-columns:repeat(2,1fr)}
+  .si{border-right:none;border-bottom:1px solid var(--border)}.si:nth-child(2),.si:last-child{border-right:none}
+  .nav-links .nl{display:none}
+  .sec{padding:60px 0}
 }
 </style></head>
 <body>
-<nav>
-  <div class="logo">Job<i>Match</i> AI</div>
-  <div class="nav-r">
+
+<nav class="w" style="max-width:100%;padding:0 28px">
+  <a href="/" class="logo" style="text-decoration:none;color:inherit">Job<i>Match</i> AI</a>
+  <div class="nav-links">
     <a href="#how" class="nl">How it works</a>
     <a href="#pricing" class="nl">Pricing</a>
     <a href="mailto:hello@jobmatchai.co.in" class="nl">Contact</a>
-    <a href="/signup" class="nc">Get started →</a>
+    <a href="/signup" class="nc" style="text-decoration:none">Get started →</a>
   </div>
 </nav>
 
+<!-- HERO -->
 <div class="hero">
   <div>
-    <div class="eyebrow"><span class="dot"></span><span id="lc">59</span> matched today</div>
+    <div class="eyebrow"><span class="pulse"></span><span id="lc">59</span> professionals matched today</div>
     <h1>Stop searching.<br>Start <i>matching.</i></h1>
-    <p class="lede">Upload your resume once. Every morning we scan 5 platforms and send you the roles that actually fit — scored by AI, ranked by relevance.</p>
-    <div class="ctas">
-      <a href="/signup" class="bp">Upload resume — free →</a>
-      <a href="#how" class="bs">How it works</a>
+    <p class="lede">Upload your resume once. Every morning we scan LinkedIn, Naukri, and 3 more platforms — sending you the roles that actually fit. Scored by AI, ranked by relevance.</p>
+    <div class="cta-row">
+      <a href="/signup"><button class="btn-gold">Upload resume — it's free →</button></a>
+      <a href="#how"><button class="btn-outline">See how it works</button></a>
     </div>
-    <div class="proof">
-      <span>✓ Free forever</span><span class="pdot"></span>
-      <span>No credit card</span><span class="pdot"></span>
-      <span>60-second setup</span><span class="pdot"></span>
-      <span>Built for India</span>
+    <div class="trust-row">
+      <span class="tr">Free forever</span>
+      <span class="tdot"></span>
+      <span class="tr">No credit card</span>
+      <span class="tdot"></span>
+      <span class="tr">60-second setup</span>
+      <span class="tdot"></span>
+      <span class="tr">Built for India</span>
     </div>
   </div>
   <div>
     <div class="mock">
       <div class="mh">
         <div class="ml">Job<i>Match</i> AI</div>
-        <div class="mb">Today's matches</div>
+        <div class="mb">TODAY'S MATCHES</div>
       </div>
-      <div class="mj">
-        <div class="mjt">Head of Partnerships – Fintech</div>
-        <div class="mjm">Brahma Finance · Bengaluru · <span style="color:var(--green);font-weight:600">₹30–45L</span></div>
-        <div class="mjr">Direct function match — NBFC alliances, partner commercials, distribution expansion. Domain and seniority align tightly.</div>
-        <div class="mjf">
-          <span style="font-size:11px;color:var(--green);font-weight:600;padding:3px 9px;background:rgba(34,197,94,0.1);border-radius:20px">Strong fit</span>
-          <div style="display:flex;align-items:center;gap:10px"><span class="mjs">91%</span><span class="mja">Apply →</span></div>
+      <div class="mj" style="border-left-color:#22C55E">
+        <div class="mj-title">Head of Partnerships – Fintech (NBFC/LSP)</div>
+        <div class="mj-meta">
+          Brahma Finance
+          <span style="width:3px;height:3px;background:rgba(255,255,255,0.2);border-radius:50%;display:inline-block"></span>
+          Bengaluru
+          <span style="width:3px;height:3px;background:rgba(255,255,255,0.2);border-radius:50%;display:inline-block"></span>
+          <span style="color:#22C55E;font-weight:600">₹30–45L</span>
+        </div>
+        <div class="mj-reason">Direct function match — NBFC alliances, partner commercials, distribution expansion. Domain and seniority align tightly.</div>
+        <div class="mj-foot">
+          <span class="fit-badge" style="background:rgba(34,197,94,0.12);color:#22C55E;border:1px solid rgba(34,197,94,0.25)">Strong fit</span>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span class="mj-score" style="color:#22C55E">91%</span>
+            <span class="mj-apply">Apply →</span>
+          </div>
         </div>
       </div>
-      <div class="mj2">
-        <div class="mjt">VP Partnerships – Growth Stage Fintech</div>
-        <div class="mjm">Velocity · Bengaluru · LinkedIn · <span style="color:#3B82F6">77%</span></div>
+      <div class="mj" style="border-left-color:#3B82F6;opacity:0.75">
+        <div class="mj-title">VP Partnerships – Growth Stage Fintech</div>
+        <div class="mj-meta">Velocity · Bengaluru · LinkedIn · <span style="color:#3B82F6;font-weight:600">77%</span></div>
       </div>
-      <div class="mj2" style="opacity:.4">
-        <div class="mjt">Senior Manager – Strategic Alliances</div>
-        <div class="mjm">Razorpay · Bengaluru · Naukri · <span style="color:#d97706">62%</span></div>
+      <div class="mj" style="border-left-color:#F59E0B;opacity:0.45">
+        <div class="mj-title">Senior Manager – Strategic Alliances</div>
+        <div class="mj-meta">Razorpay · Bengaluru · Naukri · <span style="color:#F59E0B;font-weight:600">62%</span></div>
       </div>
-      <div class="mm">+ 12 more in your inbox →</div>
+      <div class="more">+12 more in your inbox →</div>
     </div>
   </div>
 </div>
 
+<!-- STATS STRIP -->
 <div class="strip">
-  <div class="strip-inner">
+  <div class="strip-in">
     <div class="si"><span class="sn" id="su">59</span><span class="sl">Active users</span></div>
     <div class="si"><span class="sn">5</span><span class="sl">Job platforms</span></div>
-    <div class="si"><span class="sn">9 AM</span><span class="sl">IST daily</span></div>
+    <div class="si"><span class="sn">9 AM</span><span class="sl">IST daily delivery</span></div>
     <div class="si"><span class="sn">₹0</span><span class="sl">To apply, ever</span></div>
   </div>
 </div>
 
-<section class="sec" id="how"><div class="w" style="text-align:center">
-  <span class="slb">How it works</span>
-  <h2 class="st">Three steps. One minute.</h2>
-  <p class="ss" style="margin:0 auto">Then we work every morning while you sleep.</p>
+<!-- HOW IT WORKS -->
+<section class="sec" id="how">
+<div class="w">
+  <span class="sec-label">How it works</span>
+  <h2 class="sec-title">Three steps. One minute setup.</h2>
+  <p class="sec-sub">Then we do the work every single morning, automatically.</p>
   <div class="steps">
-    <div class="step"><div class="snum">01</div><div class="stit">Upload your resume</div><div class="sdesc">Claude reads your role, experience, skills, and domain in seconds. No manual form-filling.</div></div>
-    <div class="step"><div class="snum">02</div><div class="stit">We search 5 platforms</div><div class="sdesc">LinkedIn, Naukri, JSearch, Adzuna, iimjobs — every morning. Fresh roles only. Scored by AI function-matching.</div></div>
-    <div class="step"><div class="snum">03</div><div class="stit">Open one email</div><div class="sdesc">15 ranked matches with scores, fit reasoning, salary, and direct apply links. Nothing you've seen before.</div></div>
+    <div class="step">
+      <div class="step-n">01</div>
+      <div class="step-t">Upload your resume</div>
+      <div class="step-d">Claude reads your role, experience, skills, and domain in seconds. No manual form-filling. No guesswork.</div>
+    </div>
+    <div class="step">
+      <div class="step-n">02</div>
+      <div class="step-t">We search 5 platforms</div>
+      <div class="step-d">LinkedIn, Naukri, JSearch, Adzuna, iimjobs — every morning. Fresh roles only. Each scored against your exact profile by our AI function-matching engine.</div>
+    </div>
+    <div class="step">
+      <div class="step-n">03</div>
+      <div class="step-t">Open one email a day</div>
+      <div class="step-d">Up to 15 ranked matches with fit scores, reasoning, salary ranges, and direct apply links. Nothing repeated. Nothing irrelevant.</div>
+    </div>
   </div>
-</div></section>
+</div>
+</section>
 
-<section class="sec" id="pricing" style="background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)"><div class="w" style="text-align:center">
-  <span class="slb">Pricing</span>
-  <h2 class="st">Simple. Transparent.</h2>
-  <p class="ss" style="margin:0 auto">Free works forever. Pro covers our costs and unlocks daily delivery.</p>
+<!-- PRICING -->
+<section class="pricing-sec sec" id="pricing">
+<div class="w" style="text-align:center">
+  <span class="sec-label">Pricing</span>
+  <h2 class="sec-title">Simple. Transparent. Honest.</h2>
+  <p class="sec-sub" style="margin:0 auto">Free works forever. Pro covers our running costs and unlocks daily delivery. No hidden fees ever.</p>
   <div class="pg">
     <div class="pc">
-      <div class="pn">Free</div>
-      <div class="pp">₹0<span style="font-size:15px;color:var(--muted);font-family:'Manrope',sans-serif;font-weight:500">/forever</span></div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">No card. No commitment.</p>
-      <ul class="pf">
-        <li><span class="ck">✓</span>2 digests per week</li>
+      <div class="pname">Free</div>
+      <div class="pprice">₹0<small>/forever</small></div>
+      <div class="pline">No card. No commitment.</div>
+      <ul class="pfeats">
+        <li><span class="ck">✓</span>2 curated digests per week</li>
         <li><span class="ck">✓</span>Up to 5 matches per email</li>
-        <li><span class="ck">✓</span>Core AI matching</li>
+        <li><span class="ck">✓</span>Core AI matching engine</li>
         <li><span class="ck">✓</span>Unsubscribe anytime</li>
       </ul>
-      <a href="/signup" class="pbb">Start free →</a>
+      <a href="/signup" class="pbtn-o">Start free →</a>
     </div>
-    <div class="pc f">
-      <div class="pt">★ Founding rate · 100 spots only</div>
-      <div class="pn" style="color:var(--gold)">Pro</div>
-      <div class="pp" style="color:var(--gold)">₹49<span style="font-size:15px;color:var(--muted);font-family:'Manrope',sans-serif;font-weight:500">/month</span></div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">or ₹499/year · locked in for life</p>
-      <ul class="pf">
+    <div class="pc pro">
+      <div class="ptag">★ Founding rate — 100 spots</div>
+      <div class="pname" style="color:var(--gold)">Pro</div>
+      <div class="pprice" style="color:var(--gold)">₹49<small style="color:var(--muted)">/month</small></div>
+      <div class="pline">or ₹499/year · locked in for life</div>
+      <ul class="pfeats">
         <li><span class="ck">✓</span>Daily matches at 9am IST</li>
         <li><span class="ck">✓</span>Up to 15 matches per email</li>
         <li><span class="ck">✓</span>Full LinkedIn + Naukri search</li>
         <li><span class="ck">✓</span>Dashboard + apply history tracker</li>
-        <li><span class="ck">✓</span>Priority support</li>
+        <li><span class="ck">✓</span>Priority email support</li>
       </ul>
-      <a href="/signup" class="pba">Become a founding member →</a>
-      <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px">Regular ₹149/month after spots fill</p>
+      <a href="/signup" class="pbtn-g">Become a founding member →</a>
+      <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:12px">Regular price: ₹149/month after spots fill</p>
     </div>
   </div>
-  <div class="trust">
-    <div style="font-size:24px">🤝</div>
+  <div class="trust" style="text-align:left">
+    <div style="font-size:24px;flex-shrink:0">🤝</div>
     <div>
-      <div style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:5px">We never charge you to apply for jobs</div>
-      <div style="font-size:13px;color:var(--muted);line-height:1.7">JobMatch is a curation tool. Every job we surface is free to apply on the original platform. Our only revenue is the optional Pro subscription — and only if you find the product worth it.</div>
+      <div class="trust-t">We never charge you to apply for jobs</div>
+      <div class="trust-d">JobMatch is a curation tool. Every job we surface is free to apply on the original platform. Our only revenue is the optional Pro subscription — and only if you find it worth paying for.</div>
     </div>
   </div>
-</div></section>
+</div>
+</section>
 
-<section class="sec"><div class="w" style="text-align:center">
-  <span class="slb">FAQ</span>
-  <h2 class="st">Common questions</h2>
-  <div class="faq">
-    <div class="fi" onclick="tf(this)"><div class="fq">Do you charge employers or take placement fees?<span class="ar">+</span></div><div class="fa">No. Zero relationship with employers. We don't get paid when you get hired. Our only revenue is the optional Pro subscription.</div></div>
-    <div class="fi" onclick="tf(this)"><div class="fq">Where do the jobs come from?<span class="ar">+</span></div><div class="fa">LinkedIn, Naukri, iimjobs, JSearch (Google for Jobs), and Adzuna. All public listings. We save you the 2 hours of daily searching.</div></div>
-    <div class="fi" onclick="tf(this)"><div class="fq">Is my resume data safe?<span class="ar">+</span></div><div class="fa">Stored privately, used only to score relevance for you. Never sold or shared. Delete anytime — we wipe everything within 24 hours.</div></div>
-    <div class="fi" onclick="tf(this)"><div class="fq">How is this different from Naukri or LinkedIn?<span class="ar">+</span></div><div class="fa">Naukri shows every keyword-matching job. We score each role against your specific profile — function, seniority, domain, location — and send only what's actually relevant.</div></div>
-    <div class="fi" onclick="tf(this)"><div class="fq">Can I cancel Pro anytime?<span class="ar">+</span></div><div class="fa">Yes. Email hello@jobmatchai.co.in — processed within 12 hours. We use one-time payment links, not auto-renewal, so there are no surprise charges.</div></div>
+<!-- FAQ -->
+<section class="sec">
+<div class="w" style="text-align:center">
+  <span class="sec-label">FAQ</span>
+  <h2 class="sec-title">Common questions</h2>
+  <div class="faq" style="text-align:left">
+    ${[
+      ['Do you charge employers or take placement fees?','No. We have zero relationship with employers. We do not get paid when you get hired. Our only revenue is the optional Pro subscription from job seekers.'],
+      ['Where do the jobs come from?','LinkedIn, Naukri, iimjobs, JSearch (Google for Jobs), and Adzuna. All public listings. We save you the daily search — nothing more.'],
+      ['Is my resume safe?','Stored privately, used only to score job relevance for you. Never sold or shared. Delete anytime and we wipe everything within 24 hours.'],
+      ['How is this different from Naukri or LinkedIn?','Naukri shows every keyword-matching job. We score each role against your specific profile — function, seniority, domain, location — and surface only what is actually relevant. Fewer emails, better matches.'],
+      ['Can I cancel Pro anytime?','Yes. Email hello@jobmatchai.co.in — processed within 12 hours, no questions asked. We use one-time payment links, not auto-renewal, so no surprise charges ever.'],
+    ].map(([q,a])=>`<div class="fi" onclick="tf(this)"><div class="fq"><span>${q}</span><span class="ar">+</span></div><div class="fa">${a}</div></div>`).join('')}
   </div>
-</div></section>
+</div>
+</section>
 
-<footer><div class="w">
-  <div class="fi2">
-    <div class="fln">Job<i>Match</i> AI</div>
-    <div class="fll">
-      <a href="/terms" class="fla">Terms & Privacy</a>
-      <a href="mailto:hello@jobmatchai.co.in" class="fla">hello@jobmatchai.co.in</a>
+<footer>
+<div class="w">
+  <div class="ft">
+    <div class="fl">Job<i>Match</i> AI</div>
+    <div class="flinks">
+      <a href="/terms" class="fa2">Terms & Privacy</a>
+      <a href="mailto:hello@jobmatchai.co.in" class="fa2">hello@jobmatchai.co.in</a>
     </div>
   </div>
-  <p class="flg">Built with Claude · Made in India 🇮🇳 · ₹0 charged to apply, ever</p>
-</div></footer>
+  <p class="fcopy">Built with Claude · Made in India 🇮🇳 · ₹0 charged to apply, ever</p>
+</div>
+</footer>
 
 <script>
 fetch('/count').then(r=>r.json()).then(d=>{
   const n=d.count||59;
-  document.getElementById('lc').textContent=n.toLocaleString('en-IN');
-  document.getElementById('su').textContent=n.toLocaleString('en-IN');
+  ['lc','su'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=n.toLocaleString('en-IN');});
 }).catch(()=>{});
 function tf(el){const o=el.classList.contains('o');document.querySelectorAll('.fi').forEach(f=>f.classList.remove('o'));if(!o)el.classList.add('o');}
-// Animate counter
-const el=document.getElementById('lc'),t=parseInt(el.textContent)||59;let c=Math.max(t-12,1);
-const tmr=setInterval(()=>{c++;el.textContent=c.toLocaleString('en-IN');if(c>=t)clearInterval(tmr);},80);
+const lc=document.getElementById('lc');
+if(lc){let c=Math.max(parseInt(lc.textContent)-12,1),t=parseInt(lc.textContent);const tmr=setInterval(()=>{c++;lc.textContent=c.toLocaleString('en-IN');if(c>=t)clearInterval(tmr);},80);}
 </script>
 </body></html>`);
 });
