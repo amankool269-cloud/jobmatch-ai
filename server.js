@@ -816,7 +816,7 @@ For seniority: 0-2yr=junior, 3-6=mid, 7-12=senior, 13+=lead. Domain examples: Fi
                     'Current company': profile.currentCompany || '',
                     Experience: profile.experience || '3 years',
                     Seniority: profile.seniority || 'mid',
-                    Domain: profile.domain || '',
+                    Domain: req.body.domain || profile.domain || '',
                     Skills: profile.skills || '',
                     Education: profile.education || '',
                     Cities: cities || 'Bengaluru',
@@ -1021,7 +1021,42 @@ a{text-decoration:none;color:inherit}
         <div class="fd"><label>WhatsApp *</label><input name="phone" type="tel" required placeholder="+91 98765 43210"></div>
       </div>
       <div class="fd"><label>Email *</label><input name="email" type="email" required placeholder="priya@company.com"></div>
-      <div class="fd"><label>Cities you're open to *</label><input name="cities" required value="Bengaluru" placeholder="Bengaluru, Mumbai, Remote"></div>
+      <div class="fd"><label>Industry / Domain *</label>
+        <select name="domain" required style="width:100%;padding:12px 15px;background:var(--surface);border:1.5px solid var(--faint);border-radius:var(--r);font-size:14px;color:var(--ink);font-family:inherit;transition:all .2s;outline:none;cursor:pointer;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 14px center">
+          <option value="">Select your industry</option>
+          <option value="Fintech / NBFC / Digital Lending">Fintech / NBFC / Digital Lending</option>
+          <option value="SaaS / B2B Tech">SaaS / B2B Tech</option>
+          <option value="E-commerce / D2C">E-commerce / D2C</option>
+          <option value="Banking / BFSI">Banking / BFSI</option>
+          <option value="FMCG / Consumer Goods">FMCG / Consumer Goods</option>
+          <option value="EdTech">EdTech</option>
+          <option value="HealthTech / MedTech">HealthTech / MedTech</option>
+          <option value="Marketing / Growth">Marketing / Growth</option>
+          <option value="HR / Talent">HR / Talent</option>
+          <option value="Finance / Accounting">Finance / Accounting</option>
+          <option value="Operations / Supply Chain">Operations / Supply Chain</option>
+          <option value="Engineering / IT">Engineering / IT</option>
+          <option value="Data / Analytics / AI">Data / Analytics / AI</option>
+          <option value="Consulting / Strategy">Consulting / Strategy</option>
+          <option value="Real Estate / PropTech">Real Estate / PropTech</option>
+          <option value="General / Open to all">General / Open to all</option>
+        </select>
+      </div>
+      <div class="fd"><label>Preferred location *</label>
+        <select name="cities" required style="width:100%;padding:12px 15px;background:var(--surface);border:1.5px solid var(--faint);border-radius:var(--r);font-size:14px;color:var(--ink);font-family:inherit;transition:all .2s;outline:none;cursor:pointer;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 14px center">
+          <option value="Bengaluru">Bengaluru</option>
+          <option value="Mumbai">Mumbai</option>
+          <option value="Delhi NCR">Delhi NCR</option>
+          <option value="Hyderabad">Hyderabad</option>
+          <option value="Pune">Pune</option>
+          <option value="Chennai">Chennai</option>
+          <option value="Bengaluru, Mumbai">Bengaluru + Mumbai</option>
+          <option value="Bengaluru, Delhi NCR">Bengaluru + Delhi NCR</option>
+          <option value="Mumbai, Delhi NCR">Mumbai + Delhi NCR</option>
+          <option value="Remote">Remote only</option>
+          <option value="Bengaluru, Mumbai, Delhi NCR">Pan India (top metros)</option>
+        </select>
+      </div>
       <label class="upload-zone" for="resume" id="uzone">
         <input id="resume" name="resume" type="file" accept=".pdf" required>
         <span class="upload-icon">📄</span>
