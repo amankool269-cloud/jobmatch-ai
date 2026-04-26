@@ -350,7 +350,7 @@ app.get('/dashboard', async (req, res) => {
     const scoreLabel = s => s >= 85 ? 'Strong fit' : s >= 70 ? 'Good fit' : 'Possible fit';
 
     const matchCards = matches.map((m,i) => `
-<div class="card match-card" style="border-left:4px solid ${scoreColor(m.s)};animation-delay:${i*0.05}s" data-score="${m.s}" data-city="${(m.c||'').toLowerCase()}" data-src="${(m.src||'').toLowerCase()}">
+<div class="card match-card" style="border-left:4px solid ${scoreColor(m.s)};animation-delay:${i*0.05}s" data-score="${m.s}" data-city="${(m.c||'').toLowerCase()}" data-src="${(m.src||'').toLowerCase()}" data-industry="${(m.v||'').toLowerCase()}">
   <div style="display:flex;gap:14px;align-items:flex-start">
     <div style="flex:1;min-width:0">
       <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;line-height:1.3">${m.t}</div>
@@ -538,6 +538,18 @@ app.get('/dashboard', async (req, res) => {
 
     <!-- FILTER BAR -->
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;align-items:center">
+      <select id="f-industry" onchange="applyFilters()" style="flex:1;min-width:130px;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);font-family:inherit;cursor:pointer;outline:none">
+        <option value="">All industries</option>
+        <option value="fintech">Fintech / NBFC</option>
+        <option value="saas">SaaS / Tech</option>
+        <option value="ecommerce">E-commerce / D2C</option>
+        <option value="fmcg">FMCG / Consumer</option>
+        <option value="banking">Banking / BFSI</option>
+        <option value="edtech">EdTech</option>
+        <option value="healthtech">HealthTech</option>
+        <option value="startup">Startup</option>
+        <option value="mnc">MNC</option>
+      </select>
       <select id="f-city" onchange="applyFilters()" style="flex:1;min-width:130px;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);font-family:inherit;cursor:pointer;outline:none">
         <option value="">All cities</option>
         ${[...new Set(matches.map(m=>m.c?.split('·')[1]?.trim()).filter(Boolean))].map(c=>`<option value="${c}">${c}</option>`).join('')}
@@ -627,6 +639,7 @@ function switchTab(name, el) {
 // Filter logic for match cards
 function applyFilters() {
   const city = document.getElementById('f-city')?.value.toLowerCase() || '';
+  const industry = document.getElementById('f-industry')?.value.toLowerCase() || '';
   const minScore = parseInt(document.getElementById('f-score')?.value || '0');
   const src = document.getElementById('f-src')?.value.toLowerCase() || '';
   const cards = document.querySelectorAll('.match-card');
@@ -635,10 +648,12 @@ function applyFilters() {
     const cardCity = (card.dataset.city || '').toLowerCase();
     const cardScore = parseInt(card.dataset.score || '0');
     const cardSrc = (card.dataset.src || '').toLowerCase();
-    const cityOk = !city || cardCity.includes(city) || city.includes(cardCity);
+    const cardIndustry = (card.dataset.industry || '').toLowerCase();
+    const cityOk = !city || cardCity.includes(city) || city.includes(cardCity.split(',')[0].trim());
+    const industryOk = !industry || cardIndustry.includes(industry);
     const scoreOk = cardScore >= minScore;
     const srcOk = !src || cardSrc.includes(src);
-    const show = cityOk && scoreOk && srcOk;
+    const show = cityOk && industryOk && scoreOk && srcOk;
     card.style.display = show ? '' : 'none';
     if (show) visible++;
   });
@@ -647,7 +662,7 @@ function applyFilters() {
 }
 
 function clearFilters() {
-  ['f-city','f-score','f-src'].forEach(id => {
+  ['f-city','f-industry','f-score','f-src'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = el.tagName === 'SELECT' ? el.options[0].value : '';
   });
@@ -1005,7 +1020,7 @@ a{text-decoration:none;color:inherit}
         <div class="fd"><label>Full name *</label><input name="name" required maxlength="60" placeholder="Priya Sharma"></div>
         <div class="fd"><label>WhatsApp *</label><input name="phone" type="tel" required placeholder="+91 98765 43210"></div>
       </div>
-      <div class="fd"><label>Work email *</label><input name="email" type="email" required placeholder="priya@company.com"></div>
+      <div class="fd"><label>Email *</label><input name="email" type="email" required placeholder="priya@company.com"></div>
       <div class="fd"><label>Cities you're open to *</label><input name="cities" required value="Bengaluru" placeholder="Bengaluru, Mumbai, Remote"></div>
       <label class="upload-zone" for="resume" id="uzone">
         <input id="resume" name="resume" type="file" accept=".pdf" required>
