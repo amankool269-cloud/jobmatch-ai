@@ -920,86 +920,95 @@ app.get('/count', async (req, res) => {
 app.get('/signup', (req, res) => {
     res.send(`<!DOCTYPE html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sign up free · JobMatch AI</title>
+<title>Sign up — JobMatch AI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#FAFAF8;--surface:#FFFFFF;--ink:#0F0F0E;--ink2:#1A1A18;--muted:#6B7280;--faint:#E5E7EB;--faint2:#F9FAFB;--accent:#2563EB;--amber:#D97706;--amber-bg:#FFFBEB;--amber-border:#FDE68A;--green:#059669;--green-bg:#ECFDF5;--green-border:#A7F3D0;--r:10px}
+:root{--bg:#000;--bg1:#080808;--bg2:#0f0f0f;--bg3:#161616;--border:#ffffff0f;--border2:#ffffff18;--border3:#ffffff25;--text:#fafafa;--text2:#a1a1aa;--text3:#52525b;--gold:#f59e0b;--gold2:#fbbf24;--gold3:rgba(245,158,11,0.15);--gold4:rgba(245,158,11,0.08);--green:#10b981;--green2:rgba(16,185,129,0.12);--blue:#3b82f6;--r:8px;--r2:12px}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;-webkit-font-smoothing:antialiased}
-body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);display:flex;min-height:100vh}
+body{font-family:'Geist',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh}
 a{text-decoration:none;color:inherit}
 
-/* LEFT PANEL */
-.left{width:44%;background:var(--surface);border-right:1px solid var(--faint);padding:44px 48px;display:flex;flex-direction:column;position:relative}
-.left-logo{font-size:19px;font-weight:800;letter-spacing:-.03em;margin-bottom:52px;display:block;color:var(--ink)}.left-logo .dot{color:var(--amber)}
-.left-h{font-size:32px;font-weight:800;line-height:1.1;letter-spacing:-.04em;margin-bottom:12px;color:var(--ink)}
-.left-h em{font-style:italic;color:var(--accent)}
-.left-sub{font-size:15px;color:var(--muted);line-height:1.72;margin-bottom:36px;max-width:340px}
-.feats{display:flex;flex-direction:column;gap:20px;margin-bottom:auto}
-.feat{display:flex;gap:14px;align-items:flex-start}
-.feat-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;border:1px solid var(--faint)}
-.feat-t{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:3px;letter-spacing:-.01em}
-.feat-d{font-size:12.5px;color:var(--muted);line-height:1.55}
-.sample{background:var(--green-bg);border:1px solid var(--green-border);border-radius:14px;padding:16px;margin-top:36px}
-.sample-lbl{font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
-.sample-t{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:3px;letter-spacing:-.01em}
-.sample-m{font-size:11.5px;color:var(--muted);margin-bottom:9px}
+/* LEFT */
+.left{width:44%;background:var(--bg1);border-right:1px solid var(--border);padding:40px 48px;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.left::before{content:'';position:absolute;top:-150px;right:-100px;width:400px;height:400px;background:radial-gradient(circle,rgba(245,158,11,0.05) 0%,transparent 65%);pointer-events:none}
+.left-logo{font-size:15px;font-weight:700;letter-spacing:-.03em;margin-bottom:52px;display:flex;align-items:center;gap:8px;color:var(--text)}
+.logo-mark{width:22px;height:22px;background:var(--gold);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#000}
+.lt{font-size:30px;font-weight:800;line-height:1.1;letter-spacing:-.04em;margin-bottom:12px;color:var(--text)}
+.lt-grad{background:linear-gradient(135deg,var(--gold),var(--gold2),#fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.ls{font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:36px;max-width:320px}
+.feats{display:flex;flex-direction:column;gap:16px;margin-bottom:auto}
+.feat{display:flex;gap:12px;align-items:flex-start}
+.feat-icon{width:34px;height:34px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;border:1px solid var(--border2)}
+.feat-t{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;letter-spacing:-.01em}
+.feat-d{font-size:12px;color:var(--text3);line-height:1.5}
+.sample{background:var(--bg2);border:1px solid var(--border2);border-left:2px solid var(--green);border-radius:var(--r2);padding:14px;margin-top:32px}
+.sample-lbl{font-size:9.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;font-family:'Geist Mono',monospace}
+.sample-t{font-size:13px;font-weight:600;margin-bottom:3px;letter-spacing:-.01em;color:var(--text)}
+.sample-m{font-size:11px;color:var(--text3);margin-bottom:8px}
 .sample-f{display:flex;justify-content:space-between;align-items:center}
-.sample-badge{font-size:11px;font-weight:700;color:var(--green);background:rgba(5,150,105,0.08);border:1px solid var(--green-border);padding:3px 10px;border-radius:20px}
-.sample-score{font-size:22px;font-weight:800;color:var(--green);letter-spacing:-.04em}
+.sample-badge{font-size:10px;font-weight:600;color:var(--green);background:var(--green2);border:1px solid rgba(16,185,129,0.2);padding:2px 8px;border-radius:10px}
+.sample-score{font-size:20px;font-weight:800;color:var(--green);letter-spacing:-.04em}
 
-/* RIGHT PANEL */
-.right{flex:1;display:flex;align-items:center;justify-content:center;padding:48px 64px;background:var(--bg)}
-.form-box{width:100%;max-width:460px}
-.form-h{font-size:26px;font-weight:800;letter-spacing:-.04em;margin-bottom:6px;color:var(--ink)}
-.form-sub{font-size:14px;color:var(--muted);margin-bottom:30px}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.fd{margin-bottom:18px}
-.fd label{display:block;font-size:11.5px;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px}
-.fd input{width:100%;padding:12px 15px;background:var(--surface);border:1.5px solid var(--faint);border-radius:var(--r);font-size:14px;color:var(--ink);font-family:inherit;transition:all .2s;outline:none;-webkit-font-smoothing:antialiased}
-.fd input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,0.08)}
-.fd input::placeholder{color:#9CA3AF}
-.upload-zone{display:block;width:100%;border:1.5px dashed var(--faint);border-radius:14px;padding:26px 20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:18px;background:var(--faint2)}
-.upload-zone:hover,.upload-zone.active{border-color:var(--accent);background:#EFF6FF}
+/* RIGHT */
+.right{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 56px;background:var(--bg)}
+.form-box{width:100%;max-width:440px}
+.form-h{font-size:24px;font-weight:800;letter-spacing:-.04em;margin-bottom:5px;color:var(--text)}
+.form-sub{font-size:13.5px;color:var(--text3);margin-bottom:28px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fd{margin-bottom:16px}
+.fd label{display:block;font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px;font-family:'Geist Mono',monospace}
+.fd input,.fd select{width:100%;padding:10px 13px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);font-size:13.5px;color:var(--text);font-family:inherit;transition:all .18s;outline:none;-webkit-font-smoothing:antialiased}
+.fd input:focus,.fd select:focus{border-color:rgba(245,158,11,0.4);background:rgba(245,158,11,0.03);box-shadow:0 0 0 3px rgba(245,158,11,0.06)}
+.fd input::placeholder{color:var(--text3)}
+.fd select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2352525b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.fd select option{background:var(--bg2);color:var(--text)}
+.upload-zone{display:block;width:100%;border:1px dashed var(--border2);border-radius:var(--r2);padding:22px 16px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px;background:var(--bg1)}
+.upload-zone:hover,.upload-zone.active{border-color:rgba(245,158,11,0.35);background:rgba(245,158,11,0.03)}
 .upload-zone input{display:none}
-.upload-icon{font-size:26px;margin-bottom:7px;display:block}
-.upload-main{font-size:14px;font-weight:700;color:var(--accent);margin-bottom:3px}
-.upload-sub{font-size:12px;color:var(--muted)}
-.upload-name{font-size:12px;color:var(--green);font-weight:600;margin-top:6px;display:none}
-.sbtn{width:100%;padding:14px;background:var(--ink);color:#fff;border:none;border-radius:var(--r);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:-.01em;transition:all .2s}
-.sbtn:hover{background:var(--ink2);box-shadow:0 10px 24px rgba(0,0,0,0.15);transform:translateY(-1px)}
-.sbtn:disabled{opacity:.5;cursor:wait;transform:none;box-shadow:none}
-.fine-print{font-size:12px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.6}.fine-print a{color:var(--accent)}
-.err-box{background:#FEF2F2;border:1px solid #FECACA;color:#DC2626;padding:12px 15px;border-radius:var(--r);font-size:13px;margin-bottom:14px;display:none}
-.ok-box{background:var(--green-bg);border:1px solid var(--green-border);border-radius:16px;padding:36px 28px;text-align:center;display:none}
-.ok-icon{font-size:48px;margin-bottom:12px}
-.ok-t{font-size:22px;font-weight:800;letter-spacing:-.03em;margin-bottom:6px;color:var(--ink)}
-.ok-d{font-size:14px;color:var(--muted);line-height:1.65}
+.upload-icon{font-size:22px;margin-bottom:6px;display:block}
+.upload-main{font-size:13px;font-weight:600;color:var(--gold);margin-bottom:3px}
+.upload-sub{font-size:11.5px;color:var(--text3)}
+.upload-name{font-size:11.5px;color:var(--green);font-weight:600;margin-top:6px;display:none;font-family:'Geist Mono',monospace}
+.sbtn{width:100%;padding:12px;background:var(--gold);color:#000;border:none;border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:-.01em;transition:all .18s}
+.sbtn:hover{background:var(--gold2);box-shadow:0 0 24px rgba(245,158,11,0.25)}
+.sbtn:disabled{opacity:.4;cursor:wait;box-shadow:none}
+.fine{font-size:11.5px;color:var(--text3);text-align:center;margin-top:10px;line-height:1.6}
+.fine a{color:var(--gold)}
+.err-b{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.15);color:#fca5a5;padding:10px 13px;border-radius:var(--r);font-size:12.5px;margin-bottom:13px;display:none}
+.ok-b{background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.15);border-radius:var(--r2);padding:32px;text-align:center;display:none}
+.ok-t{font-size:20px;font-weight:800;letter-spacing:-.03em;margin-bottom:6px;color:var(--text)}
+.ok-d{font-size:13px;color:var(--text3);line-height:1.65}
 
-@media(max-width:900px){body{flex-direction:column}.left{width:100%;padding:28px 24px}.left-logo{margin-bottom:20px}.feats{display:none}.right{padding:28px 20px}.form-box{max-width:100%}.row2{grid-template-columns:1fr}}
+/* DIVIDER */
+.form-divider{display:flex;align-items:center;gap:10px;margin:4px 0 16px}
+.form-divider span{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;white-space:nowrap;font-family:'Geist Mono',monospace}
+.form-divider::before,.form-divider::after{content:'';flex:1;height:1px;background:var(--border2)}
+
+@media(max-width:860px){body{flex-direction:column}.left{width:100%;padding:28px 24px}.left::before{display:none}.feats{display:none}.right{padding:28px 20px}.form-box{max-width:100%}.row2{grid-template-columns:1fr}}
 </style></head>
 <body>
 <div class="left">
-  <a href="/" class="left-logo">JobMatch<span class="dot">.</span>AI</a>
-  <h1 class="left-h">Your next role,<br><em>every morning.</em></h1>
-  <p class="left-sub">Upload your resume once. We scan 5 job platforms daily and send you the matches that actually fit your profile, seniority, and domain.</p>
+  <a href="/" class="left-logo"><div class="logo-mark">J</div>JobMatch AI</a>
+  <h1 class="lt">Your next role,<br><span class="lt-grad">every morning.</span></h1>
+  <p class="ls">Upload your resume once. We scan 5 job platforms daily and send you the matches that actually fit your profile, seniority, and domain.</p>
   <div class="feats">
     <div class="feat">
-      <div class="feat-icon" style="background:#FEF3C7">🎯</div>
+      <div class="feat-icon" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.15)">🎯</div>
       <div><div class="feat-t">AI function matching</div><div class="feat-d">Role, seniority, domain, location — all scored against your exact profile</div></div>
     </div>
     <div class="feat">
-      <div class="feat-icon" style="background:#DBEAFE">⚡</div>
+      <div class="feat-icon" style="background:rgba(59,130,246,0.08);border-color:rgba(59,130,246,0.15)">⚡</div>
       <div><div class="feat-t">5 platforms, one email</div><div class="feat-d">LinkedIn, Naukri, JSearch, Adzuna, iimjobs — fresh, de-duplicated daily</div></div>
     </div>
     <div class="feat">
-      <div class="feat-icon" style="background:#D1FAE5">🔒</div>
-      <div><div class="feat-t">Zero noise, zero spam</div><div class="feat-d">Only fresh, relevant roles. Nothing repeated. Unsubscribe in one click.</div></div>
+      <div class="feat-icon" style="background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.15)">🔒</div>
+      <div><div class="feat-t">Zero noise, ever</div><div class="feat-d">Only fresh, relevant roles. Nothing repeated. Unsubscribe in one click.</div></div>
     </div>
   </div>
   <div class="sample">
-    <div class="sample-lbl">Sample match from yesterday</div>
+    <div class="sample-lbl">Sample match · yesterday</div>
     <div class="sample-t">Head of Partnerships – Fintech</div>
     <div class="sample-m">Brahma Finance · Bengaluru · Naukri · ₹30–45L</div>
     <div class="sample-f"><span class="sample-badge">Strong fit</span><span class="sample-score">91%</span></div>
@@ -1007,11 +1016,11 @@ a{text-decoration:none;color:inherit}
 </div>
 <div class="right">
   <div class="form-box">
-    <h2 class="form-h">Create your free account</h2>
-    <p class="form-sub">Takes 60 seconds. No credit card needed.</p>
-    <div id="err-box" class="err-box"></div>
-    <div id="ok-box" class="ok-box">
-      <div class="ok-icon">🎉</div>
+    <h2 class="form-h">Create your account</h2>
+    <p class="form-sub">Free forever · No credit card · 60 seconds</p>
+    <div id="err-b" class="err-b"></div>
+    <div id="ok-b" class="ok-b">
+      <div style="font-size:40px;margin-bottom:10px">🎉</div>
       <div class="ok-t">You're in!</div>
       <div class="ok-d">Check your inbox in the next few minutes.<br>Your first matches are on their way.</div>
     </div>
@@ -1021,8 +1030,9 @@ a{text-decoration:none;color:inherit}
         <div class="fd"><label>WhatsApp *</label><input name="phone" type="tel" required placeholder="+91 98765 43210"></div>
       </div>
       <div class="fd"><label>Email *</label><input name="email" type="email" required placeholder="priya@company.com"></div>
+      <div class="form-divider"><span>Job preferences</span></div>
       <div class="fd"><label>Industry / Domain *</label>
-        <select name="domain" required style="width:100%;padding:12px 15px;background:var(--surface);border:1.5px solid var(--faint);border-radius:var(--r);font-size:14px;color:var(--ink);font-family:inherit;transition:all .2s;outline:none;cursor:pointer;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 14px center">
+        <select name="domain" required>
           <option value="">Select your industry</option>
           <option value="Fintech / NBFC / Digital Lending">Fintech / NBFC / Digital Lending</option>
           <option value="SaaS / B2B Tech">SaaS / B2B Tech</option>
@@ -1038,12 +1048,11 @@ a{text-decoration:none;color:inherit}
           <option value="Engineering / IT">Engineering / IT</option>
           <option value="Data / Analytics / AI">Data / Analytics / AI</option>
           <option value="Consulting / Strategy">Consulting / Strategy</option>
-          <option value="Real Estate / PropTech">Real Estate / PropTech</option>
           <option value="General / Open to all">General / Open to all</option>
         </select>
       </div>
       <div class="fd"><label>Preferred location *</label>
-        <select name="cities" required style="width:100%;padding:12px 15px;background:var(--surface);border:1.5px solid var(--faint);border-radius:var(--r);font-size:14px;color:var(--ink);font-family:inherit;transition:all .2s;outline:none;cursor:pointer;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 14px center">
+        <select name="cities" required>
           <option value="Bengaluru">Bengaluru</option>
           <option value="Mumbai">Mumbai</option>
           <option value="Delhi NCR">Delhi NCR</option>
@@ -1060,12 +1069,12 @@ a{text-decoration:none;color:inherit}
       <label class="upload-zone" for="resume" id="uzone">
         <input id="resume" name="resume" type="file" accept=".pdf" required>
         <span class="upload-icon">📄</span>
-        <div class="upload-main">Click to upload your resume</div>
+        <div class="upload-main">Upload your resume</div>
         <div class="upload-sub">PDF only · Max 5MB · We never share it</div>
         <div class="upload-name" id="uname"></div>
       </label>
       <button type="submit" id="sbtn" class="sbtn">Get my first matches →</button>
-      <p class="fine-print">Free forever · No spam · <a href="/terms">Privacy policy</a></p>
+      <p class="fine">Free forever · No spam · <a href="/terms">Privacy policy</a></p>
     </form>
   </div>
 </div>
@@ -1076,7 +1085,7 @@ document.getElementById('resume').addEventListener('change',e=>{
 });
 document.getElementById('form').addEventListener('submit',async e=>{
   e.preventDefault();
-  const eb=document.getElementById('err-box'),ob=document.getElementById('ok-box'),btn=document.getElementById('sbtn');
+  const eb=document.getElementById('err-b'),ob=document.getElementById('ok-b'),btn=document.getElementById('sbtn');
   eb.style.display='none';btn.disabled=true;btn.textContent='Reading your resume...';
   try{
     const r=await fetch('/signup',{method:'POST',body:new FormData(e.target)});
@@ -1096,163 +1105,179 @@ app.get('/', (req, res) => {
 <title>JobMatch AI — Curated daily job matches for India</title>
 <meta name="description" content="AI-powered job matching across LinkedIn, Naukri, and 5 platforms. Free for India.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#FAFAF8;--surface:#FFFFFF;--card:#FFFFFF;
-  --ink:#0F0F0E;--ink2:#1A1A18;--muted:#6B7280;--faint:#E5E7EB;--faint2:#F3F4F6;
-  --amber:#D97706;--amber-bg:#FFFBEB;--amber-border:#FDE68A;
-  --green:#059669;--green-bg:#ECFDF5;--green-border:#A7F3D0;
-  --blue:#2563EB;--blue-bg:#EFF6FF;--blue-border:#BFDBFE;
-  --accent:#1D4ED8;--accent-light:#EFF6FF;
-  --r:10px;--r2:16px;--r3:24px;
-  --shadow-sm:0 1px 2px rgba(0,0,0,0.05);
-  --shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);
-  --shadow-md:0 10px 15px -3px rgba(0,0,0,0.08),0 4px 6px -4px rgba(0,0,0,0.05);
-  --shadow-lg:0 20px 25px -5px rgba(0,0,0,0.08),0 8px 10px -6px rgba(0,0,0,0.04);
-  --shadow-xl:0 25px 50px -12px rgba(0,0,0,0.15);
+  --bg:#000;--bg1:#080808;--bg2:#0f0f0f;--bg3:#161616;
+  --border:#ffffff0f;--border2:#ffffff18;--border3:#ffffff25;
+  --text:#fafafa;--text2:#a1a1aa;--text3:#52525b;
+  --gold:#f59e0b;--gold2:#fbbf24;--gold3:rgba(245,158,11,0.15);--gold4:rgba(245,158,11,0.08);
+  --green:#10b981;--green2:rgba(16,185,129,0.12);
+  --blue:#3b82f6;--blue2:rgba(59,130,246,0.12);
+  --r:8px;--r2:12px;--r3:16px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
-body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;overflow-x:hidden}
+html{scroll-behavior:smooth}
+body{font-family:'Geist',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;overflow-x:hidden}
 a{text-decoration:none;color:inherit}
-::selection{background:#FDE68A;color:var(--ink)}
+::selection{background:var(--gold3);color:var(--gold)}
+
+/* NOISE TEXTURE */
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:.4}
 
 /* NAV */
-nav{position:fixed;top:0;left:0;right:0;z-index:100;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 32px;background:rgba(250,250,248,0.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--faint)}
-.nav-logo{font-size:19px;font-weight:800;letter-spacing:-.03em;color:var(--ink);display:flex;align-items:center;gap:2px}
-.nav-logo .dot{color:var(--amber)}
-.nav-links{display:flex;align-items:center;gap:32px}
-.nav-link{font-size:14px;font-weight:500;color:var(--muted);transition:color .15s}.nav-link:hover{color:var(--ink)}
-.nav-cta{background:var(--ink);color:#fff;font-size:14px;font-weight:700;padding:10px 22px;border-radius:var(--r);letter-spacing:-.01em;transition:all .15s}.nav-cta:hover{background:var(--ink2);box-shadow:var(--shadow-md)}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--border);background:rgba(0,0,0,0.7);backdrop-filter:blur(20px) saturate(180%)}
+.logo{font-size:15px;font-weight:700;letter-spacing:-.03em;color:var(--text);display:flex;align-items:center;gap:8px}
+.logo-mark{width:22px;height:22px;background:var(--gold);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#000}
+.nav-center{display:flex;align-items:center;gap:6px}
+.nav-link{font-size:13px;font-weight:500;color:var(--text2);padding:5px 12px;border-radius:var(--r);transition:all .15s}
+.nav-link:hover{color:var(--text);background:var(--bg3)}
+.nav-cta{font-size:13px;font-weight:600;padding:6px 16px;border-radius:var(--r);background:var(--text);color:#000;transition:all .15s;letter-spacing:-.01em}
+.nav-cta:hover{background:var(--text2)}
 
 /* HERO */
-.hero{padding:108px 32px 72px;max-width:1180px;margin:0 auto;display:grid;grid-template-columns:54% 46%;gap:56px;align-items:center}
-.hero-badge{display:inline-flex;align-items:center;gap:8px;background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);padding:5px 14px 5px 10px;border-radius:40px;font-size:12px;font-weight:700;letter-spacing:.03em;margin-bottom:22px}
-.badge-live{width:7px;height:7px;border-radius:50%;background:var(--amber);animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(217,119,6,0.4)}70%{box-shadow:0 0 0 6px rgba(217,119,6,0)}}
-h1{font-size:56px;font-weight:800;line-height:1.07;letter-spacing:-.04em;margin-bottom:20px;color:var(--ink)}
-h1 span.hl{color:var(--accent)}
-.hero-sub{font-size:17px;color:var(--muted);line-height:1.75;max-width:450px;margin-bottom:34px;font-weight:400}
-.hero-ctas{display:flex;gap:12px;margin-bottom:36px;flex-wrap:wrap;align-items:center}
-.btn-primary{background:var(--ink);color:#fff;font-size:15px;font-weight:700;padding:14px 28px;border-radius:var(--r);letter-spacing:-.01em;transition:all .18s;display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer;font-family:inherit}.btn-primary:hover{background:var(--ink2);transform:translateY(-1px);box-shadow:var(--shadow-md)}
-.btn-secondary{background:var(--surface);color:var(--ink);font-size:15px;font-weight:600;padding:14px 22px;border-radius:var(--r);border:1.5px solid var(--faint);transition:all .18s;cursor:pointer;font-family:inherit}.btn-secondary:hover{border-color:#D1D5DB;box-shadow:var(--shadow-sm)}
-.trust-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.trust-item{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:5px;font-weight:500}
-.trust-item::before{content:'✓';color:var(--green);font-weight:700;font-size:11px}
-.trust-sep{width:3px;height:3px;border-radius:50%;background:var(--faint)}
+.hero{position:relative;padding:130px 24px 80px;max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 440px;gap:80px;align-items:center;z-index:1}
 
-/* EMAIL CARD MOCKUP */
-.mock-wrap{filter:drop-shadow(0 20px 40px rgba(0,0,0,0.1)) drop-shadow(0 4px 8px rgba(0,0,0,0.06))}
-.mock{background:var(--surface);border:1px solid var(--faint);border-radius:var(--r2);overflow:hidden}
-.mock-header{background:var(--faint2);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--faint)}
-.mock-logo{font-size:14px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}.mock-logo .dot{color:var(--amber)}
-.mock-badge{background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.04em}
-.mock-body{padding:14px}
-.jc{border-radius:var(--r);padding:14px 16px;margin-bottom:8px;border:1px solid;position:relative;overflow:hidden}
-.jc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
-.jc.g{background:var(--green-bg);border-color:var(--green-border)}.jc.g::before{background:var(--green)}
-.jc.b{background:var(--blue-bg);border-color:var(--blue-border);opacity:.8}.jc.b::before{background:var(--blue)}
-.jc.a{background:var(--amber-bg);border-color:var(--amber-border);opacity:.55}.jc.a::before{background:var(--amber)}
-.jc-t{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:4px;letter-spacing:-.01em}
-.jc-m{font-size:11px;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:5px}
+/* GRADIENT ORBS */
+.orb1{position:absolute;top:-100px;left:-200px;width:600px;height:600px;background:radial-gradient(circle,rgba(245,158,11,0.06) 0%,transparent 65%);pointer-events:none}
+.orb2{position:absolute;top:100px;right:-100px;width:400px;height:400px;background:radial-gradient(circle,rgba(59,130,246,0.05) 0%,transparent 65%);pointer-events:none}
+
+.badge{display:inline-flex;align-items:center;gap:6px;background:var(--gold4);border:1px solid rgba(245,158,11,0.2);color:var(--gold);padding:4px 12px 4px 8px;border-radius:20px;font-size:11.5px;font-weight:600;letter-spacing:.02em;margin-bottom:24px}
+.badge-dot{width:5px;height:5px;border-radius:50%;background:var(--gold);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(245,158,11,.5)}60%{opacity:.5;box-shadow:0 0 0 4px rgba(245,158,11,0)}}
+
+h1{font-size:52px;font-weight:800;line-height:1.06;letter-spacing:-.04em;margin-bottom:18px;color:var(--text)}
+.h1-grad{background:linear-gradient(135deg,var(--gold) 0%,var(--gold2) 50%,#fff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sub{font-size:16.5px;color:var(--text2);line-height:1.75;max-width:440px;margin-bottom:32px;font-weight:400}
+.ctas{display:flex;gap:10px;margin-bottom:32px;flex-wrap:wrap}
+.cta-p{display:inline-flex;align-items:center;gap:8px;background:var(--gold);color:#000;font-size:14px;font-weight:700;padding:11px 22px;border-radius:var(--r);letter-spacing:-.01em;transition:all .18s;border:none;cursor:pointer;font-family:inherit}
+.cta-p:hover{background:var(--gold2);box-shadow:0 0 30px rgba(245,158,11,0.25)}
+.cta-s{display:inline-flex;align-items:center;gap:8px;background:var(--bg3);color:var(--text);font-size:14px;font-weight:500;padding:11px 20px;border-radius:var(--r);border:1px solid var(--border2);transition:all .18s;cursor:pointer;font-family:inherit}
+.cta-s:hover{border-color:var(--border3);background:var(--bg2)}
+.proof{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.proof-i{font-size:12px;color:var(--text3);display:flex;align-items:center;gap:5px;font-weight:500}
+.proof-i::before{content:'✓';color:var(--green);font-weight:700;font-size:10px}
+.proof-sep{width:2px;height:2px;border-radius:50%;background:var(--bg3)}
+
+/* EMAIL PREVIEW CARD */
+.preview{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r3);overflow:hidden;box-shadow:0 0 0 1px var(--border),0 32px 64px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.06)}
+.prev-bar{background:var(--bg3);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.prev-dots{display:flex;gap:5px}.prev-dot{width:9px;height:9px;border-radius:50%}
+.prev-logo{font-size:12px;font-weight:700;letter-spacing:-.02em;color:var(--text2)}
+.prev-tag{font-size:9px;font-weight:700;background:var(--gold3);color:var(--gold);border:1px solid rgba(245,158,11,0.2);padding:2px 8px;border-radius:10px;letter-spacing:.04em}
+.prev-body{padding:12px}
+.jc{border-radius:var(--r2);padding:12px 14px;margin-bottom:8px;border:1px solid;position:relative}
+.jc::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:0 2px 2px 0}
+.jc-g{background:rgba(16,185,129,0.05);border-color:rgba(16,185,129,0.15)}.jc-g::before{background:var(--green)}
+.jc-b{background:rgba(59,130,246,0.04);border-color:rgba(59,130,246,0.12);opacity:.75}.jc-b::before{background:var(--blue)}
+.jc-a{background:rgba(245,158,11,0.04);border-color:rgba(245,158,11,0.12);opacity:.45}.jc-a::before{background:var(--gold)}
+.jc-t{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px;letter-spacing:-.01em}
+.jc-m{font-size:10.5px;color:var(--text3);margin-bottom:7px;display:flex;align-items:center;gap:4px}
 .jc-sal{color:var(--green);font-weight:600}
-.jc-r{font-size:10.5px;color:var(--muted);line-height:1.55;background:rgba(0,0,0,0.03);padding:8px 10px;border-radius:6px;margin-bottom:9px}
+.jc-r{font-size:10px;color:var(--text3);line-height:1.55;background:var(--bg3);padding:6px 8px;border-radius:6px;margin-bottom:8px;font-family:'Geist Mono',monospace}
 .jc-f{display:flex;align-items:center;justify-content:space-between}
-.fit{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px}
-.fit-s{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
-.sc{font-size:21px;font-weight:800;letter-spacing:-.03em}
-.sc-g{color:var(--green)}.sc-b{color:var(--blue)}.sc-a{color:var(--amber)}
-.apply-btn{background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:6px 14px;border-radius:7px}
-.mock-more{text-align:center;font-size:11px;color:var(--muted);padding:8px 0 2px;border-top:1px solid var(--faint);margin-top:2px}
+.fit{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px}
+.fit-g{background:var(--green2);color:var(--green);border:1px solid rgba(16,185,129,0.2)}
+.sc{font-size:18px;font-weight:800;letter-spacing:-.03em}
+.sc-g{color:var(--green)}.sc-b{color:var(--blue)}.sc-a{color:var(--gold)}
+.jc-btn{background:var(--blue);color:#fff;font-size:10px;font-weight:700;padding:4px 10px;border-radius:6px}
+.prev-more{text-align:center;font-size:10px;color:var(--text3);padding:7px 0;border-top:1px solid var(--border);font-family:'Geist Mono',monospace}
 
-/* STRIP */
-.strip{background:var(--surface);border-top:1px solid var(--faint);border-bottom:1px solid var(--faint)}
-.strip-in{max-width:1180px;margin:0 auto;padding:0 32px;display:grid;grid-template-columns:repeat(4,1fr)}
-.stat{padding:26px 0;text-align:center;border-right:1px solid var(--faint)}.stat:last-child{border:none}
-.stat-n{font-size:36px;font-weight:800;letter-spacing:-.04em;color:var(--ink);display:block;margin-bottom:4px;line-height:1}
-.stat-l{font-size:12.5px;color:var(--muted);font-weight:500}
+/* STATS STRIP */
+.strip{position:relative;z-index:1;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.strip-in{max-width:1100px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:repeat(4,1fr)}
+.stat{padding:24px 0;text-align:center;border-right:1px solid var(--border)}.stat:last-child{border:none}
+.stat-n{font-size:32px;font-weight:800;letter-spacing:-.05em;color:var(--text);display:block;margin-bottom:3px;font-variant-numeric:tabular-nums}
+.stat-l{font-size:11.5px;color:var(--text3);font-weight:500;letter-spacing:.01em}
 
 /* SECTIONS */
-.section{padding:88px 0}
-.section-in{max-width:1180px;margin:0 auto;padding:0 32px}
-.tag{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;padding:4px 12px;background:var(--accent-light);border-radius:20px}
-.sec-title{font-size:40px;font-weight:800;letter-spacing:-.04em;line-height:1.1;margin-bottom:14px;color:var(--ink)}
-.sec-sub{font-size:16px;color:var(--muted);line-height:1.7;max-width:520px}
+.sec{padding:80px 0;position:relative;z-index:1}
+.sec-in{max-width:1100px;margin:0 auto;padding:0 24px}
+.sec-kicker{font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.sec-kicker::before{content:'';display:block;width:16px;height:1px;background:var(--gold);opacity:.5}
+.sec-title{font-size:36px;font-weight:800;letter-spacing:-.04em;line-height:1.1;margin-bottom:12px;color:var(--text)}
+.sec-sub{font-size:15px;color:var(--text2);line-height:1.7;max-width:480px}
 
 /* HOW IT WORKS */
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:52px}
-.step{background:var(--surface);border:1px solid var(--faint);border-radius:var(--r2);padding:32px;box-shadow:var(--shadow-sm);transition:all .2s;position:relative;overflow:hidden}
-.step::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
-.step:nth-child(1)::before{background:linear-gradient(90deg,var(--amber),#F59E0B)}
-.step:nth-child(2)::before{background:linear-gradient(90deg,var(--accent),#3B82F6)}
-.step:nth-child(3)::before{background:linear-gradient(90deg,var(--green),#10B981)}
-.step:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
-.step-num{font-size:52px;font-weight:900;letter-spacing:-.06em;color:var(--faint2);line-height:1;margin-bottom:20px}
-.step-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px}
-.step-t{font-size:18px;font-weight:800;letter-spacing:-.02em;margin-bottom:9px;color:var(--ink)}
-.step-d{font-size:14px;color:var(--muted);line-height:1.7}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-top:48px;background:var(--border);border:1px solid var(--border);border-radius:var(--r3);overflow:hidden}
+.step{background:var(--bg1);padding:28px 24px;position:relative;transition:background .2s}
+.step:hover{background:var(--bg2)}
+.step-num{font-size:11px;font-weight:700;color:var(--text3);font-family:'Geist Mono',monospace;margin-bottom:20px;letter-spacing:.06em}
+.step-icon{width:36px;height:36px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:14px;border:1px solid var(--border2)}
+.step-t{font-size:15px;font-weight:700;margin-bottom:8px;letter-spacing:-.02em;color:var(--text)}
+.step-d{font-size:13px;color:var(--text2);line-height:1.65}
+.step-accent{position:absolute;top:0;left:0;right:0;height:1px}
 
 /* PRICING */
-.pricing-bg{background:linear-gradient(180deg,var(--faint2) 0%,var(--bg) 100%);border-top:1px solid var(--faint)}
-.plans{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:840px;margin:52px auto 0}
-.plan{background:var(--surface);border:1.5px solid var(--faint);border-radius:var(--r2);padding:36px;box-shadow:var(--shadow-sm);position:relative}
-.plan.pro{border-color:var(--accent);box-shadow:var(--shadow-md),0 0 0 4px rgba(37,99,235,0.06)}
-.plan-tag{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:11px;font-weight:800;padding:5px 18px;border-radius:20px;white-space:nowrap;letter-spacing:.03em}
-.plan-name{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
-.plan-price{font-size:50px;font-weight:900;letter-spacing:-.06em;line-height:1;margin-bottom:5px;color:var(--ink)}
-.plan-period{font-size:16px;font-weight:500;color:var(--muted);letter-spacing:0}
-.plan-desc{font-size:13px;color:var(--muted);margin-bottom:24px}
-.plan-feats{list-style:none;margin-bottom:28px}
-.plan-feats li{font-size:14px;color:var(--ink);padding:9px 0;border-bottom:1px solid var(--faint);display:flex;align-items:flex-start;gap:10px}.plan-feats li:last-child{border:none}
-.ck{color:var(--green);font-size:13px;flex-shrink:0;margin-top:1px;font-weight:700}
-.btn-plan-dark{display:block;text-align:center;background:var(--ink);color:#fff;font-size:14px;font-weight:700;padding:13px;border-radius:var(--r);transition:all .18s;letter-spacing:-.01em}.btn-plan-dark:hover{background:var(--ink2);box-shadow:var(--shadow-md)}
-.btn-plan-outline{display:block;text-align:center;background:transparent;color:var(--ink);font-size:14px;font-weight:600;padding:13px;border-radius:var(--r);border:1.5px solid var(--faint);transition:all .18s}.btn-plan-outline:hover{border-color:#D1D5DB;background:var(--faint2)}
-.trust-note{display:flex;align-items:flex-start;gap:14px;max-width:840px;margin:22px auto 0;padding:18px 22px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:var(--r2)}
-.trust-note-icon{font-size:20px;flex-shrink:0}
-.trust-note-t{font-size:14px;font-weight:600;color:var(--green);margin-bottom:3px}
-.trust-note-d{font-size:13px;color:var(--muted);line-height:1.6}
+.pricing-bg{background:var(--bg1);border-top:1px solid var(--border)}
+.plans{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:820px;margin:48px auto 0}
+.plan{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r3);padding:28px;position:relative;overflow:hidden}
+.plan::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--border3),transparent)}
+.plan-pro{border-color:rgba(245,158,11,0.2);background:linear-gradient(160deg,rgba(245,158,11,0.06) 0%,var(--bg2) 50%)}
+.plan-pro::before{background:linear-gradient(90deg,transparent,rgba(245,158,11,0.4),transparent)}
+.plan-tag{position:absolute;top:0;right:0;background:var(--gold);color:#000;font-size:10px;font-weight:800;padding:4px 14px 4px 10px;border-radius:0 var(--r3) 0 var(--r3);letter-spacing:.04em}
+.plan-name{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;font-family:'Geist Mono',monospace}
+.plan-price{font-size:44px;font-weight:900;letter-spacing:-.06em;line-height:1;margin-bottom:4px;color:var(--text)}
+.plan-price-pro{color:var(--gold)}
+.plan-per{font-size:14px;font-weight:400;color:var(--text2);letter-spacing:0}
+.plan-desc{font-size:12.5px;color:var(--text3);margin-bottom:22px}
+.plan-feats{list-style:none;margin-bottom:24px}
+.plan-feats li{font-size:13px;color:var(--text2);padding:7px 0;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:9px;letter-spacing:-.01em}
+.plan-feats li:last-child{border:none}
+.ck{color:var(--green);font-size:11px;flex-shrink:0;margin-top:2px}
+.btn-p{display:block;text-align:center;background:var(--gold);color:#000;font-size:13px;font-weight:700;padding:11px;border-radius:var(--r);transition:all .18s;letter-spacing:-.01em}
+.btn-p:hover{background:var(--gold2);box-shadow:0 0 20px rgba(245,158,11,0.2)}
+.btn-o{display:block;text-align:center;background:transparent;color:var(--text);font-size:13px;font-weight:600;padding:11px;border-radius:var(--r);border:1px solid var(--border2);transition:all .18s}
+.btn-o:hover{border-color:var(--border3);background:var(--bg3)}
+.trust{display:flex;align-items:flex-start;gap:14px;max-width:820px;margin:16px auto 0;padding:16px 20px;border:1px solid rgba(16,185,129,0.12);border-radius:var(--r2);background:rgba(16,185,129,0.04)}
+.trust-icon{font-size:18px;flex-shrink:0}
+.trust-t{font-size:13px;font-weight:600;color:var(--green);margin-bottom:3px}
+.trust-d{font-size:12px;color:var(--text3);line-height:1.6}
 
 /* FAQ */
-.faq-wrap{max-width:700px;margin:48px auto 0}
-.faq-item{border-bottom:1px solid var(--faint);cursor:pointer;user-select:none}
-.faq-q{padding:18px 0;font-size:15px;font-weight:600;color:var(--ink);display:flex;justify-content:space-between;align-items:center;gap:16px;transition:color .15s}.faq-q:hover{color:var(--accent)}
-.faq-ic{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--faint);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:18px;font-weight:300;flex-shrink:0;transition:all .2s}
-.faq-item.open .faq-ic{border-color:var(--accent);color:var(--accent);transform:rotate(45deg)}
-.faq-a{font-size:14px;color:var(--muted);line-height:1.75;max-height:0;overflow:hidden;transition:max-height .35s ease,padding .3s}
-.faq-item.open .faq-a{max-height:200px;padding-bottom:18px}
+.faq-wrap{max-width:640px;margin:48px auto 0}
+.fi{border-bottom:1px solid var(--border);cursor:pointer}
+.fq{padding:16px 0;font-size:14px;font-weight:500;color:var(--text);display:flex;justify-content:space-between;align-items:center;gap:12px;transition:color .15s;letter-spacing:-.01em}
+.fq:hover{color:var(--gold)}
+.fi-ic{width:20px;height:20px;border-radius:50%;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:14px;flex-shrink:0;transition:all .2s;font-weight:300}
+.fi.open .fi-ic{border-color:var(--gold);color:var(--gold);transform:rotate(45deg)}
+.fa{font-size:13px;color:var(--text3);line-height:1.75;max-height:0;overflow:hidden;transition:max-height .35s ease,padding .3s}
+.fi.open .fa{max-height:200px;padding-bottom:16px}
 
 /* FOOTER */
-footer{background:var(--ink);padding:52px 0 36px}
-.footer-in{max-width:1180px;margin:0 auto;padding:0 32px}
-.footer-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:40px;flex-wrap:wrap;gap:24px}
-.footer-brand .fl{font-size:18px;font-weight:800;letter-spacing:-.03em;color:#fff}.footer-brand .fl .dot{color:var(--amber)}
-.footer-tagline{font-size:13px;color:rgba(255,255,255,0.4);margin-top:6px}
-.footer-links-grid{display:flex;gap:48px;flex-wrap:wrap}
-.footer-col-title{font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
-.footer-link{display:block;font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:8px;transition:color .15s}.footer-link:hover{color:#fff}
-.footer-bottom{border-top:1px solid rgba(255,255,255,0.08);padding-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
-.footer-copy{font-size:12px;color:rgba(255,255,255,0.3)}
-.footer-india{font-size:12px;color:rgba(255,255,255,0.3)}
+footer{border-top:1px solid var(--border);padding:40px 0;position:relative;z-index:1}
+.ft-in{max-width:1100px;margin:0 auto;padding:0 24px}
+.ft-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;flex-wrap:wrap;gap:20px}
+.ft-logo{font-size:15px;font-weight:700;letter-spacing:-.03em;display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.ft-logo-mark{width:20px;height:20px;background:var(--gold);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:#000}
+.ft-tagline{font-size:12px;color:var(--text3)}
+.ft-links{display:flex;gap:40px}
+.ft-col-t{font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;font-family:'Geist Mono',monospace}
+.ft-link{display:block;font-size:13px;color:var(--text3);margin-bottom:7px;transition:color .15s;letter-spacing:-.01em}
+.ft-link:hover{color:var(--text)}
+.ft-bottom{border-top:1px solid var(--border);padding-top:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.ft-copy{font-size:11.5px;color:var(--text3);font-family:'Geist Mono',monospace}
 
 /* RESPONSIVE */
-@media(max-width:900px){
+@media(max-width:860px){
   .hero{grid-template-columns:1fr;gap:40px;padding-top:100px}
-  h1{font-size:38px}
-  .steps{grid-template-columns:1fr;gap:16px}
+  h1{font-size:36px}
+  .steps{grid-template-columns:1fr}
   .plans{grid-template-columns:1fr}
   .strip-in{grid-template-columns:repeat(2,1fr)}
-  .stat{border-right:none;border-bottom:1px solid var(--faint)}.stat:nth-child(2n){border-right:none}.stat:nth-last-child(-n+2){border-bottom:none}
-  .nav-links .nav-link{display:none}
-  .footer-top{flex-direction:column}
+  .stat{border-right:none;border-bottom:1px solid var(--border)}.stat:nth-child(2n){border-right:none}
+  .nav-center{display:none}
+  .ft-top{flex-direction:column}
 }
-@media(max-width:480px){h1{font-size:32px}.sec-title{font-size:30px}}
+@media(max-width:480px){h1{font-size:30px}.sec-title{font-size:28px}}
 </style></head>
 <body>
 
+<div class="orb1"></div><div class="orb2"></div>
+
 <nav>
-  <a href="/" class="nav-logo">JobMatch<span class="dot">.</span>AI</a>
-  <div class="nav-links">
+  <a href="/" class="logo"><div class="logo-mark">J</div>JobMatch AI</a>
+  <div class="nav-center">
     <a href="#how" class="nav-link">How it works</a>
     <a href="#pricing" class="nav-link">Pricing</a>
     <a href="mailto:hello@jobmatchai.co.in" class="nav-link">Contact</a>
@@ -1260,183 +1285,182 @@ footer{background:var(--ink);padding:52px 0 36px}
   <a href="/signup" class="nav-cta">Get started →</a>
 </nav>
 
-<!-- HERO -->
 <section>
 <div class="hero">
   <div>
-    <div class="hero-badge"><span class="badge-live"></span><span id="lc">59</span> professionals matched today</div>
-    <h1>Stop searching.<br>Start <span class="hl">matching.</span></h1>
-    <p class="hero-sub">Upload your resume once. Every morning we scan LinkedIn, Naukri, and 3 more platforms — sending you the roles that actually fit. Scored by AI, ranked by relevance.</p>
-    <div class="hero-ctas">
-      <a href="/signup"><button class="btn-primary">Upload resume — it's free →</button></a>
-      <a href="#how"><button class="btn-secondary">How it works</button></a>
+    <div class="badge"><span class="badge-dot"></span><span id="lc">59</span> professionals matched today</div>
+    <h1>Stop searching.<br><span class="h1-grad">Start matching.</span></h1>
+    <p class="sub">Upload your resume once. Every morning we scan LinkedIn, Naukri, and 3 more platforms — sending only the roles that actually fit. Scored by AI, ranked by relevance.</p>
+    <div class="ctas">
+      <a href="/signup"><button class="cta-p">Upload resume — it's free →</button></a>
+      <a href="#how"><button class="cta-s">How it works</button></a>
     </div>
-    <div class="trust-row">
-      <span class="trust-item">Free forever</span><span class="trust-sep"></span>
-      <span class="trust-item">No credit card</span><span class="trust-sep"></span>
-      <span class="trust-item">60 seconds to set up</span><span class="trust-sep"></span>
-      <span class="trust-item">Built for India</span>
+    <div class="proof">
+      <span class="proof-i">Free forever</span><span class="proof-sep"></span>
+      <span class="proof-i">No credit card</span><span class="proof-sep"></span>
+      <span class="proof-i">60-second setup</span><span class="proof-sep"></span>
+      <span class="proof-i">Built for India</span>
     </div>
   </div>
-  <div class="mock-wrap">
-    <div class="mock">
-      <div class="mock-header">
-        <div class="mock-logo">JobMatch<span class="dot">.</span>AI</div>
-        <div class="mock-badge">TODAY'S MATCHES</div>
+  <div>
+    <div class="preview">
+      <div class="prev-bar">
+        <div class="prev-dots">
+          <div class="prev-dot" style="background:#ff5f57"></div>
+          <div class="prev-dot" style="background:#febc2e"></div>
+          <div class="prev-dot" style="background:#28c840"></div>
+        </div>
+        <div class="prev-logo">JobMatch AI</div>
+        <div class="prev-tag">TODAY'S MATCHES</div>
       </div>
-      <div class="mock-body">
-        <div class="jc g">
+      <div class="prev-body">
+        <div class="jc jc-g">
           <div class="jc-t">Head of Partnerships – Fintech (NBFC/LSP)</div>
-          <div class="jc-m"><span>Brahma Finance</span><span style="color:#D1D5DB">·</span><span>Bengaluru</span><span style="color:#D1D5DB">·</span><span class="jc-sal">₹30–45L</span></div>
-          <div class="jc-r">Direct function match — NBFC alliances, partner commercials, distribution expansion. Domain and seniority align tightly.</div>
+          <div class="jc-m"><span>Brahma Finance</span><span style="color:#333">·</span><span>Bengaluru</span><span style="color:#333">·</span><span class="jc-sal">₹30–45L</span></div>
+          <div class="jc-r">Direct match — NBFC alliances, partner commercials, distribution. Domain and seniority align.</div>
           <div class="jc-f">
-            <span class="fit fit-s">Strong fit</span>
-            <div style="display:flex;align-items:center;gap:10px"><span class="sc sc-g">91%</span><span class="apply-btn">Apply →</span></div>
+            <span class="fit fit-g">Strong fit</span>
+            <div style="display:flex;align-items:center;gap:8px"><span class="sc sc-g">91%</span><span class="jc-btn">Apply →</span></div>
           </div>
         </div>
-        <div class="jc b">
+        <div class="jc jc-b">
           <div class="jc-t">VP Partnerships – Growth Stage Fintech</div>
-          <div class="jc-m"><span>Velocity</span><span style="color:#D1D5DB">·</span><span>Bengaluru</span><span style="color:#D1D5DB">·</span><span class="sc sc-b" style="font-size:13px">77%</span></div>
+          <div class="jc-m"><span>Velocity</span><span style="color:#333">·</span><span>Bengaluru</span><span style="color:#333">·</span><span class="sc sc-b" style="font-size:12px">77%</span></div>
         </div>
-        <div class="jc a">
+        <div class="jc jc-a">
           <div class="jc-t">Senior Manager – Strategic Alliances</div>
-          <div class="jc-m"><span>Razorpay</span><span style="color:#D1D5DB">·</span><span>Bengaluru</span><span style="color:#D1D5DB">·</span><span class="sc sc-a" style="font-size:13px">62%</span></div>
+          <div class="jc-m"><span>Razorpay</span><span style="color:#333">·</span><span>Bengaluru</span><span style="color:#333">·</span><span class="sc sc-a" style="font-size:12px">62%</span></div>
         </div>
-        <div class="mock-more">+ 12 more in your inbox →</div>
+        <div class="prev-more">+ 12 more matches in your inbox →</div>
       </div>
     </div>
   </div>
 </div>
 </section>
 
-<!-- STATS STRIP -->
 <div class="strip">
   <div class="strip-in">
     <div class="stat"><span class="stat-n" id="su">59</span><span class="stat-l">Active users</span></div>
-    <div class="stat"><span class="stat-n">5</span><span class="stat-l">Job platforms searched</span></div>
+    <div class="stat"><span class="stat-n">5</span><span class="stat-l">Job platforms</span></div>
     <div class="stat"><span class="stat-n">9 AM</span><span class="stat-l">IST daily delivery</span></div>
     <div class="stat"><span class="stat-n">₹0</span><span class="stat-l">To apply, ever</span></div>
   </div>
 </div>
 
-<!-- HOW IT WORKS -->
-<section class="section" id="how">
-<div class="section-in">
-  <div class="tag">How it works</div>
-  <h2 class="sec-title">Three steps.<br>One minute setup.</h2>
-  <p class="sec-sub">Then we work every morning automatically — while you focus on preparing for the role you want.</p>
+<section class="sec" id="how">
+<div class="sec-in">
+  <div class="sec-kicker">How it works</div>
+  <h2 class="sec-title">Three steps.<br>One minute.</h2>
+  <p class="sec-sub">Then we work every morning automatically — while you sleep.</p>
   <div class="steps">
     <div class="step">
-      <div class="step-num">01</div>
-      <div class="step-icon" style="background:#FEF3C7">📄</div>
+      <div class="step-accent" style="background:linear-gradient(90deg,var(--gold),transparent)"></div>
+      <div class="step-num">01 / UPLOAD</div>
+      <div class="step-icon" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.15)">📄</div>
       <div class="step-t">Upload your resume</div>
-      <div class="step-d">Claude reads your role, experience, skills, and domain in seconds. No forms. No manual input. Just drop your PDF.</div>
+      <div class="step-d">Claude reads your role, experience, skills, and domain in seconds. No manual forms. No guesswork.</div>
     </div>
     <div class="step">
-      <div class="step-num">02</div>
-      <div class="step-icon" style="background:#DBEAFE">🔍</div>
+      <div class="step-accent" style="background:linear-gradient(90deg,var(--blue),transparent)"></div>
+      <div class="step-num">02 / SEARCH</div>
+      <div class="step-icon" style="background:rgba(59,130,246,0.08);border-color:rgba(59,130,246,0.15)">🔍</div>
       <div class="step-t">We search 5 platforms</div>
-      <div class="step-d">LinkedIn, Naukri, JSearch, Adzuna, iimjobs — every morning. Fresh roles scored against your exact profile by our function-matching engine.</div>
+      <div class="step-d">LinkedIn, Naukri, JSearch, Adzuna, iimjobs — every morning. Each role scored against your exact profile.</div>
     </div>
     <div class="step">
-      <div class="step-num">03</div>
-      <div class="step-icon" style="background:#D1FAE5">📬</div>
+      <div class="step-accent" style="background:linear-gradient(90deg,var(--green),transparent)"></div>
+      <div class="step-num">03 / DELIVER</div>
+      <div class="step-icon" style="background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.15)">📬</div>
       <div class="step-t">Open one email</div>
-      <div class="step-d">Up to 15 ranked matches with fit scores, reasoning, salary ranges, and direct apply links. Nothing repeated. Nothing irrelevant.</div>
+      <div class="step-d">Up to 15 ranked matches with scores, reasoning, salary, and apply links. Nothing repeated. Nothing irrelevant.</div>
     </div>
   </div>
 </div>
 </section>
 
-<!-- PRICING -->
-<section class="section pricing-bg" id="pricing">
-<div class="section-in" style="text-align:center">
-  <div class="tag" style="margin:0 auto 12px">Pricing</div>
-  <h2 class="sec-title">Simple. Honest. No surprises.</h2>
+<section class="sec pricing-bg" id="pricing">
+<div class="sec-in" style="text-align:center">
+  <div class="sec-kicker" style="justify-content:center">Pricing</div>
+  <h2 class="sec-title">Simple. Honest.</h2>
   <p class="sec-sub" style="margin:0 auto">Free works forever. Pro covers our running costs and unlocks daily delivery.</p>
   <div class="plans">
     <div class="plan">
       <div class="plan-name">Free</div>
-      <div class="plan-price">₹0<span class="plan-period"> /forever</span></div>
-      <div class="plan-desc">No card. No commitment. Always free.</div>
+      <div class="plan-price">₹0<span class="plan-per"> /forever</span></div>
+      <div class="plan-desc">No card. No commitment.</div>
       <ul class="plan-feats">
         <li><span class="ck">✓</span>2 curated digests per week</li>
         <li><span class="ck">✓</span>Up to 5 matches per email</li>
         <li><span class="ck">✓</span>Core AI matching engine</li>
         <li><span class="ck">✓</span>Unsubscribe anytime</li>
       </ul>
-      <a href="/signup" class="btn-plan-outline">Start free →</a>
+      <a href="/signup" class="btn-o">Start free →</a>
     </div>
-    <div class="plan pro">
-      <div class="plan-tag">★ FOUNDING RATE — 100 SPOTS</div>
-      <div class="plan-name" style="color:var(--accent);margin-top:16px">Pro</div>
-      <div class="plan-price" style="color:var(--accent)">₹49<span class="plan-period" style="color:var(--muted)"> /month</span></div>
-      <div class="plan-desc">or ₹499/year · rate locked in for life</div>
+    <div class="plan plan-pro">
+      <div class="plan-tag">★ FOUNDING RATE</div>
+      <div class="plan-name" style="color:var(--gold)">Pro</div>
+      <div class="plan-price plan-price-pro">₹49<span class="plan-per" style="color:var(--text3)"> /month</span></div>
+      <div class="plan-desc">or ₹499/year · locked in for life</div>
       <ul class="plan-feats">
         <li><span class="ck">✓</span>Daily matches at 9am IST</li>
         <li><span class="ck">✓</span>Up to 15 matches per email</li>
         <li><span class="ck">✓</span>Full LinkedIn + Naukri search</li>
-        <li><span class="ck">✓</span>Dashboard + apply history tracker</li>
+        <li><span class="ck">✓</span>Dashboard + apply history</li>
         <li><span class="ck">✓</span>Priority email support</li>
       </ul>
-      <a href="/signup" class="btn-plan-dark">Become a founding member →</a>
-      <p style="font-size:11.5px;color:var(--muted);text-align:center;margin-top:10px">Regular price ₹149/month after spots fill</p>
+      <a href="/signup" class="btn-p">Become a founding member →</a>
+      <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:10px">₹149/month after spots fill</p>
     </div>
   </div>
-  <div class="trust-note" style="text-align:left">
-    <div class="trust-note-icon">🤝</div>
-    <div>
-      <div class="trust-note-t">We never charge you to apply for jobs</div>
-      <div class="trust-note-d">JobMatch is a curation tool. Every job we surface is free to apply on the original platform. Our only revenue is the optional Pro subscription — and only if you find it worth it.</div>
-    </div>
+  <div class="trust">
+    <div class="trust-icon">🤝</div>
+    <div><div class="trust-t">We never charge you to apply</div><div class="trust-d">Every job is free to apply on the original platform. Our only revenue is the optional Pro subscription.</div></div>
   </div>
 </div>
 </section>
 
-<!-- FAQ -->
-<section class="section">
-<div class="section-in" style="text-align:center">
-  <div class="tag" style="margin:0 auto 12px">FAQ</div>
+<section class="sec">
+<div class="sec-in" style="text-align:center">
+  <div class="sec-kicker" style="justify-content:center">FAQ</div>
   <h2 class="sec-title">Common questions</h2>
   <div class="faq-wrap" style="text-align:left">
     ${[
-      ['Do you charge employers or take placement fees?','No. Zero relationship with employers. We do not get paid when you get hired. Our only revenue is the optional Pro subscription from job seekers who find the product valuable.'],
-      ['Where do the jobs come from?','LinkedIn, Naukri, iimjobs, JSearch (Google for Jobs), and Adzuna. All public listings. We save you the 2 hours of daily searching and apply our AI scoring layer on top.'],
-      ['Is my resume safe?','Stored privately, used only to score job relevance for you. Never sold, shared, or repurposed. Delete your account anytime — we wipe everything within 24 hours.'],
-      ['How is this different from Naukri or LinkedIn?','Those platforms show you every keyword-matching job. We score each role against your specific profile — function, seniority, domain, location — and send only what is genuinely relevant. Fewer emails, much better matches.'],
-      ['Can I cancel Pro anytime?','Yes. Email hello@jobmatchai.co.in — processed within 12 hours, no questions asked. We use one-time payment links, not auto-renewal, so there are no surprise charges.'],
-    ].map(([q,a])=>`<div class="faq-item" onclick="tf(this)"><div class="faq-q"><span>${q}</span><span class="faq-ic">+</span></div><div class="faq-a">${a}</div></div>`).join('')}
+      ['Do you charge employers or take placement fees?','No. Zero relationship with employers. We do not get paid when you get hired. Our only revenue is the optional Pro subscription.'],
+      ['Where do the jobs come from?','LinkedIn, Naukri, iimjobs, JSearch (Google for Jobs), and Adzuna. All public listings. We save you the daily search.'],
+      ['Is my resume safe?','Stored privately, used only to score relevance for you. Never sold or shared. Delete anytime.'],
+      ['How is this different from Naukri or LinkedIn?','Those show every keyword match. We score against your specific profile — function, seniority, domain, location — and send only what is genuinely relevant.'],
+      ['Can I cancel Pro anytime?','Yes. Email hello@jobmatchai.co.in — processed within 12 hours. One-time payment links, not auto-renewal.'],
+    ].map(([q,a])=>`<div class="fi" onclick="tf(this)"><div class="fq"><span>${q}</span><span class="fi-ic">+</span></div><div class="fa">${a}</div></div>`).join('')}
   </div>
 </div>
 </section>
 
-<!-- FOOTER -->
 <footer>
-  <div class="footer-in">
-    <div class="footer-top">
-      <div class="footer-brand">
-        <div class="fl">JobMatch<span class="dot">.</span>AI</div>
-        <div class="footer-tagline">Curated daily job matches for India 🇮🇳</div>
-      </div>
-      <div class="footer-links-grid">
-        <div>
-          <div class="footer-col-title">Product</div>
-          <a href="#how" class="footer-link">How it works</a>
-          <a href="#pricing" class="footer-link">Pricing</a>
-          <a href="/signup" class="footer-link">Sign up free</a>
-        </div>
-        <div>
-          <div class="footer-col-title">Company</div>
-          <a href="/terms" class="footer-link">Terms & Privacy</a>
-          <a href="mailto:hello@jobmatchai.co.in" class="footer-link">Contact us</a>
-        </div>
-      </div>
+<div class="ft-in">
+  <div class="ft-top">
+    <div>
+      <div class="ft-logo"><div class="ft-logo-mark">J</div>JobMatch AI</div>
+      <div class="ft-tagline">Curated daily job matches for India 🇮🇳</div>
     </div>
-    <div class="footer-bottom">
-      <div class="footer-copy">© 2026 JobMatch AI · Built with Claude</div>
-      <div class="footer-india">₹0 charged to apply for jobs, ever</div>
+    <div class="ft-links">
+      <div>
+        <div class="ft-col-t">Product</div>
+        <a href="#how" class="ft-link">How it works</a>
+        <a href="#pricing" class="ft-link">Pricing</a>
+        <a href="/signup" class="ft-link">Sign up free</a>
+      </div>
+      <div>
+        <div class="ft-col-t">Company</div>
+        <a href="/terms" class="ft-link">Terms & Privacy</a>
+        <a href="mailto:hello@jobmatchai.co.in" class="ft-link">Contact</a>
+      </div>
     </div>
   </div>
+  <div class="ft-bottom">
+    <div class="ft-copy">© 2026 JobMatch AI · Built with Claude</div>
+    <div class="ft-copy">₹0 charged to apply, ever</div>
+  </div>
+</div>
 </footer>
 
 <script>
@@ -1444,7 +1468,7 @@ fetch('/count').then(r=>r.json()).then(d=>{
   const n=d.count||59;
   ['lc','su'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=n.toLocaleString('en-IN');});
 }).catch(()=>{});
-function tf(el){const o=el.classList.contains('open');document.querySelectorAll('.faq-item').forEach(f=>f.classList.remove('open'));if(!o)el.classList.add('open');}
+function tf(el){const o=el.classList.contains('open');document.querySelectorAll('.fi').forEach(f=>f.classList.remove('open'));if(!o)el.classList.add('open');}
 const lc=document.getElementById('lc');
 if(lc){let c=Math.max(parseInt(lc.textContent)-10,1),t=parseInt(lc.textContent);const ti=setInterval(()=>{c++;lc.textContent=c.toLocaleString('en-IN');if(c>=t)clearInterval(ti);},80);}
 </script>
