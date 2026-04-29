@@ -922,74 +922,78 @@ app.get('/signup', (req, res) => {
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sign up — JobMatch AI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=Satoshi:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0d0d0f;--s1:#131316;--s2:#1a1a1f;--s3:#222228;--border:#ffffff12;--border2:#ffffff20;--t1:#f0f0f2;--t2:#9898a8;--t3:#505060;--p:#a78bfa;--p2:#7c3aed;--p3:rgba(167,139,250,0.15);--p4:rgba(167,139,250,0.08);--y:#fbbf24;--g:#34d399;--g2:rgba(52,211,153,0.12);--r:8px;--r2:12px;--r3:16px}
+:root{--bg:#F8F9FC;--white:#FFFFFF;--s:#F2F4F8;--s2:#E8EBF2;--border:#E2E6EF;--border2:#CDD2E0;--ink:#0D0F1A;--ink2:#1E2235;--ink3:#6B7280;--ink4:#9CA3AF;--v:#5B21B6;--v2:#7C3AED;--v3:#8B5CF6;--v4:rgba(91,33,182,0.08);--v5:rgba(91,33,182,0.15);--b:#1D4ED8;--b2:#3B82F6;--g:#059669;--g2:rgba(5,150,105,0.1);--r:10px;--r2:16px}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;-webkit-font-smoothing:antialiased}
-body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--t1);display:flex;min-height:100vh}
+body{font-family:'Satoshi',system-ui,sans-serif;background:var(--bg);color:var(--ink);display:flex;min-height:100vh}
 a{text-decoration:none;color:inherit}
-.syne{font-family:'Syne',sans-serif}
-.left{width:44%;background:var(--s1);border-right:1px solid var(--border);padding:40px 48px;display:flex;flex-direction:column;position:relative;overflow:hidden}
-.left::before{content:'';position:absolute;top:-200px;right:-100px;width:500px;height:500px;background:radial-gradient(circle,rgba(167,139,250,0.06) 0%,transparent 60%);pointer-events:none}
-.left-logo{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;letter-spacing:-.03em;margin-bottom:52px;display:flex;align-items:center;gap:8px}
-.lm{width:26px;height:26px;background:linear-gradient(135deg,var(--p),var(--p2));border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:900;color:#fff}
-.lt{font-family:'Syne',sans-serif;font-size:30px;font-weight:800;line-height:1.08;letter-spacing:-.04em;margin-bottom:12px}
-.lt-g{background:linear-gradient(100deg,var(--p),#e879f9,var(--y));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.ls{font-size:14px;color:var(--t2);line-height:1.7;margin-bottom:36px;max-width:320px}
-.feats{display:flex;flex-direction:column;gap:16px;margin-bottom:auto}
-.feat{display:flex;gap:12px;align-items:flex-start}
-.fi2{width:34px;height:34px;border-radius:var(--r);display:grid;place-items:center;font-size:15px;flex-shrink:0;border:1px solid var(--border2)}
-.ft{font-size:13px;font-weight:600;color:var(--t1);margin-bottom:2px;letter-spacing:-.01em}
-.fd2{font-size:12px;color:var(--t3);line-height:1.5}
-.sample{background:var(--s2);border:1px solid var(--border2);border-left:2px solid var(--g);border-radius:var(--r2);padding:14px;margin-top:32px}
-.sl{font-size:9.5px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;font-family:'Syne',sans-serif}
-.st{font-size:13px;font-weight:600;margin-bottom:3px;letter-spacing:-.01em}
-.sm{font-size:11px;color:var(--t3);margin-bottom:8px}
+.left{width:46%;background:var(--white);border-right:1px solid var(--border);padding:44px 52px;display:flex;flex-direction:column;position:relative;overflow:hidden;box-shadow:2px 0 20px rgba(13,15,26,0.04)}
+.left::before{content:'';position:absolute;top:-100px;right:-80px;width:400px;height:400px;background:radial-gradient(circle,rgba(91,33,182,0.05) 0%,transparent 65%);pointer-events:none}
+.left::after{content:'';position:absolute;bottom:-60px;left:-60px;width:300px;height:300px;background:radial-gradient(circle,rgba(29,78,216,0.04) 0%,transparent 65%);pointer-events:none}
+.l-logo{display:flex;align-items:center;gap:10px;margin-bottom:56px}
+.l-lm{width:32px;height:32px;background:linear-gradient(135deg,var(--v),var(--b));border-radius:9px;display:grid;place-items:center;box-shadow:0 4px 12px rgba(91,33,182,0.25)}
+.l-lm svg{width:15px;height:15px;fill:white}
+.l-brand{font-family:'Cabinet Grotesk',sans-serif;font-size:16px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+.l-h{font-family:'Cabinet Grotesk',sans-serif;font-size:32px;font-weight:900;line-height:1.1;letter-spacing:-.04em;margin-bottom:12px;color:var(--ink)}
+.l-h-g{background:linear-gradient(135deg,var(--v),var(--b2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.l-sub{font-size:15px;color:var(--ink3);line-height:1.72;margin-bottom:40px;max-width:340px}
+.feats{display:flex;flex-direction:column;gap:20px;margin-bottom:auto}
+.feat{display:flex;gap:14px;align-items:flex-start}
+.feat-icon{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:18px;flex-shrink:0;border:1px solid var(--border)}
+.feat-t{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:3px;letter-spacing:-.01em}
+.feat-d{font-size:13px;color:var(--ink3);line-height:1.55}
+.sample{background:linear-gradient(135deg,rgba(5,150,105,0.04),rgba(5,150,105,0.02));border:1px solid rgba(5,150,105,0.15);border-left:3px solid var(--g);border-radius:var(--r2);padding:16px;margin-top:36px}
+.sl{font-size:10.5px;font-weight:700;color:var(--ink4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.st{font-family:'Cabinet Grotesk',sans-serif;font-size:14px;font-weight:800;margin-bottom:3px;letter-spacing:-.01em;color:var(--ink)}
+.sm{font-size:12px;color:var(--ink3);margin-bottom:10px}
 .sf{display:flex;justify-content:space-between;align-items:center}
-.sbadge{font-size:10px;font-weight:600;color:var(--g);background:var(--g2);border:1px solid rgba(52,211,153,0.2);padding:2px 8px;border-radius:10px}
-.sscore{font-family:'Syne',sans-serif;font-size:20px;font-weight:900;color:var(--g)}
-.right{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 56px}
-.fbox{width:100%;max-width:440px}
-.fh{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;letter-spacing:-.04em;margin-bottom:5px}
-.fsub{font-size:13px;color:var(--t3);margin-bottom:28px}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.fd{margin-bottom:16px}
-.fd label{display:block;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:7px;font-family:'Syne',sans-serif}
-.fd input,.fd select{width:100%;padding:11px 13px;background:var(--s2);border:1px solid var(--border2);border-radius:var(--r);font-size:13.5px;color:var(--t1);font-family:inherit;transition:all .18s;outline:none}
-.fd input:focus,.fd select:focus{border-color:rgba(167,139,250,0.4);background:rgba(167,139,250,0.04);box-shadow:0 0 0 3px rgba(167,139,250,0.08)}
-.fd input::placeholder{color:var(--t3)}
-.fd select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23505060' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
-.fd select option{background:var(--s2)}
-.divider{display:flex;align-items:center;gap:10px;margin:4px 0 16px}
-.divider span{font-size:10px;font-weight:700;color:var(--p);text-transform:uppercase;letter-spacing:.1em;white-space:nowrap;font-family:'Syne',sans-serif}
-.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border2)}
-.uzone{display:block;width:100%;border:1px dashed var(--border2);border-radius:var(--r2);padding:22px 16px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px;background:var(--s1)}
-.uzone:hover,.uzone.active{border-color:rgba(167,139,250,0.35);background:rgba(167,139,250,0.04)}
+.sbadge{font-size:11px;font-weight:700;color:var(--g);background:var(--g2);border:1px solid rgba(5,150,105,0.2);padding:3px 10px;border-radius:10px}
+.sscore{font-family:'Cabinet Grotesk',sans-serif;font-size:22px;font-weight:900;color:var(--g);letter-spacing:-.04em}
+.right{flex:1;display:flex;align-items:center;justify-content:center;padding:48px 64px;background:var(--bg)}
+.fbox{width:100%;max-width:460px}
+.fh{font-family:'Cabinet Grotesk',sans-serif;font-size:28px;font-weight:900;letter-spacing:-.04em;margin-bottom:6px;color:var(--ink)}
+.fsub{font-size:14px;color:var(--ink3);margin-bottom:32px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fd{margin-bottom:18px}
+.fd label{display:block;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.fd input,.fd select{width:100%;padding:12px 15px;background:var(--white);border:1.5px solid var(--border);border-radius:var(--r);font-size:14px;color:var(--ink);font-family:inherit;transition:all .2s;outline:none;box-shadow:0 1px 3px rgba(13,15,26,0.04)}
+.fd input:focus,.fd select:focus{border-color:var(--v3);box-shadow:0 0 0 3px var(--v4),0 1px 3px rgba(13,15,26,0.04)}
+.fd input::placeholder{color:var(--ink4)}
+.fd select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239CA3AF' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+.divider{display:flex;align-items:center;gap:10px;margin:4px 0 18px}
+.divider span{font-size:11px;font-weight:700;color:var(--v);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.uzone{display:block;width:100%;border:1.5px dashed var(--border2);border-radius:var(--r2);padding:26px 20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:18px;background:var(--white);box-shadow:0 1px 3px rgba(13,15,26,0.04)}
+.uzone:hover,.uzone.active{border-color:var(--v3);background:var(--v4)}
 .uzone input{display:none}
-.uicon{font-size:22px;margin-bottom:6px;display:block}
-.umain{font-size:13px;font-weight:600;color:var(--p);margin-bottom:3px}
-.usub{font-size:11.5px;color:var(--t3)}
-.uname{font-size:11.5px;color:var(--g);font-weight:600;margin-top:6px;display:none}
-.sbtn{width:100%;padding:12px;background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:-.01em;transition:all .2s}
-.sbtn:hover{box-shadow:0 8px 28px rgba(124,58,237,0.35);transform:translateY(-1px)}
-.sbtn:disabled{opacity:.4;cursor:wait;transform:none;box-shadow:none}
-.fine{font-size:11.5px;color:var(--t3);text-align:center;margin-top:10px;line-height:1.6}.fine a{color:var(--p)}
-.ebox{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.15);color:#fca5a5;padding:10px 13px;border-radius:var(--r);font-size:12.5px;margin-bottom:13px;display:none}
-.obox{background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:var(--r3);padding:32px;text-align:center;display:none}
-.ot{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:-.03em;margin-bottom:6px}
-.od{font-size:13px;color:var(--t3);line-height:1.65}
-@media(max-width:860px){body{flex-direction:column}.left{width:100%;padding:28px 24px}.feats{display:none}.right{padding:28px 20px}.fbox{max-width:100%}.row2{grid-template-columns:1fr}}
+.uicon{font-size:24px;margin-bottom:8px;display:block}
+.umain{font-size:14px;font-weight:700;color:var(--v);margin-bottom:3px}
+.usub{font-size:12px;color:var(--ink4)}
+.uname{font-size:12px;color:var(--g);font-weight:700;margin-top:7px;display:none}
+.sbtn{width:100%;padding:14px;background:linear-gradient(135deg,var(--v),var(--b));color:#fff;border:none;border-radius:var(--r);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:-.01em;transition:all .2s;box-shadow:0 4px 16px rgba(91,33,182,0.25)}
+.sbtn:hover{box-shadow:0 8px 28px rgba(91,33,182,0.35);transform:translateY(-1px)}
+.sbtn:disabled{opacity:.5;cursor:wait;transform:none;box-shadow:none}
+.fine{font-size:12px;color:var(--ink4);text-align:center;margin-top:12px;line-height:1.6}.fine a{color:var(--v);text-decoration:none}
+.ebox{background:#FEF2F2;border:1px solid #FECACA;color:#DC2626;padding:12px 15px;border-radius:var(--r);font-size:13px;margin-bottom:14px;display:none}
+.obox{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:var(--r2);padding:36px;text-align:center;display:none}
+.ot{font-family:'Cabinet Grotesk',sans-serif;font-size:22px;font-weight:900;letter-spacing:-.03em;margin-bottom:6px;color:var(--ink)}
+.od{font-size:14px;color:var(--ink3);line-height:1.65}
+@media(max-width:860px){body{flex-direction:column}.left{width:100%;padding:32px 24px}.feats{display:none}.right{padding:32px 24px}.fbox{max-width:100%}.row2{grid-template-columns:1fr}}
 </style></head>
 <body>
 <div class="left">
-  <a href="/" class="left-logo"><div class="lm">J</div>JobMatch AI</a>
-  <h1 class="lt">Your next role,<br><span class="lt-g">every morning.</span></h1>
-  <p class="ls">Upload your resume once. We scan 5 job platforms daily and send you the matches that actually fit — scored by AI, ranked by relevance.</p>
+  <a href="/" class="l-logo">
+    <div class="l-lm"><svg viewBox="0 0 16 16"><path d="M8 2L2 6v8h4v-4h4v4h4V6L8 2z"/></svg></div>
+    <span class="l-brand">JobMatch AI</span>
+  </a>
+  <h1 class="l-h">Your next role,<br><span class="l-h-g">every morning.</span></h1>
+  <p class="l-sub">Upload your resume once. We scan 5 job platforms daily and send you the matches that actually fit — AI-scored, ranked by relevance.</p>
   <div class="feats">
-    <div class="feat"><div class="fi2" style="background:rgba(167,139,250,0.08);border-color:rgba(167,139,250,0.15)">🎯</div><div><div class="ft">AI function matching</div><div class="fd2">Role, seniority, domain, location — all scored</div></div></div>
-    <div class="feat"><div class="fi2" style="background:rgba(251,191,36,0.08);border-color:rgba(251,191,36,0.15)">⚡</div><div><div class="ft">5 platforms, one email</div><div class="fd2">LinkedIn, Naukri, JSearch, Adzuna, iimjobs daily</div></div></div>
-    <div class="feat"><div class="fi2" style="background:rgba(52,211,153,0.08);border-color:rgba(52,211,153,0.15)">🔒</div><div><div class="ft">Zero noise, ever</div><div class="fd2">Fresh, relevant roles only. Nothing repeated.</div></div></div>
+    <div class="feat"><div class="feat-icon" style="background:#F5F3FF;border-color:#DDD6FE">🎯</div><div><div class="feat-t">AI function matching</div><div class="feat-d">Role, seniority, domain, location — all scored against your exact profile</div></div></div>
+    <div class="feat"><div class="feat-icon" style="background:#EFF6FF;border-color:#BFDBFE">⚡</div><div><div class="feat-t">5 platforms, one email</div><div class="feat-d">LinkedIn, Naukri, JSearch, Adzuna, iimjobs — fresh, de-duplicated daily</div></div></div>
+    <div class="feat"><div class="feat-icon" style="background:#F0FDF4;border-color:#BBF7D0">🔒</div><div><div class="feat-t">Zero noise, ever</div><div class="feat-d">Only fresh, relevant roles. Nothing repeated. Unsubscribe in one click.</div></div></div>
   </div>
   <div class="sample">
     <div class="sl">Sample match · yesterday</div>
@@ -1001,16 +1005,20 @@ a{text-decoration:none;color:inherit}
 <div class="right">
   <div class="fbox">
     <h2 class="fh">Create your account</h2>
-    <p class="fsub">Free forever · No credit card · 60 seconds</p>
+    <p class="fsub">Free forever · No credit card · 60 seconds to set up</p>
     <div id="ebox" class="ebox"></div>
-    <div id="obox" class="obox"><div style="font-size:40px;margin-bottom:10px">🎉</div><div class="ot">You're in!</div><div class="od">Check your inbox in the next few minutes.<br>Your first matches are on their way.</div></div>
+    <div id="obox" class="obox">
+      <div style="font-size:48px;margin-bottom:12px">🎉</div>
+      <div class="ot">You're in!</div>
+      <div class="od">Check your inbox shortly.<br>Your first matches are on their way.</div>
+    </div>
     <form id="form" enctype="multipart/form-data">
       <div class="row2">
         <div class="fd"><label>Full name *</label><input name="name" required maxlength="60" placeholder="Priya Sharma"></div>
         <div class="fd"><label>WhatsApp *</label><input name="phone" type="tel" required placeholder="+91 98765 43210"></div>
       </div>
       <div class="fd"><label>Email *</label><input name="email" type="email" required placeholder="priya@company.com"></div>
-      <div class="divider"><span>Job preferences ✦</span></div>
+      <div class="divider"><span>Job Preferences</span></div>
       <div class="fd"><label>Industry / Domain *</label>
         <select name="domain" required>
           <option value="">Select your industry</option>
@@ -1049,7 +1057,7 @@ a{text-decoration:none;color:inherit}
       <label class="uzone" for="resume" id="uzone">
         <input id="resume" name="resume" type="file" accept=".pdf" required>
         <span class="uicon">📄</span>
-        <div class="umain">Upload your resume</div>
+        <div class="umain">Click to upload your resume</div>
         <div class="usub">PDF only · Max 5MB · We never share it</div>
         <div class="uname" id="uname"></div>
       </label>
@@ -1082,312 +1090,642 @@ document.getElementById('form').addEventListener('submit',async e=>{
 app.get('/', (req, res) => {
     res.send(`<!DOCTYPE html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JobMatch AI — Your next role, delivered daily</title>
-<meta name="description" content="AI-powered job matching. Upload resume once, get ranked matches every morning. Free.">
+<title>JobMatch AI — Your morning job digest, AI-curated</title>
+<meta name="description" content="Upload your resume once. Get ranked job matches every morning across LinkedIn, Naukri, and 5 platforms. Free.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=Satoshi:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-:root{
-  --bg:#0d0d0f;
-  --s1:#131316;--s2:#1a1a1f;--s3:#222228;
-  --border:#ffffff12;--border2:#ffffff20;
-  --t1:#f0f0f2;--t2:#9898a8;--t3:#505060;
-  --p:#a78bfa;--p2:#7c3aed;--p3:rgba(167,139,250,0.15);--p4:rgba(167,139,250,0.08);
-  --y:#fbbf24;--y2:rgba(251,191,36,0.12);
-  --g:#34d399;--g2:rgba(52,211,153,0.12);
-  --r2:10px;--r3:16px;--r4:24px;
+:root {
+  --bg: #F8F9FC;
+  --white: #FFFFFF;
+  --surface: #F2F4F8;
+  --surface2: #E8EBF2;
+  --border: #E2E6EF;
+  --border2: #CDD2E0;
+  --ink: #0D0F1A;
+  --ink2: #1E2235;
+  --ink3: #6B7280;
+  --ink4: #9CA3AF;
+  --violet: #5B21B6;
+  --violet2: #7C3AED;
+  --violet3: #8B5CF6;
+  --violet4: rgba(91,33,182,0.08);
+  --violet5: rgba(91,33,182,0.15);
+  --blue: #1D4ED8;
+  --blue2: #3B82F6;
+  --blue3: rgba(29,78,216,0.08);
+  --green: #059669;
+  --green2: rgba(5,150,105,0.1);
+  --amber: #D97706;
+  --r: 10px;
+  --r2: 16px;
+  --r3: 24px;
+  --shadow-sm: 0 1px 3px rgba(13,15,26,0.06), 0 1px 2px rgba(13,15,26,0.04);
+  --shadow: 0 4px 12px rgba(13,15,26,0.08), 0 2px 4px rgba(13,15,26,0.04);
+  --shadow-md: 0 12px 32px rgba(13,15,26,0.10), 0 4px 8px rgba(13,15,26,0.06);
+  --shadow-lg: 0 24px 64px rgba(13,15,26,0.12), 0 8px 16px rgba(13,15,26,0.06);
+  --shadow-violet: 0 16px 48px rgba(91,33,182,0.18), 0 4px 12px rgba(91,33,182,0.10);
 }
-*{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--t1);-webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.5}
-a{text-decoration:none;color:inherit}
-.syne{font-family:'Syne',sans-serif}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+body { font-family: 'Satoshi', system-ui, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.6; overflow-x: hidden; }
+a { text-decoration: none; color: inherit; }
+img { display: block; }
 
-/* ── NAV ── */
-.nav{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:100;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(13,13,15,0.6);backdrop-filter:blur(24px) saturate(200%);border:1px solid var(--border2);border-radius:40px;width:min(820px,calc(100% - 32px));gap:16px}
-.logo{font-family:'Syne',sans-serif;font-size:14px;font-weight:800;letter-spacing:-.03em;display:flex;align-items:center;gap:8px}
-.lm{width:26px;height:26px;background:linear-gradient(135deg,var(--p),var(--p2));border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0}
-.nav-links{display:flex;align-items:center;gap:2px}
-.nl{font-size:13px;font-weight:500;color:var(--t2);padding:6px 12px;border-radius:20px;transition:all .15s}
-.nl:hover{color:var(--t1);background:var(--s3)}
-.ncta{background:var(--p);color:#fff;font-size:13px;font-weight:700;padding:8px 18px;border-radius:20px;transition:all .15s;letter-spacing:-.01em}
-.ncta:hover{background:var(--p2);box-shadow:0 0 24px rgba(167,139,250,0.35)}
+/* ── STICKY NAV ── */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(248,249,252,0.92);
+  backdrop-filter: blur(16px) saturate(180%);
+  border-bottom: 1px solid var(--border);
+  padding: 0 40px; height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.nav-logo { display: flex; align-items: center; gap: 10px; }
+.nav-logomark {
+  width: 32px; height: 32px;
+  background: linear-gradient(135deg, var(--violet) 0%, var(--blue) 100%);
+  border-radius: 9px;
+  display: grid; place-items: center;
+  box-shadow: 0 4px 12px rgba(91,33,182,0.3);
+}
+.nav-logomark svg { width: 16px; height: 16px; fill: white; }
+.nav-brand { font-family: 'Cabinet Grotesk', sans-serif; font-size: 17px; font-weight: 800; letter-spacing: -0.03em; color: var(--ink); }
+.nav-links { display: flex; align-items: center; gap: 4px; }
+.nav-link { font-size: 14px; font-weight: 500; color: var(--ink3); padding: 7px 14px; border-radius: 8px; transition: all 0.15s; }
+.nav-link:hover { color: var(--ink); background: var(--surface); }
+.nav-right { display: flex; align-items: center; gap: 10px; }
+.nav-btn-ghost { font-size: 14px; font-weight: 600; color: var(--ink2); padding: 8px 18px; border-radius: var(--r); border: 1.5px solid var(--border2); transition: all 0.15s; background: var(--white); }
+.nav-btn-ghost:hover { border-color: var(--violet3); color: var(--violet); }
+.nav-btn-primary {
+  font-size: 14px; font-weight: 700; color: white; padding: 9px 20px;
+  border-radius: var(--r);
+  background: linear-gradient(135deg, var(--violet) 0%, var(--blue) 100%);
+  box-shadow: 0 4px 14px rgba(91,33,182,0.3);
+  transition: all 0.18s; letter-spacing: -0.01em;
+  display: flex; align-items: center; gap: 6px;
+}
+.nav-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(91,33,182,0.35); }
 
 /* ── HERO ── */
-.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:100px 24px 60px;position:relative;overflow:hidden}
-.hero-glow{position:absolute;top:10%;left:50%;transform:translateX(-50%);width:800px;height:400px;background:radial-gradient(ellipse,rgba(124,58,237,0.12) 0%,rgba(167,139,250,0.04) 40%,transparent 70%);pointer-events:none}
-.hero-glow2{position:absolute;bottom:-100px;left:-100px;width:500px;height:500px;background:radial-gradient(circle,rgba(251,191,36,0.04) 0%,transparent 60%);pointer-events:none}
-.hero-inner{max-width:900px;width:100%;text-align:center;position:relative;z-index:1}
+.hero {
+  max-width: 1200px; margin: 0 auto;
+  padding: 72px 40px 80px;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 64px; align-items: center;
+  position: relative;
+}
+.hero-bg-grid {
+  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+  background-image: radial-gradient(circle at 20% 50%, rgba(91,33,182,0.04) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(29,78,216,0.04) 0%, transparent 40%);
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--violet4); border: 1px solid var(--violet5);
+  color: var(--violet); font-size: 12.5px; font-weight: 600;
+  padding: 5px 14px 5px 8px; border-radius: 20px;
+  margin-bottom: 22px; letter-spacing: 0.01em;
+}
+.badge-pulse {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--violet3);
+  animation: badgePulse 2s ease infinite;
+}
+@keyframes badgePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124,58,237,0.5); }
+  60% { box-shadow: 0 0 0 5px rgba(124,58,237,0); }
+}
+h1 {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: clamp(42px, 4.5vw, 58px);
+  font-weight: 900; line-height: 1.06;
+  letter-spacing: -0.04em; color: var(--ink);
+  margin-bottom: 20px;
+}
+.h1-accent {
+  background: linear-gradient(135deg, var(--violet) 0%, var(--blue2) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero-sub {
+  font-size: 17px; color: var(--ink3); line-height: 1.75;
+  max-width: 460px; margin-bottom: 36px; font-weight: 400;
+}
+.hero-ctas { display: flex; gap: 12px; margin-bottom: 36px; flex-wrap: wrap; align-items: center; }
+.cta-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: linear-gradient(135deg, var(--violet) 0%, var(--blue) 100%);
+  color: white; font-size: 15px; font-weight: 700;
+  padding: 13px 26px; border-radius: var(--r2);
+  box-shadow: var(--shadow-violet); transition: all 0.2s;
+  letter-spacing: -0.01em; border: none; cursor: pointer; font-family: inherit;
+}
+.cta-primary:hover { transform: translateY(-2px); box-shadow: 0 20px 56px rgba(91,33,182,0.22); }
+.cta-secondary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--white); color: var(--ink2);
+  font-size: 15px; font-weight: 600;
+  padding: 13px 22px; border-radius: var(--r2);
+  border: 1.5px solid var(--border2); transition: all 0.18s;
+  cursor: pointer; font-family: inherit; box-shadow: var(--shadow-sm);
+}
+.cta-secondary:hover { border-color: var(--violet3); color: var(--violet); box-shadow: var(--shadow); }
+.trust-items { display: flex; flex-wrap: wrap; gap: 6px; }
+.trust-item {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12.5px; font-weight: 500; color: var(--ink4);
+}
+.trust-item::before { content: '✓'; color: var(--green); font-weight: 700; font-size: 11px; }
+.trust-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--border2); }
 
-.chip{display:inline-flex;align-items:center;gap:6px;background:var(--p4);border:1px solid rgba(167,139,250,0.2);color:var(--p);padding:5px 14px 5px 8px;border-radius:20px;font-size:12px;font-weight:600;letter-spacing:.01em;margin-bottom:28px}
-.chip-dot{width:6px;height:6px;border-radius:50%;background:var(--p);animation:pulse 2s ease infinite}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(167,139,250,.5)}60%{box-shadow:0 0 0 5px rgba(167,139,250,0)}}
+/* ── 3D PHONE MOCKUP ── */
+.phone-scene {
+  display: flex; align-items: center; justify-content: center;
+  position: relative; padding: 40px;
+}
+.phone-glow {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 340px; height: 340px;
+  background: radial-gradient(circle, rgba(91,33,182,0.12) 0%, rgba(29,78,216,0.06) 40%, transparent 70%);
+  pointer-events: none; border-radius: 50%;
+}
+/* 3D isometric phone using CSS perspective */
+.phone-3d-wrap {
+  perspective: 1000px;
+  animation: phoneFloat 6s ease-in-out infinite;
+}
+@keyframes phoneFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+.phone-3d {
+  transform: rotateX(8deg) rotateY(-12deg) rotateZ(2deg);
+  transform-style: preserve-3d;
+  position: relative;
+}
+.phone-body {
+  width: 260px;
+  background: linear-gradient(160deg, #1C1C2E 0%, #0D0D1A 100%);
+  border-radius: 36px;
+  padding: 12px;
+  box-shadow:
+    0 40px 80px rgba(13,13,26,0.4),
+    0 20px 40px rgba(13,13,26,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.12),
+    inset 0 -1px 0 rgba(0,0,0,0.3),
+    6px 6px 0 rgba(0,0,0,0.15),
+    12px 12px 0 rgba(0,0,0,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  position: relative;
+}
+/* Phone side edge for 3D effect */
+.phone-body::after {
+  content: '';
+  position: absolute;
+  left: 100%; top: 36px; bottom: 36px;
+  width: 10px;
+  background: linear-gradient(90deg, rgba(0,0,0,0.4), rgba(0,0,0,0.2));
+  border-radius: 0 4px 4px 0;
+  transform: skewY(0deg);
+}
+.phone-notch {
+  width: 80px; height: 24px;
+  background: #0D0D1A;
+  border-radius: 0 0 16px 16px;
+  margin: 0 auto 8px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.notch-cam { width: 9px; height: 9px; border-radius: 50%; background: #1A1A2E; border: 1.5px solid #252535; }
+.notch-light { width: 5px; height: 5px; border-radius: 50%; background: #2A2A3E; }
+.phone-screen {
+  background: var(--white);
+  border-radius: 26px;
+  overflow: hidden;
+  min-height: 420px;
+}
+/* Email inside phone */
+.em-head {
+  background: linear-gradient(135deg, var(--violet) 0%, var(--blue) 100%);
+  padding: 14px 14px 10px;
+}
+.em-head-brand { font-family: 'Cabinet Grotesk', sans-serif; font-size: 13px; font-weight: 800; color: white; letter-spacing: -0.02em; margin-bottom: 3px; }
+.em-head-sub { font-size: 10px; color: rgba(255,255,255,0.7); font-weight: 500; }
+.em-body { padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.em-card {
+  background: white; border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 11px;
+  box-shadow: 0 2px 8px rgba(13,15,26,0.05);
+  position: relative; overflow: hidden;
+}
+.em-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.em-card-green::before { background: var(--green); }
+.em-card-blue::before { background: var(--blue2); }
+.em-card-amber::before { background: var(--amber); }
+.em-card-title { font-size: 10.5px; font-weight: 700; color: var(--ink); margin-bottom: 2px; letter-spacing: -0.01em; line-height: 1.3; }
+.em-card-meta { font-size: 9.5px; color: var(--ink3); margin-bottom: 7px; }
+.em-card-foot { display: flex; align-items: center; justify-content: space-between; }
+.em-score-tag {
+  display: flex; align-items: center; gap: 5px;
+}
+.em-badge {
+  font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
+  background: rgba(5,150,105,0.1); color: var(--green);
+  border: 1px solid rgba(5,150,105,0.2);
+}
+.em-score {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 18px; font-weight: 900; letter-spacing: -0.04em; color: var(--green);
+  filter: drop-shadow(0 0 6px rgba(5,150,105,0.3));
+}
+.em-apply {
+  background: var(--violet); color: white;
+  font-size: 9px; font-weight: 700; padding: 4px 10px; border-radius: 6px;
+}
+.em-footer { padding: 8px 10px; border-top: 1px solid var(--border); text-align: center; }
+.em-footer-t { font-size: 9.5px; color: var(--ink4); }
+/* Floating badge on phone */
+.float-badge {
+  position: absolute; top: -10px; right: -20px;
+  background: white; border: 1px solid var(--border);
+  border-radius: 12px; padding: 8px 12px;
+  box-shadow: var(--shadow-md);
+  display: flex; align-items: center; gap: 8px;
+  animation: floatBadge 4s ease-in-out infinite;
+  white-space: nowrap;
+}
+@keyframes floatBadge {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-8px) rotate(-2deg); }
+}
+.fb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(5,150,105,0.2); animation: badgePulse 2s ease infinite; }
+.fb-text { font-size: 11px; font-weight: 700; color: var(--ink); }
+.fb-score { font-size: 11px; font-weight: 700; color: var(--green); }
+/* Second floating element */
+.float-stat {
+  position: absolute; bottom: 0px; left: -30px;
+  background: white; border: 1px solid var(--border);
+  border-radius: 12px; padding: 9px 14px;
+  box-shadow: var(--shadow-md);
+  animation: floatStat 5s ease-in-out infinite;
+  animation-delay: 1s;
+}
+@keyframes floatStat {
+  0%, 100% { transform: translateY(0) rotate(1deg); }
+  50% { transform: translateY(-6px) rotate(1deg); }
+}
+.fs-n { font-family: 'Cabinet Grotesk', sans-serif; font-size: 20px; font-weight: 900; color: var(--violet); letter-spacing: -0.04em; line-height: 1; }
+.fs-l { font-size: 10px; color: var(--ink3); font-weight: 500; margin-top: 2px; }
 
-.h1{font-family:'Syne',sans-serif;font-size:clamp(44px,7vw,82px);font-weight:800;line-height:1.02;letter-spacing:-.04em;margin-bottom:22px}
-.h1-line1{display:block;color:var(--t1)}
-.h1-line2{display:block;background:linear-gradient(100deg,var(--p) 0%,#e879f9 40%,var(--y) 80%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.hero-sub{font-size:17px;color:var(--t2);line-height:1.72;max-width:520px;margin:0 auto 36px;font-weight:400}
+/* ── TRUST BANNER ── */
+.trust-banner {
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  background: var(--white);
+  padding: 20px 40px;
+}
+.trust-banner-in {
+  max-width: 1200px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 20px; flex-wrap: wrap;
+}
+.tb-label { font-size: 11.5px; font-weight: 600; color: var(--ink4); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+.tb-items { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tb-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; color: var(--ink3);
+  padding: 7px 16px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px;
+}
+.tb-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.tb-stat {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 13px; font-weight: 800;
+  color: var(--violet); letter-spacing: -0.02em;
+}
+.tb-divider { width: 1px; height: 24px; background: var(--border); }
 
-.hero-ctas{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:40px}
-.cta1{display:inline-flex;align-items:center;gap:8px;background:var(--p);color:#fff;font-size:15px;font-weight:700;padding:13px 26px;border-radius:var(--r3);letter-spacing:-.01em;transition:all .2s;border:none;cursor:pointer;font-family:inherit}
-.cta1:hover{background:var(--p2);box-shadow:0 8px 32px rgba(124,58,237,0.4);transform:translateY(-1px)}
-.cta2{display:inline-flex;align-items:center;gap:8px;background:var(--s2);color:var(--t1);font-size:15px;font-weight:500;padding:13px 22px;border-radius:var(--r3);border:1px solid var(--border2);transition:all .2s;cursor:pointer;font-family:inherit}
-.cta2:hover{border-color:var(--border2);background:var(--s3)}
+/* ── HOW IT WORKS ── */
+.section { padding: 88px 40px; max-width: 1200px; margin: 0 auto; }
+.sec-kicker {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 700; color: var(--violet);
+  text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 14px;
+}
+.sec-kicker::before { content: ''; display: block; width: 20px; height: 2px; background: var(--violet); border-radius: 1px; }
+.sec-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 38px; font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 14px; color: var(--ink); }
+.sec-sub { font-size: 16px; color: var(--ink3); line-height: 1.72; max-width: 500px; }
 
-.trust-pills{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
-.tp{font-size:12px;color:var(--t3);background:var(--s2);border:1px solid var(--border);padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:5px;font-weight:500}
-.tp::before{content:'✓';color:var(--g);font-weight:700;font-size:10px}
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 52px; }
+.step {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--r3); padding: 32px 28px;
+  box-shadow: var(--shadow-sm); position: relative; overflow: hidden;
+  transition: all 0.2s;
+}
+.step:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); border-color: var(--border2); }
+.step-accent { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.step-num {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; margin-bottom: 18px;
+  display: flex; align-items: center; gap: 8px;
+}
+.step-num-badge {
+  width: 24px; height: 24px; border-radius: 7px;
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 800; color: white;
+}
+.step-icon { font-size: 28px; margin-bottom: 16px; }
+.step-t { font-family: 'Cabinet Grotesk', sans-serif; font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 10px; color: var(--ink); }
+.step-d { font-size: 14px; color: var(--ink3); line-height: 1.68; }
 
-/* ── BENTO GRID ── */
-.bento{max-width:1000px;margin:0 auto;padding:20px 24px 80px;display:grid;grid-template-columns:repeat(12,1fr);grid-auto-rows:80px;gap:12px}
-.card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r4);padding:24px;position:relative;overflow:hidden;transition:border-color .2s}
-.card:hover{border-color:var(--border2)}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--border2),transparent)}
+/* ── PRICING ── */
+.pricing-section {
+  background: var(--white); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  padding: 88px 40px;
+}
+.pricing-in { max-width: 900px; margin: 0 auto; text-align: center; }
+.plans { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 820px; margin: 52px auto 0; text-align: left; }
+.plan {
+  background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: var(--r3); padding: 32px;
+  position: relative; overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.plan-pro {
+  background: var(--white);
+  border-color: var(--violet3);
+  box-shadow: var(--shadow-violet);
+}
+.plan-pro-shimmer {
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--violet), var(--blue));
+}
+.plan-tag {
+  position: absolute; top: 20px; right: 20px;
+  background: linear-gradient(135deg, var(--violet), var(--blue));
+  color: white; font-size: 10px; font-weight: 800;
+  padding: 4px 12px; border-radius: 20px; letter-spacing: 0.04em;
+}
+.plan-n { font-size: 11px; font-weight: 700; color: var(--ink4); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
+.plan-price { font-family: 'Cabinet Grotesk', sans-serif; font-size: 48px; font-weight: 900; letter-spacing: -0.06em; line-height: 1; margin-bottom: 4px; color: var(--ink); }
+.plan-price-pro { background: linear-gradient(135deg, var(--violet), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.plan-per { font-family: 'Satoshi', sans-serif; font-size: 15px; font-weight: 400; color: var(--ink3); -webkit-text-fill-color: var(--ink3); letter-spacing: 0; }
+.plan-desc { font-size: 13px; color: var(--ink4); margin-bottom: 24px; }
+.plan-feats { list-style: none; margin-bottom: 28px; }
+.plan-feats li { font-size: 14px; color: var(--ink2); padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; }
+.plan-feats li:last-child { border: none; }
+.ck { color: var(--green); font-size: 12px; flex-shrink: 0; margin-top: 1px; font-weight: 700; }
+.btn-pro {
+  display: block; text-align: center;
+  background: linear-gradient(135deg, var(--violet), var(--blue));
+  color: white; font-size: 14px; font-weight: 700;
+  padding: 13px; border-radius: var(--r2);
+  transition: all 0.2s; letter-spacing: -0.01em;
+  box-shadow: 0 4px 16px rgba(91,33,182,0.25);
+}
+.btn-pro:hover { box-shadow: 0 8px 28px rgba(91,33,182,0.35); transform: translateY(-1px); }
+.btn-free {
+  display: block; text-align: center;
+  background: transparent; color: var(--ink2);
+  font-size: 14px; font-weight: 600;
+  padding: 13px; border-radius: var(--r2);
+  border: 1.5px solid var(--border2); transition: all 0.18s;
+}
+.btn-free:hover { border-color: var(--violet3); color: var(--violet); background: var(--violet4); }
+.trust-note { display: flex; align-items: flex-start; gap: 14px; max-width: 820px; margin: 18px auto 0; padding: 16px 22px; background: rgba(5,150,105,0.05); border: 1px solid rgba(5,150,105,0.15); border-radius: var(--r2); text-align: left; }
+.tn-icon { font-size: 20px; flex-shrink: 0; }
+.tn-t { font-size: 13.5px; font-weight: 700; color: var(--green); margin-bottom: 3px; }
+.tn-d { font-size: 12.5px; color: var(--ink3); line-height: 1.6; }
 
-/* BENTO LAYOUT */
-.b1{grid-column:span 7;grid-row:span 4}   /* main email preview */
-.b2{grid-column:span 5;grid-row:span 2}   /* stat: matched today */
-.b3{grid-column:span 5;grid-row:span 2}   /* stat: platforms */
-.b4{grid-column:span 4;grid-row:span 3}   /* how it works */
-.b5{grid-column:span 4;grid-row:span 3}   /* score card */
-.b6{grid-column:span 4;grid-row:span 3}   /* trust */
-.b7{grid-column:span 12;grid-row:span 2}  /* platforms strip */
+/* ── FAQ ── */
+.faq-section { padding: 80px 40px; max-width: 720px; margin: 0 auto; text-align: center; }
+.faq-wrap { text-align: left; margin-top: 48px; }
+.fi { border-bottom: 1px solid var(--border); cursor: pointer; }
+.fq { padding: 18px 0; font-size: 15px; font-weight: 600; color: var(--ink); display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: color 0.15s; }
+.fq:hover { color: var(--violet); }
+.fi-ic { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--border2); display: grid; place-items: center; color: var(--ink3); font-size: 16px; flex-shrink: 0; transition: all 0.2s; font-weight: 300; }
+.fi.o .fi-ic { border-color: var(--violet); color: var(--violet); transform: rotate(45deg); background: var(--violet4); }
+.fa { font-size: 14px; color: var(--ink3); line-height: 1.75; max-height: 0; overflow: hidden; transition: max-height 0.35s ease, padding 0.3s; }
+.fi.o .fa { max-height: 220px; padding-bottom: 18px; }
 
-/* stat cards */
-.bstat-n{font-family:'Syne',sans-serif;font-size:52px;font-weight:800;letter-spacing:-.05em;line-height:1;margin-bottom:4px}
-.bstat-l{font-size:13px;color:var(--t3);font-weight:500}
-.bstat-sub{font-size:11px;color:var(--t3);margin-top:2px}
+/* ── FOOTER ── */
+footer { background: var(--ink); padding: 56px 40px 36px; }
+.ft-in { max-width: 1200px; margin: 0 auto; }
+.ft-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 44px; flex-wrap: wrap; gap: 24px; }
+.ft-brand .ft-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.ft-lm { width: 30px; height: 30px; background: linear-gradient(135deg, var(--violet), var(--blue)); border-radius: 8px; display: grid; place-items: center; }
+.ft-lm svg { width: 14px; height: 14px; fill: white; }
+.ft-brand-name { font-family: 'Cabinet Grotesk', sans-serif; font-size: 16px; font-weight: 800; color: white; letter-spacing: -0.02em; }
+.ft-tagline { font-size: 13px; color: rgba(255,255,255,0.35); }
+.ft-cols { display: flex; gap: 48px; flex-wrap: wrap; }
+.ft-col-t { font-size: 10.5px; font-weight: 700; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 14px; }
+.ft-link { display: block; font-size: 13.5px; color: rgba(255,255,255,0.55); margin-bottom: 10px; transition: color 0.15s; }
+.ft-link:hover { color: white; }
+.ft-bottom { border-top: 1px solid rgba(255,255,255,0.08); padding-top: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.ft-copy { font-size: 12.5px; color: rgba(255,255,255,0.25); }
 
-/* email preview in bento */
-.ep-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)}
-.ep-logo{font-family:'Syne',sans-serif;font-size:13px;font-weight:800}
-.ep-badge{font-size:9px;font-weight:700;background:var(--y2);color:var(--y);border:1px solid rgba(251,191,36,0.2);padding:3px 9px;border-radius:10px;letter-spacing:.04em}
-.jcard{border-radius:var(--r2);padding:11px 13px;margin-bottom:8px;border:1px solid;position:relative}
-.jcard::before{content:'';position:absolute;left:0;top:6px;bottom:6px;width:2px;border-radius:1px}
-.jg{background:rgba(52,211,153,0.05);border-color:rgba(52,211,153,0.15)}.jg::before{background:var(--g)}
-.jb{background:rgba(167,139,250,0.05);border-color:rgba(167,139,250,0.12);opacity:.7}.jb::before{background:var(--p)}
-.ja{background:rgba(251,191,36,0.04);border-color:rgba(251,191,36,0.1);opacity:.45}.ja::before{background:var(--y)}
-.jt{font-size:12px;font-weight:600;margin-bottom:3px;letter-spacing:-.01em}
-.jm{font-size:10.5px;color:var(--t3);margin-bottom:7px}
-.jr{font-size:10px;color:var(--t3);line-height:1.5;background:var(--s3);padding:6px 8px;border-radius:6px;margin-bottom:7px}
-.jf{display:flex;align-items:center;justify-content:space-between}
-.jfit{font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--g2);color:var(--g);border:1px solid rgba(52,211,153,0.2)}
-.jscore{font-family:'Syne',sans-serif;font-size:20px;font-weight:800}
-.japply{background:var(--p);color:#fff;font-size:9.5px;font-weight:700;padding:4px 10px;border-radius:6px}
-
-/* how it works bento */
-.bstep{display:flex;flex-direction:column;gap:16px;height:100%;justify-content:space-between}
-.bstep-item{display:flex;align-items:flex-start;gap:10px}
-.bstep-n{width:22px;height:22px;border-radius:6px;background:var(--s3);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--t3);flex-shrink:0;font-family:'Syne',sans-serif}
-.bstep-t{font-size:13px;font-weight:600;letter-spacing:-.01em;margin-bottom:2px}
-.bstep-d{font-size:11.5px;color:var(--t3);line-height:1.5}
-
-/* platforms strip */
-.plats{display:flex;align-items:center;justify-content:space-around;height:100%}
-.plat{display:flex;flex-direction:column;align-items:center;gap:6px}
-.plat-dot{width:8px;height:8px;border-radius:50%}
-.plat-n{font-size:12px;font-weight:600;color:var(--t2)}
-.plat-l{font-size:10px;color:var(--t3)}
-
-/* score showcase bento */
-.score-big{font-family:'Syne',sans-serif;font-size:72px;font-weight:900;letter-spacing:-.06em;line-height:1;background:linear-gradient(135deg,var(--g),#6ee7b7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.score-label{font-size:11px;color:var(--t3);font-weight:500;margin-top:4px;margin-bottom:12px}
-.score-bar{height:4px;background:var(--s3);border-radius:2px;overflow:hidden;margin-bottom:6px}
-.score-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--g),#6ee7b7)}
-
-/* PRICING */
-.pricing-sec{padding:0 24px 80px;max-width:1000px;margin:0 auto}
-.pricing-head{text-align:center;margin-bottom:40px}
-.sec-tag{display:inline-flex;align-items:center;gap:6px;background:var(--p4);border:1px solid rgba(167,139,250,0.15);color:var(--p);font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px}
-.sec-h{font-family:'Syne',sans-serif;font-size:36px;font-weight:800;letter-spacing:-.04em;line-height:1.1;margin-bottom:10px}
-.sec-sub{font-size:15px;color:var(--t2);line-height:1.7;max-width:440px;margin:0 auto}
-.plans{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:720px;margin:0 auto}
-.plan{background:var(--s1);border:1px solid var(--border2);border-radius:var(--r4);padding:28px;position:relative;overflow:hidden}
-.plan::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--border2),transparent)}
-.plan-pro{border-color:rgba(167,139,250,0.25);background:linear-gradient(160deg,rgba(167,139,250,0.07) 0%,var(--s1) 55%)}
-.plan-pro::before{background:linear-gradient(90deg,transparent,rgba(167,139,250,0.5),transparent)}
-.plan-tag{position:absolute;top:14px;right:14px;background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;font-size:9.5px;font-weight:800;padding:4px 12px;border-radius:20px;letter-spacing:.04em}
-.plan-n{font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
-.plan-price{font-family:'Syne',sans-serif;font-size:48px;font-weight:900;letter-spacing:-.06em;line-height:1;margin-bottom:4px}
-.plan-price-pro{background:linear-gradient(135deg,var(--p),#e879f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.plan-period{font-size:14px;font-weight:400;color:var(--t3);letter-spacing:0;-webkit-text-fill-color:var(--t3)}
-.plan-desc{font-size:12px;color:var(--t3);margin-bottom:20px}
-.plan-feats{list-style:none;margin-bottom:24px}
-.plan-feats li{font-size:13px;color:var(--t2);padding:7px 0;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:8px}
-.plan-feats li:last-child{border:none}
-.ck{color:var(--g);font-size:10px;flex-shrink:0;margin-top:3px}
-.btn-pro{display:block;text-align:center;background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;font-size:14px;font-weight:700;padding:12px;border-radius:var(--r2);transition:all .2s;letter-spacing:-.01em}
-.btn-pro:hover{box-shadow:0 8px 32px rgba(124,58,237,0.35);transform:translateY(-1px)}
-.btn-free{display:block;text-align:center;background:transparent;color:var(--t1);font-size:14px;font-weight:600;padding:12px;border-radius:var(--r2);border:1px solid var(--border2);transition:all .2s}
-.btn-free:hover{border-color:var(--border2);background:var(--s2)}
-.trust-note{display:flex;align-items:flex-start;gap:12px;max-width:720px;margin:14px auto 0;padding:14px 18px;border:1px solid rgba(52,211,153,0.12);border-radius:var(--r3);background:rgba(52,211,153,0.04)}
-
-/* FAQ */
-.faq-sec{padding:0 24px 80px;max-width:660px;margin:0 auto}
-.fi{border-bottom:1px solid var(--border);cursor:pointer}
-.fq{padding:16px 0;font-size:14px;font-weight:500;color:var(--t1);display:flex;justify-content:space-between;align-items:center;gap:12px;transition:color .15s}
-.fq:hover{color:var(--p)}
-.fq-ic{width:22px;height:22px;border-radius:50%;border:1px solid var(--border2);display:grid;place-items:center;color:var(--t3);font-size:16px;flex-shrink:0;transition:all .2s}
-.fi.o .fq-ic{border-color:var(--p);color:var(--p);transform:rotate(45deg)}
-.fa{font-size:13px;color:var(--t3);line-height:1.75;max-height:0;overflow:hidden;transition:max-height .35s ease,padding .3s}
-.fi.o .fa{max-height:200px;padding-bottom:16px}
-
-/* FOOTER */
-footer{border-top:1px solid var(--border);padding:36px 24px;max-width:1000px;margin:0 auto}
-.ft{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
-.ft-logo{font-family:'Syne',sans-serif;font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px}
-.ft-lm{width:22px;height:22px;background:linear-gradient(135deg,var(--p),var(--p2));border-radius:6px;display:grid;place-items:center;font-size:10px;font-weight:900;color:#fff}
-.ft-links{display:flex;gap:20px}
-.ft-l{font-size:13px;color:var(--t3);transition:color .15s}.ft-l:hover{color:var(--t1)}
-.ft-copy{font-size:12px;color:var(--t3);margin-top:16px;text-align:center}
-
-@media(max-width:860px){
-  .bento{grid-template-columns:1fr 1fr;grid-auto-rows:60px}
-  .b1{grid-column:span 2;grid-row:span 5}
-  .b2,.b3{grid-column:span 1;grid-row:span 2}
-  .b4,.b5,.b6{grid-column:span 2;grid-row:span 3}
-  .b7{grid-column:span 2;grid-row:span 2}
-  .plans{grid-template-columns:1fr}
-  .nav-links{display:none}
-  .ft{flex-direction:column;text-align:center}
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .hero { grid-template-columns: 1fr; gap: 48px; padding-top: 52px; }
+  .steps { grid-template-columns: 1fr; }
+  .plans { grid-template-columns: 1fr; }
+  .trust-banner-in { flex-direction: column; gap: 14px; }
+  nav { padding: 0 20px; }
+  .nav-links { display: none; }
+  .section, .pricing-section, .faq-section { padding-left: 20px; padding-right: 20px; }
+  footer { padding-left: 20px; padding-right: 20px; }
+  .ft-top { flex-direction: column; }
+}
+@media (max-width: 480px) {
+  h1 { font-size: 36px; }
+  .sec-title { font-size: 30px; }
+  .hero { padding-top: 40px; }
 }
 </style></head>
 <body>
 
+<!-- STICKY NAV -->
 <nav>
-  <a href="/" class="logo"><div class="lm">J</div>JobMatch AI</a>
+  <a href="/" class="nav-logo">
+    <div class="nav-logomark">
+      <svg viewBox="0 0 16 16"><path d="M8 2L2 6v8h4v-4h4v4h4V6L8 2z"/></svg>
+    </div>
+    <span class="nav-brand">JobMatch AI</span>
+  </a>
   <div class="nav-links">
-    <a href="#how" class="nl">How it works</a>
-    <a href="#pricing" class="nl">Pricing</a>
-    <a href="mailto:hello@jobmatchai.co.in" class="nl">Contact</a>
+    <a href="#how" class="nav-link">How it works</a>
+    <a href="#pricing" class="nav-link">Pricing</a>
+    <a href="mailto:hello@jobmatchai.co.in" class="nav-link">Contact</a>
   </div>
-  <a href="/signup" class="ncta">Get started →</a>
+  <div class="nav-right">
+    <a href="/signup" class="nav-btn-ghost">Sign in</a>
+    <a href="/signup" class="nav-btn-primary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Upload Resume
+    </a>
+  </div>
 </nav>
 
 <!-- HERO -->
+<section>
 <div class="hero">
-  <div class="hero-glow"></div><div class="hero-glow2"></div>
-  <div class="hero-inner">
-    <div class="chip"><span class="chip-dot"></span><span id="lc">59</span> matched today ✦</div>
-    <h1 class="h1">
-      <span class="h1-line1">Stop searching.</span>
-      <span class="h1-line2">Start matching.</span>
-    </h1>
-    <p class="hero-sub">Upload your resume once. Every morning we scan LinkedIn, Naukri, and 3 more platforms — sending you only the roles that actually fit. AI-scored. Ranked. Delivered.</p>
+  <div class="hero-bg-grid"></div>
+  <div>
+    <div class="hero-badge"><span class="badge-pulse"></span><span id="lc">59</span> professionals matched this morning</div>
+    <h1>Your next role,<br><span class="h1-accent">delivered daily.</span></h1>
+    <p class="hero-sub">Upload your resume once. Every morning we scan LinkedIn, Naukri, and 3 more platforms — sending you only the roles that genuinely fit. AI-scored. Zero noise.</p>
     <div class="hero-ctas">
-      <a href="/signup"><button class="cta1">Upload resume — it's free →</button></a>
-      <a href="#how"><button class="cta2">See how it works ↓</button></a>
+      <a href="/signup">
+        <button class="cta-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload Resume — Free
+        </button>
+      </a>
+      <a href="#how"><button class="cta-secondary">See how it works →</button></a>
     </div>
-    <div class="trust-pills">
-      <span class="tp">Free forever</span>
-      <span class="tp">No credit card</span>
-      <span class="tp">60-second setup</span>
-      <span class="tp">Built for India</span>
+    <div class="trust-items">
+      <span class="trust-item">Free forever</span>
+      <span class="trust-dot"></span>
+      <span class="trust-item">No credit card</span>
+      <span class="trust-dot"></span>
+      <span class="trust-item">60-second setup</span>
+      <span class="trust-dot"></span>
+      <span class="trust-item">Built for India</span>
+    </div>
+  </div>
+
+  <!-- 3D ISOMETRIC PHONE -->
+  <div class="phone-scene">
+    <div class="phone-glow"></div>
+    <div class="phone-3d-wrap">
+      <div class="phone-3d">
+        <div class="float-badge">
+          <div class="fb-dot"></div>
+          <span class="fb-text">Strong Fit</span>
+          <span class="fb-score">91%</span>
+        </div>
+        <div class="float-stat">
+          <div class="fs-n">15+</div>
+          <div class="fs-l">matches today</div>
+        </div>
+        <div class="phone-body">
+          <div class="phone-notch">
+            <div class="notch-cam"></div>
+            <div class="notch-light"></div>
+          </div>
+          <div class="phone-screen">
+            <div class="em-head">
+              <div class="em-head-brand">JobMatch AI</div>
+              <div class="em-head-sub">Your morning digest · 9:00 AM IST</div>
+            </div>
+            <div class="em-body">
+              <div class="em-card em-card-green">
+                <div class="em-card-title">Head of Partnerships – Fintech (NBFC/LSP)</div>
+                <div class="em-card-meta">Brahma Finance · Bengaluru · ₹30–45L · Naukri</div>
+                <div class="em-card-foot">
+                  <div class="em-score-tag">
+                    <span class="em-badge">Strong fit</span>
+                    <span class="em-score">91%</span>
+                  </div>
+                  <span class="em-apply">Apply →</span>
+                </div>
+              </div>
+              <div class="em-card em-card-blue" style="opacity:0.85">
+                <div class="em-card-title">VP Partnerships – Growth Stage Fintech</div>
+                <div class="em-card-meta">Velocity · Bengaluru · LinkedIn · <span style="color:#1D4ED8;font-weight:700">77%</span></div>
+              </div>
+              <div class="em-card em-card-amber" style="opacity:0.65">
+                <div class="em-card-title">Senior Manager – Strategic Alliances</div>
+                <div class="em-card-meta">Razorpay · Bengaluru · Naukri · <span style="color:#D97706;font-weight:700">62%</span></div>
+              </div>
+              <div class="em-footer">
+                <div class="em-footer-t">+ 12 more matches in your inbox →</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- TRUST BANNER -->
+<div class="trust-banner">
+  <div class="trust-banner-in">
+    <span class="tb-label">Searching across</span>
+    <div class="tb-items">
+      <div class="tb-item"><div class="tb-dot" style="background:#0077b5"></div>LinkedIn</div>
+      <div class="tb-item"><div class="tb-dot" style="background:#ff6b35"></div>Naukri</div>
+      <div class="tb-item"><div class="tb-dot" style="background:#4285f4"></div>JSearch</div>
+      <div class="tb-item"><div class="tb-dot" style="background:#e63946"></div>Adzuna</div>
+      <div class="tb-item"><div class="tb-dot" style="background:#6d28d9"></div>iimjobs</div>
+    </div>
+    <div class="tb-divider"></div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <div style="font-size:11.5px;color:var(--ink4);font-weight:600">Every morning at</div>
+      <span class="tb-stat">9 AM IST</span>
+    </div>
+    <div class="tb-divider"></div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span class="tb-stat" id="su">59</span>
+      <div style="font-size:11.5px;color:var(--ink4);font-weight:600">active users</div>
     </div>
   </div>
 </div>
 
-<!-- BENTO GRID -->
-<div class="bento" id="how">
-
-  <!-- Email preview — big card -->
-  <div class="card b1">
-    <div class="ep-bar">
-      <span class="syne" style="font-size:13px;font-weight:800">JobMatch AI</span>
-      <div class="ep-badge">TODAY'S MATCHES ✦</div>
+<!-- HOW IT WORKS -->
+<div class="section" id="how">
+  <div class="sec-kicker">How it works</div>
+  <h2 class="sec-title">Three steps.<br>One minute setup.</h2>
+  <p class="sec-sub">Then we do the work every single morning — automatically, while you sleep.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-accent" style="background:linear-gradient(90deg,var(--violet),transparent)"></div>
+      <div class="step-num" style="color:var(--violet)">
+        <div class="step-num-badge" style="background:var(--violet)">01</div>
+        Upload
+      </div>
+      <div class="step-icon">📄</div>
+      <div class="step-t">Upload your resume</div>
+      <div class="step-d">Claude reads your role, experience, skills, and domain in seconds. No manual forms. No guesswork. Just drop your PDF.</div>
     </div>
-    <div class="jcard jg">
-      <div class="jt">Head of Partnerships – Fintech (NBFC/LSP)</div>
-      <div class="jm">Brahma Finance · Bengaluru · <span style="color:var(--g);font-weight:600">₹30–45L</span></div>
-      <div class="jr">Direct function match — NBFC alliances, partner commercials, distribution. Seniority aligns.</div>
-      <div class="jf"><span class="jfit">Strong fit</span><div style="display:flex;align-items:center;gap:8px"><span class="jscore" style="color:var(--g)">91%</span><span class="japply">Apply →</span></div></div>
+    <div class="step">
+      <div class="step-accent" style="background:linear-gradient(90deg,var(--blue),transparent)"></div>
+      <div class="step-num" style="color:var(--blue)">
+        <div class="step-num-badge" style="background:var(--blue)">02</div>
+        Search
+      </div>
+      <div class="step-icon">🔍</div>
+      <div class="step-t">We search 5 platforms</div>
+      <div class="step-d">LinkedIn, Naukri, JSearch, Adzuna, iimjobs — every morning. Each role scored against your exact profile by our AI function-matching engine.</div>
     </div>
-    <div class="jcard jb">
-      <div class="jt">VP Partnerships – Growth Stage Fintech</div>
-      <div class="jm">Velocity · Bengaluru · LinkedIn · <span style="color:var(--p);font-weight:600">77%</span></div>
-    </div>
-    <div class="jcard ja">
-      <div class="jt">Senior Manager – Strategic Alliances</div>
-      <div class="jm">Razorpay · Bengaluru · Naukri · <span style="color:var(--y);font-weight:600">62%</span></div>
-    </div>
-    <div style="text-align:center;font-size:11px;color:var(--t3);padding-top:10px;border-top:1px solid var(--border);margin-top:4px">+ 12 more matches in your inbox every morning →</div>
-  </div>
-
-  <!-- Matched today -->
-  <div class="card b2" style="background:linear-gradient(135deg,rgba(167,139,250,0.08),var(--s1))">
-    <div class="bstat-l" style="margin-bottom:6px">matched today</div>
-    <div class="bstat-n" style="color:var(--p)" id="su">59</div>
-    <div class="bstat-sub">active professionals</div>
-  </div>
-
-  <!-- Platforms -->
-  <div class="card b3" style="background:linear-gradient(135deg,rgba(52,211,153,0.06),var(--s1))">
-    <div class="bstat-l" style="margin-bottom:6px">job platforms searched</div>
-    <div class="bstat-n" style="color:var(--g)">5×</div>
-    <div class="bstat-sub">every morning at 9am IST</div>
-  </div>
-
-  <!-- How it works -->
-  <div class="card b4">
-    <div style="font-size:11px;font-weight:700;color:var(--p);text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px">How it works</div>
-    <div class="bstep">
-      <div class="bstep-item"><div class="bstep-n">01</div><div><div class="bstep-t">Upload resume</div><div class="bstep-d">Claude reads your role, exp, skills in seconds</div></div></div>
-      <div class="bstep-item"><div class="bstep-n">02</div><div><div class="bstep-t">We search 5 platforms</div><div class="bstep-d">Fresh roles scored against your exact profile</div></div></div>
-      <div class="bstep-item"><div class="bstep-n">03</div><div><div class="bstep-t">Open one email</div><div class="bstep-d">15 ranked matches with scores + apply links</div></div></div>
+    <div class="step">
+      <div class="step-accent" style="background:linear-gradient(90deg,var(--green),transparent)"></div>
+      <div class="step-num" style="color:var(--green)">
+        <div class="step-num-badge" style="background:var(--green)">03</div>
+        Deliver
+      </div>
+      <div class="step-icon">📬</div>
+      <div class="step-t">Open one email</div>
+      <div class="step-d">Up to 15 ranked matches with fit scores, reasoning, salary ranges, and direct apply links. Nothing repeated. Nothing irrelevant.</div>
     </div>
   </div>
-
-  <!-- Score showcase -->
-  <div class="card b5" style="background:linear-gradient(160deg,rgba(52,211,153,0.06),var(--s1))">
-    <div style="font-size:11px;font-weight:700;color:var(--g);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Your matches, scored</div>
-    <div class="score-big">91%</div>
-    <div class="score-label">Head of Partnerships · Strong fit</div>
-    <div style="display:flex;flex-direction:column;gap:6px">
-      <div><div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--t3);margin-bottom:3px"><span>Function fit</span><span style="color:var(--g)">95%</span></div><div class="score-bar"><div class="score-fill" style="width:95%"></div></div></div>
-      <div><div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--t3);margin-bottom:3px"><span>Domain match</span><span style="color:var(--g)">90%</span></div><div class="score-bar"><div class="score-fill" style="width:90%"></div></div></div>
-      <div><div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--t3);margin-bottom:3px"><span>Seniority fit</span><span style="color:var(--g)">88%</span></div><div class="score-bar"><div class="score-fill" style="width:88%"></div></div></div>
-    </div>
-  </div>
-
-  <!-- Trust -->
-  <div class="card b6">
-    <div style="font-size:11px;font-weight:700;color:var(--y);text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px">Why trust us</div>
-    <div style="display:flex;flex-direction:column;gap:14px">
-      <div style="display:flex;gap:10px;align-items:flex-start"><div style="font-size:18px;flex-shrink:0">🤝</div><div><div style="font-size:13px;font-weight:600;margin-bottom:2px;color:var(--t1)">₹0 to apply</div><div style="font-size:11.5px;color:var(--t3);line-height:1.5">We never charge to apply. Revenue is Pro subscriptions only.</div></div></div>
-      <div style="display:flex;gap:10px;align-items:flex-start"><div style="font-size:18px;flex-shrink:0">🔒</div><div><div style="font-size:13px;font-weight:600;margin-bottom:2px;color:var(--t1)">Resume stays private</div><div style="font-size:11.5px;color:var(--t3);line-height:1.5">Never sold or shared. Delete anytime.</div></div></div>
-      <div style="display:flex;gap:10px;align-items:flex-start"><div style="font-size:18px;flex-shrink:0">🇮🇳</div><div><div style="font-size:13px;font-weight:600;margin-bottom:2px;color:var(--t1)">Built for India</div><div style="font-size:11.5px;color:var(--t3);line-height:1.5">Naukri, iimjobs, INR salaries. Not a US import.</div></div></div>
-    </div>
-  </div>
-
-  <!-- Platforms strip -->
-  <div class="card b7" style="padding:16px 28px">
-    <div class="plats">
-      <div class="plat"><div class="plat-dot" style="background:#0077b5"></div><div class="plat-n">LinkedIn</div><div class="plat-l">searched daily</div></div>
-      <div style="width:1px;height:32px;background:var(--border)"></div>
-      <div class="plat"><div class="plat-dot" style="background:#ff6b35"></div><div class="plat-n">Naukri</div><div class="plat-l">searched daily</div></div>
-      <div style="width:1px;height:32px;background:var(--border)"></div>
-      <div class="plat"><div class="plat-dot" style="background:#4285f4"></div><div class="plat-n">JSearch</div><div class="plat-l">Google for Jobs</div></div>
-      <div style="width:1px;height:32px;background:var(--border)"></div>
-      <div class="plat"><div class="plat-dot" style="background:#e63946"></div><div class="plat-n">Adzuna</div><div class="plat-l">searched daily</div></div>
-      <div style="width:1px;height:32px;background:var(--border)"></div>
-      <div class="plat"><div class="plat-dot" style="background:#6d28d9"></div><div class="plat-n">iimjobs</div><div class="plat-l">premium jobs</div></div>
-    </div>
-  </div>
-
 </div>
 
 <!-- PRICING -->
-<div class="pricing-sec" id="pricing">
-  <div class="pricing-head">
-    <div class="sec-tag">Pricing ✦</div>
-    <h2 class="sec-h">Simple.<br>No BS.</h2>
-    <p class="sec-sub">Free works forever. Pro unlocks daily delivery and more matches.</p>
-  </div>
+<div class="pricing-section" id="pricing">
+<div class="pricing-in">
+  <div class="sec-kicker" style="justify-content:center">Pricing</div>
+  <h2 class="sec-title">Simple. Honest.<br>No surprises.</h2>
+  <p class="sec-sub" style="margin:0 auto">Free works forever. Pro covers our running costs and unlocks daily delivery.</p>
   <div class="plans">
     <div class="plan">
       <div class="plan-n">Free</div>
-      <div class="plan-price">₹0<span class="plan-period"> / forever</span></div>
-      <div class="plan-desc">No card. No commitment. Always.</div>
+      <div class="plan-price">₹0<span class="plan-per"> /forever</span></div>
+      <div class="plan-desc">No card. No commitment.</div>
       <ul class="plan-feats">
         <li><span class="ck">✓</span>2 curated digests per week</li>
         <li><span class="ck">✓</span>Up to 5 matches per email</li>
@@ -1397,52 +1735,74 @@ footer{border-top:1px solid var(--border);padding:36px 24px;max-width:1000px;mar
       <a href="/signup" class="btn-free">Start free →</a>
     </div>
     <div class="plan plan-pro">
+      <div class="plan-pro-shimmer"></div>
       <div class="plan-tag">★ FOUNDING RATE</div>
-      <div class="plan-n" style="color:var(--p)">Pro</div>
-      <div class="plan-price"><span class="plan-price-pro">₹49</span><span class="plan-period"> / month</span></div>
-      <div class="plan-desc">or ₹499/year · locked for life</div>
+      <div class="plan-n" style="color:var(--violet)">Pro</div>
+      <div class="plan-price"><span class="plan-price-pro">₹49</span><span class="plan-per"> /month</span></div>
+      <div class="plan-desc">or ₹499/year · rate locked in for life</div>
       <ul class="plan-feats">
         <li><span class="ck">✓</span>Daily matches at 9am IST</li>
         <li><span class="ck">✓</span>Up to 15 matches per email</li>
         <li><span class="ck">✓</span>Full LinkedIn + Naukri search</li>
-        <li><span class="ck">✓</span>Dashboard + apply tracker</li>
-        <li><span class="ck">✓</span>Priority support</li>
+        <li><span class="ck">✓</span>Dashboard + apply history</li>
+        <li><span class="ck">✓</span>Priority email support</li>
       </ul>
       <a href="/signup" class="btn-pro">Become a founding member →</a>
-      <p style="font-size:11px;color:var(--t3);text-align:center;margin-top:10px">₹149/month after spots fill</p>
+      <p style="font-size:11.5px;color:var(--ink4);text-align:center;margin-top:10px">₹149/month after spots fill</p>
     </div>
   </div>
   <div class="trust-note">
-    <div style="font-size:18px">🤝</div>
-    <div><div style="font-size:13px;font-weight:600;color:var(--g);margin-bottom:3px">We never charge you to apply for jobs</div><div style="font-size:12px;color:var(--t3);line-height:1.6">Every job is free to apply on the original platform. Our only revenue is the optional Pro subscription.</div></div>
+    <div class="tn-icon">🤝</div>
+    <div><div class="tn-t">We never charge you to apply for jobs</div><div class="tn-d">Every job is free to apply on the original platform. Our only revenue is the optional Pro subscription — and only if you find it worth it.</div></div>
   </div>
+</div>
 </div>
 
 <!-- FAQ -->
-<div class="faq-sec">
-  <div style="text-align:center;margin-bottom:36px">
-    <div class="sec-tag">FAQ ✦</div>
-    <h2 class="sec-h">Questions?</h2>
+<div class="faq-section">
+  <div class="sec-kicker" style="justify-content:center">FAQ</div>
+  <h2 class="sec-title">Common questions</h2>
+  <div class="faq-wrap">
+    ${[
+      ['Do you charge employers or take placement fees?', 'No. Zero relationship with employers. We do not get paid when you get hired. Our only revenue is the optional Pro subscription from job seekers.'],
+      ['Where do the jobs come from?', 'LinkedIn, Naukri, iimjobs, JSearch (Google for Jobs), and Adzuna. All public listings. We save you the 2 hours of daily searching.'],
+      ['Is my resume safe?', 'Stored privately, used only to score relevance for you. Never sold or shared. Delete anytime — we wipe everything within 24 hours.'],
+      ['How is this different from Naukri or LinkedIn?', 'Those show every keyword-matching job. We score each role against your specific profile — function, seniority, domain, location — and send only what is genuinely relevant.'],
+      ['Can I cancel Pro anytime?', 'Yes. Email hello@jobmatchai.co.in — processed within 12 hours. One-time payment links, not auto-renewal.'],
+    ].map(([q,a])=>`<div class="fi" onclick="tf(this)"><div class="fq"><span>${q}</span><span class="fi-ic">+</span></div><div class="fa">${a}</div></div>`).join('')}
   </div>
-  ${[
-    ['Do you charge employers or take placement fees?','No. Zero relationship with employers. We don\'t get paid when you get hired. Only revenue is the optional Pro subscription.'],
-    ['Where do the jobs come from?','LinkedIn, Naukri, iimjobs, JSearch (Google for Jobs), and Adzuna. All public listings. We save you the daily search grind.'],
-    ['Is my resume safe?','Stored privately, used only to score relevance for you. Never sold or shared. Delete anytime.'],
-    ['How is this different from Naukri or LinkedIn?','Those show every keyword match. We score each role against your specific function, seniority, domain, and location — and send only what\'s genuinely relevant.'],
-    ['Can I cancel Pro anytime?','Yes. Email hello@jobmatchai.co.in — processed in 12 hours. One-time payment links, no auto-renewal surprises.'],
-  ].map(([q,a])=>`<div class="fi" onclick="tf(this)"><div class="fq"><span>${q}</span><span class="fq-ic">+</span></div><div class="fa">${a}</div></div>`).join('')}
 </div>
 
+<!-- FOOTER -->
 <footer>
-  <div class="ft">
-    <div class="ft-logo"><div class="ft-lm">J</div>JobMatch AI</div>
-    <div class="ft-links">
-      <a href="/terms" class="ft-l">Terms & Privacy</a>
-      <a href="mailto:hello@jobmatchai.co.in" class="ft-l">hello@jobmatchai.co.in</a>
-      <a href="/signup" class="ft-l">Sign up free →</a>
+<div class="ft-in">
+  <div class="ft-top">
+    <div class="ft-brand">
+      <div class="ft-logo">
+        <div class="ft-lm"><svg viewBox="0 0 16 16"><path d="M8 2L2 6v8h4v-4h4v4h4V6L8 2z"/></svg></div>
+        <span class="ft-brand-name">JobMatch AI</span>
+      </div>
+      <div class="ft-tagline">Curated daily job matches for India 🇮🇳</div>
+    </div>
+    <div class="ft-cols">
+      <div>
+        <div class="ft-col-t">Product</div>
+        <a href="#how" class="ft-link">How it works</a>
+        <a href="#pricing" class="ft-link">Pricing</a>
+        <a href="/signup" class="ft-link">Sign up free</a>
+      </div>
+      <div>
+        <div class="ft-col-t">Company</div>
+        <a href="/terms" class="ft-link">Terms & Privacy</a>
+        <a href="mailto:hello@jobmatchai.co.in" class="ft-link">Contact</a>
+      </div>
     </div>
   </div>
-  <p class="ft-copy">© 2026 JobMatch AI · Built with Claude · Made in India 🇮🇳 · ₹0 to apply, ever</p>
+  <div class="ft-bottom">
+    <div class="ft-copy">© 2026 JobMatch AI · Built with Claude</div>
+    <div class="ft-copy">₹0 charged to apply for jobs, ever</div>
+  </div>
+</div>
 </footer>
 
 <script>
