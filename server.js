@@ -83,10 +83,21 @@ async function patchUser(id, fields) {
 // STATIC + ROOT — serve landing page from public/index.html
 // THIS IS THE FIX for "Cannot GET /"
 // ═════════════════════════════════════════════════════════════════════════════
-app.use(express.static(path.join(__dirname, 'public')));
+// Use process.cwd() = repo root on Render, so path always resolves correctly
+const publicDir = path.resolve(process.cwd(), 'public');
+app.use(express.static(publicDir));
 
 app.get('/', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  const indexPath = path.join(publicDir, 'index.html');
+  console.log('[root] serving:', indexPath);
+  res.sendFile(indexPath, err => {
+    if (err) {
+      console.error('[root] MISSING:', indexPath);
+      res.status(500).send('<h2 style="font-family:sans-serif;padding:40px">'
+        + 'Missing: <code>public/index.html</code><br>'
+        + 'Commit it to your repo root and redeploy.</h2>');
+    }
+  });
 });
 
 // ── CORS (landing page fetches /api/stats from browser) ───────────────────────
