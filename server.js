@@ -27,6 +27,10 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ── ES-module __dirname (not available by default in ESM) ─────────────────────
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
+
 // ── Config ────────────────────────────────────────────────────────────────────
 const PORT          = process.env.PORT          || 3000;
 const AT_TOKEN      = process.env.AIRTABLE_TOKEN      || '';
@@ -74,6 +78,16 @@ async function patchUser(id, fields) {
   });
   return r.json();
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// STATIC + ROOT — serve landing page from public/index.html
+// THIS IS THE FIX for "Cannot GET /"
+// ═════════════════════════════════════════════════════════════════════════════
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // ── CORS (landing page fetches /api/stats from browser) ───────────────────────
 app.use('/api', (req, res, next) => {
