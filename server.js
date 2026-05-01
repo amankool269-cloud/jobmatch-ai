@@ -1,1298 +1,360 @@
 /**
- * server.js — JobMatch AI  (Render.com, Node.js 18+)
+ * server.js — JobMatch AI  (Render.com, Node 18+, ESM)
  *
- * Routes
- *   GET  /api/stats       — live activeUsers + matchesToday from Airtable
- *   GET  /feedback        — save emoji rating from daily digest email
- *   GET  /unsubscribe     — mark Inactive in Airtable + blacklist in Brevo
- *   GET  /resubscribe     — re-activate + remove from Brevo blacklist
- *   GET  /dashboard       — show last match batch for this user
- *   GET  /profile         — render profile-edit form
- *   POST /profile         — persist profile edits to Airtable
- *   GET  /health          — uptime probe for Render
+ * Deploy structure:
+ *   your-repo/
+ *   ├── server.js          ← this file
+ *   ├── package.json
+ *   └── public/
+ *       └── index.html     ← landing page
  *
- * Environment variables (set in Render dashboard)
+ * Environment variables (Render → Environment):
  *   AIRTABLE_TOKEN
  *   AIRTABLE_BASE_ID
  *   BREVO_API_KEY
- *   UNSUBSCRIBE_SECRET    (same value used in Apify actor)
- *   PORT                  (Render sets this automatically)
+ *   UNSUBSCRIBE_SECRET
  */
 
-import express from 'express';
-import path    from 'path';
+import express   from 'express';
+import path      from 'path';
+import fs        from 'fs';
 import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ── ES-module __dirname (not available by default in ESM) ─────────────────────
-const __filename = fileURLToPath(import.meta.url);
-const __dirname  = path.dirname(__filename);
-
 // ── Config ────────────────────────────────────────────────────────────────────
-const PORT          = process.env.PORT          || 3000;
+const PORT          = process.env.PORT                || 3000;
 const AT_TOKEN      = process.env.AIRTABLE_TOKEN      || '';
 const AT_BASE       = process.env.AIRTABLE_BASE_ID    || '';
-const BREVO_API_KEY = process.env.BREVO_API_KEY       || '';
-const UNSUB_SECRET  = process.env.UNSUBSCRIBE_SECRET  || 'jobmatch-secret-2026';
+const BREVO_KEY     = process.env.BREVO_API_KEY       || '';
+const UNSUB_SECRET  = process.env.UNSUBSCRIBE_SECRET  || 'jobmatch-2026';
+const TABLE         = 'tblJtDvebLwnXvV9i';
+const AT_API        = `https://api.airtable.com/v0/${AT_BASE}/${TABLE}`;
 
-const TABLE     = 'tblJtDvebLwnXvV9i';
-const AT_API    = `https://api.airtable.com/v0/${AT_BASE}/${TABLE}`;
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const atH = () => ({ Authorization: `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' });
+const cors = res => res.set('Access-Control-Allow-Origin', '*');
 
-// ── Token helpers ─────────────────────────────────────────────────────────────
 function makeToken(email) {
-  let hash = 0;
-  const str = email.toLowerCase() + UNSUB_SECRET;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash) + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash).toString(16).padStart(8, '0') + str.length.toString(16);
+  let h = 0;
+  for (const c of email.toLowerCase() + UNSUB_SECRET) { h = ((h << 5) - h) + c.charCodeAt(0); h |= 0; }
+  return Math.abs(h).toString(16).padStart(8, '0') + (email.length + UNSUB_SECRET.length).toString(16);
 }
-const validToken = (email, token) => !!token && token === makeToken(email);
-
-// ── Airtable helpers ──────────────────────────────────────────────────────────
-const atHeaders = () => ({
-  'Authorization': `Bearer ${AT_TOKEN}`,
-  'Content-Type':  'application/json',
-});
+const validToken = (e, t) => !!t && t === makeToken(e);
 
 async function findUser(email) {
-  const qs = `filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}&maxRecords=1`;
-  const r   = await fetch(`${AT_API}?${qs}`, { headers: atHeaders() });
-  const d   = await r.json();
-  return d.records?.[0] ?? null;
+  const r = await fetch(`${AT_API}?filterByFormula=${encodeURIComponent(`{Email}="${email}"`)}&maxRecords=1`, { headers: atH() });
+  return (await r.json()).records?.[0] ?? null;
 }
-
 async function patchUser(id, fields) {
-  // Remove undefined values before sending to Airtable
-  const clean = Object.fromEntries(
-    Object.entries(fields).filter(([, v]) => v !== undefined && v !== '')
-  );
-  const r = await fetch(`${AT_API}/${id}`, {
-    method:  'PATCH',
-    headers: atHeaders(),
-    body:    JSON.stringify({ fields: clean }),
-  });
-  return r.json();
+  const clean = Object.fromEntries(Object.entries(fields).filter(([,v]) => v != null && v !== ''));
+  await fetch(`${AT_API}/${id}`, { method: 'PATCH', headers: atH(), body: JSON.stringify({ fields: clean }) });
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// ROOT — landing page served inline (no public/ folder needed)
-// ═════════════════════════════════════════════════════════════════════════════
-const LANDING_HTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>JobMatch AI — Better matches. Less searching.</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{font-family:'DM Sans',sans-serif;color:#0C0C10;overflow-x:hidden;-webkit-font-smoothing:antialiased}
-a{text-decoration:none}button{font-family:inherit;cursor:pointer}
-:root{
-  --white:#FFFFFF;--bg:#F8F8F6;--dark:#0C0C10;--body:#3D3D47;--mute:#8888A0;
-  --bdr:#E6E6E2;--bdr2:#D0D0C8;--ind:#4F46E5;--ind-d:#3730A3;--ind-l:#EEF2FF;
-  --grn:#059669;--grn-l:#ECFDF5;--red:#DC2626;--red-l:#FFF1F1;--amb:#B45309;
-  --sh:0 1px 3px rgba(0,0,0,0.05),0 4px 14px rgba(0,0,0,0.07);
-  --sh2:0 2px 8px rgba(0,0,0,0.07),0 16px 48px rgba(0,0,0,0.11);
-}
-.wrap{max-width:1080px;margin:0 auto;padding:0 32px}
+// ── Find public/index.html (works on any Render region) ───────────────────────
+const htmlCandidates = [
+  path.join(__dirname, 'public', 'index.html'),
+  path.join(process.cwd(), 'public', 'index.html'),
+];
+const HTML_PATH = htmlCandidates.find(p => fs.existsSync(p));
+console.log('[boot] HTML_PATH =', HTML_PATH || 'NOT FOUND — create public/index.html');
 
-/* NAV */
-#nav{position:fixed;top:0;left:0;right:0;z-index:300;height:60px;transition:background 0.35s,border-color 0.35s;border-bottom:1px solid transparent}
-#nav.solid{background:rgba(255,255,255,0.90);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-color:var(--bdr)}
-#nav .wrap{height:100%;display:flex;align-items:center;justify-content:space-between}
-.nav-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:800;letter-spacing:-0.3px;color:#fff;transition:color 0.3s}
-#nav.solid .nav-logo{color:var(--dark)}
-.nav-logo em{color:#a78bfa;font-style:normal;transition:color 0.3s}
-#nav.solid .nav-logo em{color:var(--ind)}
-.nav-right{display:flex;align-items:center;gap:8px}
-.nav-lk{font-size:14px;font-weight:500;color:rgba(255,255,255,0.6);padding:7px 14px;border-radius:8px;transition:color 0.2s,background 0.2s}
-.nav-lk:hover{color:#fff;background:rgba(255,255,255,0.1)}
-#nav.solid .nav-lk{color:var(--body)}
-#nav.solid .nav-lk:hover{color:var(--dark);background:var(--bg)}
-.nav-btn{padding:8px 20px;border-radius:999px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);font-size:14px;font-weight:700;color:#fff;transition:all 0.2s;display:inline-block}
-.nav-btn:hover{background:rgba(255,255,255,0.28)}
-#nav.solid .nav-btn{background:var(--dark);border-color:transparent}
-#nav.solid .nav-btn:hover{background:var(--ind)}
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROUTES
+// ═══════════════════════════════════════════════════════════════════════════════
 
-/* HERO — canvas must fill 100vh exactly */
-#hero{
-  position:relative;
-  height:100vh;
-  min-height:640px;
-  background:#03040f;
-  overflow:hidden;
-  display:flex;
-  align-items:center;
-}
-#hero-canvas{
-  /* KEY FIX: absolute fill — width/height via CSS, renderer uses window dims */
-  position:absolute;
-  top:0;left:0;
-  width:100% !important;
-  height:100% !important;
-  display:block;
-}
-.hero-fade{position:absolute;bottom:0;left:0;right:0;height:180px;background:linear-gradient(to bottom,transparent,#ffffff);pointer-events:none;z-index:2}
-.hero-inner{position:relative;z-index:5;padding-top:60px;max-width:620px}
-
-/* Live counter badge */
-.live-badge{
-  display:inline-flex;align-items:center;gap:9px;
-  background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);
-  border-radius:999px;padding:6px 16px;
-  font-size:13px;font-weight:500;color:rgba(255,255,255,0.60);
-  margin-bottom:22px;backdrop-filter:blur(8px);
-}
-.live-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;animation:lp 2s ease-in-out infinite}
-@keyframes lp{0%{box-shadow:0 0 0 0 rgba(74,222,128,0.5)}70%{box-shadow:0 0 0 7px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
-.live-num{color:#fff;font-weight:700;font-variant-numeric:tabular-nums;transition:opacity 0.25s}
-.live-sep{color:rgba(255,255,255,0.25);margin:0 4px}
-
-.hero-title{font-family:'Bricolage Grotesque',sans-serif;font-size:clamp(40px,5.5vw,68px);font-weight:800;letter-spacing:-2.5px;line-height:1.04;color:#fff;margin-bottom:20px}
-.hi{color:#a78bfa}
-.hero-sub{font-size:17px;color:rgba(255,255,255,0.50);line-height:1.75;max-width:430px;margin-bottom:34px}
-.hero-acts{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.btn-p{display:inline-flex;align-items:center;gap:8px;padding:13px 28px;border-radius:999px;background:#fff;color:var(--dark);font-size:15px;font-weight:700;border:none;box-shadow:0 4px 24px rgba(0,0,0,0.25);transition:all 0.2s}
-.btn-p:hover{background:var(--ind-l);color:var(--ind);transform:translateY(-1px)}
-.btn-p svg{transition:transform 0.2s}
-.btn-p:hover svg{transform:translateX(2px)}
-.btn-s{display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:rgba(255,255,255,0.50);border:none;background:none;padding:8px 0;transition:color 0.18s}
-.btn-s:hover{color:#fff}
-.hero-trust{display:flex;align-items:center;gap:8px;margin-top:26px;font-size:13px;color:rgba(255,255,255,0.30)}
-.tdiv{width:1px;height:11px;background:rgba(255,255,255,0.15)}
-.scroll-cue{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);z-index:5;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:rgba(255,255,255,0.22);animation:scue 2.5s ease-in-out infinite}
-@keyframes scue{0%,100%{opacity:0.5;transform:translateX(-50%) translateY(0)}50%{opacity:1;transform:translateX(-50%) translateY(5px)}}
-
-/* SECTIONS */
-section{padding:96px 0}
-.section-alt{background:var(--bg)}
-.eyebrow{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--ind);margin-bottom:13px}
-.s-title{font-family:'Bricolage Grotesque',sans-serif;font-size:clamp(28px,3.5vw,44px);font-weight:800;letter-spacing:-1.5px;line-height:1.1;color:var(--dark);margin-bottom:12px}
-.s-sub{font-size:16px;color:var(--body);line-height:1.75;max-width:480px}
-
-/* HOW IT WORKS */
-.how-hdr{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:end;margin-bottom:52px}
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--bdr);border-radius:18px;overflow:hidden}
-.step{background:#fff;padding:34px 30px}
-.step-ico{width:44px;height:44px;border-radius:12px;background:var(--ind-l);border:1px solid rgba(79,70,229,0.15);display:flex;align-items:center;justify-content:center;margin-bottom:16px}
-.step-ico svg{width:20px;height:20px;color:var(--ind);stroke-width:1.8}
-.step-n{font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ind);margin-bottom:10px}
-.step-t{font-family:'Bricolage Grotesque',sans-serif;font-size:19px;font-weight:800;letter-spacing:-0.3px;color:var(--dark);margin-bottom:9px}
-.step-d{font-size:14px;color:var(--body);line-height:1.75}
-
-/* MATCH CARDS */
-.match-hdr{text-align:center;margin-bottom:52px}
-.match-hdr .s-sub{margin:0 auto}
-.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start}
-.mc{background:#fff;border:1px solid var(--bdr);border-radius:18px;overflow:hidden;box-shadow:var(--sh);opacity:0;transform:translateY(18px);transition:opacity 0.5s,transform 0.5s,box-shadow 0.2s}
-.mc.vis{opacity:1;transform:translateY(0)}
-.mc:hover{box-shadow:var(--sh2);transform:translateY(-3px)}
-.mc-stripe{height:4px}
-.mc-stripe.s{background:linear-gradient(90deg,#059669,#34D399)}
-.mc-stripe.g{background:linear-gradient(90deg,#4F46E5,#818CF8)}
-.mc-stripe.r{background:linear-gradient(90deg,#DC2626,#F87171)}
-.mc-body{padding:22px}
-.mc-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:13px}
-.mc-logo{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-size:13px;font-weight:800;color:#fff;flex-shrink:0}
-.mc-score{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;letter-spacing:-1px;line-height:1;text-align:right}
-.mc-score small{display:block;font-size:10px;font-weight:500;color:var(--mute);letter-spacing:0}
-.mc-score.s{color:var(--grn)}.mc-score.g{color:var(--ind)}.mc-score.r{color:var(--red)}
-.mc-role{font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:800;letter-spacing:-0.2px;color:var(--dark);margin-bottom:4px}
-.mc-meta{font-size:12px;color:var(--mute);margin-bottom:14px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
-.msep{color:var(--bdr2)}
-.mc-verdict{font-size:13px;color:var(--body);line-height:1.7;padding:11px 13px;border-radius:10px;background:var(--bg);margin-bottom:14px;border-left:3px solid}
-.mc-verdict.sv{border-left-color:var(--grn)}.mc-verdict.gv{border-left-color:var(--ind)}.mc-verdict.rv{border-left-color:var(--red);background:var(--red-l)}
-.bar-row{display:flex;align-items:center;gap:9px;margin-bottom:7px}
-.bar-lbl{font-size:11px;color:var(--mute);width:84px;flex-shrink:0}
-.bar-track{flex:1;height:6px;background:var(--bg);border-radius:99px;overflow:hidden;border:1px solid var(--bdr)}
-.bar-fill{height:100%;border-radius:99px;transition:width 0.9s cubic-bezier(0.4,0,0.2,1)}
-.bar-fill.s{background:linear-gradient(90deg,#059669,#34D399)}
-.bar-fill.g{background:linear-gradient(90deg,#4F46E5,#818CF8)}
-.bar-fill.r{background:linear-gradient(90deg,#DC2626,#F87171)}
-.bar-pct{font-size:11px;color:var(--mute);width:30px;text-align:right;font-variant-numeric:tabular-nums}
-.mc-foot{display:flex;align-items:center;justify-content:space-between;margin-top:14px}
-.rpill{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:999px;font-size:11px;font-weight:700}
-.rpill.s{background:var(--grn-l);color:var(--grn)}.rpill.g{background:var(--ind-l);color:var(--ind)}.rpill.r{background:var(--red-l);color:var(--red)}
-.mc-cta{padding:7px 18px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;background:var(--dark);border:none;cursor:pointer;transition:all 0.18s}
-.mc-cta:hover{background:var(--ind)}
-.mc-cta.na{background:var(--bg);color:var(--mute);border:1px solid var(--bdr);cursor:default}.mc-cta.na:hover{background:var(--bg)}
-.new-tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600;background:var(--grn-l);color:var(--grn)}
-.blk-tag{background:var(--red-l);color:var(--red);display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600}
-
-/* BENEFITS */
-.ben-hdr{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:end;margin-bottom:52px}
-.bens{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--bdr);border-radius:18px;overflow:hidden}
-.ben{background:#fff;padding:34px 30px}
-.ben-ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
-.ben-t{font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:800;letter-spacing:-0.2px;color:var(--dark);margin-bottom:8px}
-.ben-d{font-size:14px;color:var(--body);line-height:1.75}
-
-/* PRICING */
-.price-hdr{text-align:center;margin-bottom:48px}
-.price-hdr .s-sub{margin:10px auto 0}
-.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:stretch}
-.plan{background:#fff;border:1px solid var(--bdr);border-radius:18px;padding:30px 26px;display:flex;flex-direction:column;box-shadow:var(--sh);opacity:0;transform:translateY(16px);transition:opacity 0.45s,transform 0.45s}
-.plan.vis{opacity:1;transform:translateY(0)}
-.plan.pro{background:var(--dark);border-color:transparent;box-shadow:0 8px 48px rgba(12,12,16,0.22);position:relative;overflow:visible}
-.plan.pro::after{content:'';position:absolute;inset:-1px;border-radius:19px;background:linear-gradient(135deg,rgba(79,70,229,0.45),transparent 55%,rgba(79,70,229,0.18));pointer-events:none;z-index:0}
-.plan.pro>*{position:relative;z-index:1}
-.plan-badge{display:inline-block;background:linear-gradient(135deg,var(--ind),#818CF8);color:#fff;font-size:10px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;padding:5px 14px;border-radius:999px;margin-bottom:18px;box-shadow:0 3px 14px rgba(79,70,229,0.4)}
-.plan-name{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--mute);margin-bottom:11px}
-.plan-name.pr{color:rgba(255,255,255,0.4)}
-.plan-price{display:flex;align-items:baseline;gap:2px;margin-bottom:3px}
-.plan-sym{font-size:16px;font-weight:600;color:var(--mute);align-self:flex-start;margin-top:10px}
-.plan-sym.pr{color:rgba(255,255,255,0.3)}
-.plan-num{font-family:'Bricolage Grotesque',sans-serif;font-size:48px;font-weight:800;letter-spacing:-2px;line-height:1;color:var(--dark)}
-.plan-num.pr{color:#fff}
-.plan-num.ac{background:linear-gradient(135deg,var(--ind),#818CF8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.plan-og{text-decoration:line-through;color:rgba(255,255,255,0.25);font-size:14px;margin-left:8px}
-.plan-mo{font-size:13px;color:var(--mute)}.plan-mo.pr{color:rgba(255,255,255,0.35)}
-.plan-note{font-size:11px;color:var(--mute);margin-bottom:20px;margin-top:2px}.plan-note.pr{color:rgba(255,255,255,0.22)}
-.pdiv{height:1px;background:var(--bdr);margin-bottom:20px}.pdiv.pr{background:rgba(255,255,255,0.08)}
-.feats{list-style:none;flex:1;margin-bottom:24px}
-.feats li{display:flex;align-items:flex-start;gap:10px;font-size:14px;color:var(--body);padding:4px 0}
-.feats.pr li{color:rgba(255,255,255,0.62)}
-.fck{width:18px;height:18px;border-radius:50%;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700}
-.fck.on{background:var(--grn-l);color:var(--grn)}.fck.onp{background:rgba(52,211,153,0.15);color:#34D399}.fck.off{background:var(--bg);color:var(--mute)}
-.plan-btn{width:100%;padding:13px;border-radius:999px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;border:none;cursor:pointer;transition:all 0.2s}
-.plan-btn.fb{background:var(--bg);color:var(--ind);border:1.5px solid rgba(79,70,229,0.22)}
-.plan-btn.fb:hover{background:var(--ind-l);border-color:var(--ind)}
-.plan-btn.pb{background:linear-gradient(135deg,var(--ind),#6366f1);color:#fff;box-shadow:0 4px 18px rgba(79,70,229,0.4)}
-.plan-btn.pb:hover{opacity:0.9;transform:translateY(-1px)}
-.plan-btn.tb{background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.1)}
-.plan-btn.tb:hover{background:rgba(255,255,255,0.12);color:#fff}
-
-/* CTA */
-.cta-block{margin:0 0 96px;background:var(--dark);border-radius:22px;padding:68px 56px;text-align:center;position:relative;overflow:hidden;box-shadow:0 12px 60px rgba(12,12,16,0.18)}
-.cta-block::before{content:'';position:absolute;top:-60%;left:25%;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(79,70,229,0.2),transparent 60%);pointer-events:none}
-.cta-block::after{content:'';position:absolute;bottom:-60%;right:15%;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,0.12),transparent 60%);pointer-events:none}
-.cta-block>*{position:relative;z-index:1}
-.cta-title{font-family:'Bricolage Grotesque',sans-serif;font-size:clamp(28px,4vw,46px);font-weight:800;letter-spacing:-2px;color:#fff;line-height:1.08;margin-bottom:12px}
-.cta-sub{font-size:16px;color:rgba(255,255,255,0.45);margin-bottom:34px;line-height:1.6}
-.cta-acts{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap}
-.cta-btn{display:inline-flex;align-items:center;gap:8px;padding:14px 30px;border-radius:999px;background:#fff;color:var(--dark);font-size:15px;font-weight:700;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.2);transition:all 0.2s}
-.cta-btn:hover{background:var(--ind-l);color:var(--ind);transform:translateY(-1px)}
-.cta-note{font-size:14px;color:rgba(255,255,255,0.3)}
-
-/* FOOTER */
-footer{border-top:1px solid var(--bdr);padding:32px 0}
-.foot-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
-.foot-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:800;color:var(--dark)}
-.foot-logo em{color:var(--ind);font-style:normal}
-.foot-note{font-size:12px;color:var(--mute)}
-.foot-links{display:flex;gap:20px}
-.foot-links a{font-size:12px;color:var(--mute);transition:color 0.15s}
-.foot-links a:hover{color:var(--dark)}
-
-@media(max-width:860px){
-  .wrap{padding:0 20px}
-  .how-hdr,.ben-hdr{grid-template-columns:1fr}
-  .steps,.bens{grid-template-columns:1fr}
-  .cards,.plans{grid-template-columns:1fr}
-  .cta-block{padding:48px 24px}
-  .foot-inner{flex-direction:column;text-align:center}
-  .foot-links{justify-content:center}
-  #nav .nav-lk{display:none}
-}
-</style>
-</head>
-<body>
-
-<!-- NAV -->
-<nav id="nav">
-  <div class="wrap">
-    <span class="nav-logo">Job<em>Match</em> AI</span>
-    <div class="nav-right">
-      <a href="#how" class="nav-lk">How it works</a>
-      <a href="#pricing" class="nav-lk">Pricing</a>
-      <a href="#" class="nav-btn">Upload Resume Free</a>
-    </div>
-  </div>
-</nav>
-
-<!-- HERO -->
-<div id="hero">
-  <canvas id="hero-canvas"></canvas>
-  <div class="hero-fade"></div>
-  <div class="wrap hero-inner">
-    <!-- Live active user counter — real-feeling fluctuation, no fake static number -->
-    <div class="live-badge">
-      <div class="live-dot"></div>
-      <span class="live-num" id="live-count">—</span> professionals active now
-      <span class="live-sep">·</span>
-      <span class="live-num" id="live-matches">—</span> matches sent today
-    </div>
-    <h1 class="hero-title">Better matches.<br><span class="hi">Less searching.</span></h1>
-    <p class="hero-sub">Upload your resume once. Every morning we find the roles that truly fit you, filter out everything that doesn't, and deliver them to your inbox.</p>
-    <div class="hero-acts">
-      <a href="#" class="btn-p">
-        Upload Resume Free
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      </a>
-      <a href="#matches" class="btn-s">
-        See sample matches
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      </a>
-    </div>
-    <div class="hero-trust">
-      <span>Free to start</span><span class="tdiv"></span>
-      <span>No credit card</span><span class="tdiv"></span>
-      <span>Cancel anytime</span>
-    </div>
-  </div>
-  <div class="scroll-cue">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
-    Scroll
-  </div>
-</div>
-
-<!-- HOW IT WORKS -->
-<section class="section-alt" id="how">
-  <div class="wrap">
-    <div class="how-hdr">
-      <div>
-        <div class="eyebrow">How it works</div>
-        <h2 class="s-title">Up and running<br>in three steps.</h2>
-      </div>
-      <p class="s-sub">You do it once. We handle everything after that — every single morning.</p>
-    </div>
-    <div class="steps">
-      <div class="step">
-        <div class="step-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></div>
-        <div class="step-n">Step 01</div>
-        <div class="step-t">Upload your resume</div>
-        <p class="step-d">Drop your resume and we read it instantly — role, experience, industry — and build your personal matching profile. No forms to fill in.</p>
-      </div>
-      <div class="step">
-        <div class="step-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div>
-        <div class="step-n">Step 02</div>
-        <div class="step-t">AI finds and scores every role</div>
-        <p class="step-d">Every morning we surface relevant jobs and score each one on role fit, seniority, and industry. Irrelevant roles are filtered before they reach you.</p>
-      </div>
-      <div class="step">
-        <div class="step-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
-        <div class="step-n">Step 03</div>
-        <div class="step-t">Receive your daily digest</div>
-        <p class="step-d">Your matches arrive every morning with a clear score, a plain-English reason, and a direct apply link. No noise. No duplicates.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- MATCH CARDS -->
-<section id="matches">
-  <div class="wrap">
-    <div class="match-hdr">
-      <div class="eyebrow">Match quality</div>
-      <h2 class="s-title">You only see what's worth seeing.</h2>
-      <p class="s-sub">Every result comes with a score and a clear reason. Anything that doesn't fit is filtered before it ever reaches your inbox.</p>
-    </div>
-    <div class="cards">
-      <div class="mc"><div class="mc-stripe s"></div><div class="mc-body">
-        <div class="mc-top"><div class="mc-logo" style="background:linear-gradient(135deg,#1D4ED8,#3B82F6)">LF</div><div><div class="mc-score s">91%</div><div style="font-size:10px;color:var(--mute);text-align:right">match score</div></div></div>
-        <div class="mc-role">Head of Partnerships</div>
-        <div class="mc-meta">Series B Fintech &nbsp;<span class="msep">·</span>&nbsp; Bengaluru &nbsp;<span class="new-tag">New today</span></div>
-        <div class="mc-verdict sv">Your experience building fintech partnerships and managing commercial relationships aligns directly with this role. Location and seniority are both a strong fit.</div>
-        <div class="bar-row"><span class="bar-lbl">Role fit</span><div class="bar-track"><div class="bar-fill s" data-w="96"></div></div><span class="bar-pct">96%</span></div>
-        <div class="bar-row"><span class="bar-lbl">Seniority</span><div class="bar-track"><div class="bar-fill s" data-w="88"></div></div><span class="bar-pct">88%</span></div>
-        <div class="bar-row"><span class="bar-lbl">Industry</span><div class="bar-track"><div class="bar-fill s" data-w="92"></div></div><span class="bar-pct">92%</span></div>
-        <div class="mc-foot"><span class="rpill s">Strong Match</span><button class="mc-cta">Apply →</button></div>
-      </div></div>
-      <div class="mc"><div class="mc-stripe g"></div><div class="mc-body">
-        <div class="mc-top"><div class="mc-logo" style="background:linear-gradient(135deg,#6D28D9,#8B5CF6)">FS</div><div><div class="mc-score g">78%</div><div style="font-size:10px;color:var(--mute);text-align:right">match score</div></div></div>
-        <div class="mc-role">AVP Credit</div>
-        <div class="mc-meta">NBFC &nbsp;<span class="msep">·</span>&nbsp; Mumbai</div>
-        <div class="mc-verdict gv">Good alignment with your credit background. Mumbai is a slight stretch on location, but role and industry are well-matched for your experience level.</div>
-        <div class="bar-row"><span class="bar-lbl">Role fit</span><div class="bar-track"><div class="bar-fill g" data-w="80"></div></div><span class="bar-pct">80%</span></div>
-        <div class="bar-row"><span class="bar-lbl">Seniority</span><div class="bar-track"><div class="bar-fill g" data-w="75"></div></div><span class="bar-pct">75%</span></div>
-        <div class="bar-row"><span class="bar-lbl">Industry</span><div class="bar-track"><div class="bar-fill g" data-w="84"></div></div><span class="bar-pct">84%</span></div>
-        <div class="mc-foot"><span class="rpill g">Good Match</span><button class="mc-cta">Apply →</button></div>
-      </div></div>
-      <div class="mc"><div class="mc-stripe r"></div><div class="mc-body">
-        <div class="mc-top"><div class="mc-logo" style="background:#374151">ET</div><div><div class="mc-score r">18%</div><div style="font-size:10px;color:var(--mute);text-align:right">filtered out</div></div></div>
-        <div class="mc-role">Growth Marketing Manager</div>
-        <div class="mc-meta">EdTech startup &nbsp;<span class="msep">·</span>&nbsp; Bengaluru &nbsp;<span class="blk-tag">✕ Blocked</span></div>
-        <div class="mc-verdict rv">Your background is in partnerships, not digital marketing. This role requires SEO and paid media — a different skill set. It won't appear in your digest.</div>
-        <div class="bar-row"><span class="bar-lbl">Role fit</span><div class="bar-track"><div class="bar-fill r" data-w="12"></div></div><span class="bar-pct">12%</span></div>
-        <div class="bar-row"><span class="bar-lbl">Seniority</span><div class="bar-track"><div class="bar-fill r" data-w="30"></div></div><span class="bar-pct">30%</span></div>
-        <div class="bar-row"><span class="bar-lbl">Industry</span><div class="bar-track"><div class="bar-fill r" data-w="20"></div></div><span class="bar-pct">20%</span></div>
-        <div class="mc-foot"><span class="rpill r">✕ Filtered Out</span><button class="mc-cta na" disabled>Never shown to you</button></div>
-      </div></div>
-    </div>
-  </div>
-</section>
-
-<!-- BENEFITS -->
-<section class="section-alt">
-  <div class="wrap">
-    <div class="ben-hdr">
-      <div>
-        <div class="eyebrow">Why people love it</div>
-        <h2 class="s-title">Built for people<br>short on time.</h2>
-      </div>
-      <p class="s-sub">Job searching is exhausting. JobMatch AI removes the daily grind so you can focus on what matters.</p>
-    </div>
-    <div class="bens">
-      <div class="ben">
-        <div class="ben-ico" style="background:#EEF2FF;border:1px solid rgba(79,70,229,0.15)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-        <div class="ben-t">No more daily searching</div>
-        <p class="ben-d">Your job search runs automatically while you sleep. Open your inbox at 7AM and your best opportunities are already waiting, ranked and ready.</p>
-      </div>
-      <div class="ben">
-        <div class="ben-ico" style="background:#ECFDF5;border:1px solid rgba(5,150,105,0.15)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-        <div class="ben-t">Only relevant roles reach you</div>
-        <p class="ben-d">We filter out anything that doesn't match your role, level, or industry. The noise is gone before you ever see it.</p>
-      </div>
-      <div class="ben">
-        <div class="ben-ico" style="background:#FFF7ED;border:1px solid rgba(180,83,9,0.15)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#B45309" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
-        <div class="ben-t">Act faster on good roles</div>
-        <p class="ben-d">Good roles close fast. Your digest arrives fresh each morning so you're always among the first applicants — a real edge.</p>
-      </div>
-      <div class="ben">
-        <div class="ben-ico" style="background:#F5F3FF;border:1px solid rgba(109,40,217,0.12)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
-        <div class="ben-t">Understand why, not just what</div>
-        <p class="ben-d">Every match comes with a plain-English explanation — why it fits, or why it doesn't. Decide quickly, without guesswork.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- PRICING -->
-<section id="pricing">
-  <div class="wrap">
-    <div class="price-hdr">
-      <div class="eyebrow">Pricing</div>
-      <h2 class="s-title">Start free. Upgrade when it works.</h2>
-      <p class="s-sub">No credit card required. Most users find their first strong match within three days.</p>
-    </div>
-    <div class="plans">
-      <div class="plan">
-        <div class="plan-name">Free</div>
-        <div class="plan-price"><span class="plan-sym">₹</span><span class="plan-num">0</span></div>
-        <div class="plan-mo">Forever free</div>
-        <div class="plan-note">No card needed · Start today</div>
-        <div class="pdiv"></div>
-        <ul class="feats">
-          <li><div class="fck on">✓</div>Daily digest every morning</li>
-          <li><div class="fck on">✓</div>Up to 5 matches per day</li>
-          <li><div class="fck on">✓</div>Match score + explanation</li>
-          <li><div class="fck on">✓</div>1 resume · 1 city</li>
-          <li><div class="fck off">–</div><span style="color:var(--mute)">Unlimited daily matches</span></li>
-          <li><div class="fck off">–</div><span style="color:var(--mute)">Referral outreach</span></li>
-          <li><div class="fck off">–</div><span style="color:var(--mute)">Match history dashboard</span></li>
-        </ul>
-        <button class="plan-btn fb">Get started free</button>
-      </div>
-      <div class="plan pro">
-        <div class="plan-badge">✦ Recommended · Founding Rate</div>
-        <div class="plan-name pr">Pro</div>
-        <div class="plan-price"><span class="plan-sym pr">₹</span><span class="plan-num ac">299</span><span class="plan-og">₹599</span></div>
-        <div class="plan-mo pr">per month</div>
-        <div class="plan-note pr">50% off launch pricing</div>
-        <div class="pdiv pr"></div>
-        <ul class="feats pr">
-          <li><div class="fck onp">✓</div><strong style="color:#fff">Unlimited daily matches</strong></li>
-          <li><div class="fck onp">✓</div>Match score + explanation</li>
-          <li><div class="fck onp">✓</div><strong style="color:#fff">3 resumes · 3 cities</strong></li>
-          <li><div class="fck onp">✓</div><strong style="color:#fff">Referral outreach paths</strong></li>
-          <li><div class="fck onp">✓</div><strong style="color:#fff">Match history dashboard</strong></li>
-          <li><div class="fck onp">✓</div>Priority support</li>
-          <li><div class="fck onp">✓</div>Cancel anytime</li>
-        </ul>
-        <button class="plan-btn pb">Upgrade to Pro — ₹299/mo</button>
-      </div>
-      <div class="plan" style="background:var(--dark);border-color:transparent">
-        <div class="plan-name pr">Teams</div>
-        <div class="plan-price"><span class="plan-num pr" style="font-size:34px">Custom</span></div>
-        <div class="plan-mo pr">For placement firms & HR teams</div>
-        <div class="plan-note pr">Talk to us about your needs</div>
-        <div class="pdiv pr"></div>
-        <ul class="feats pr">
-          <li><div class="fck onp">✓</div>Unlimited candidate profiles</li>
-          <li><div class="fck onp">✓</div>Bulk resume processing</li>
-          <li><div class="fck onp">✓</div>Recruiter admin dashboard</li>
-          <li><div class="fck onp">✓</div>API access</li>
-          <li><div class="fck onp">✓</div>White-label option</li>
-          <li><div class="fck onp">✓</div>Dedicated account manager</li>
-          <li><div class="fck onp">✓</div>SLA guarantee</li>
-        </ul>
-        <button class="plan-btn tb">Contact us →</button>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- FINAL CTA -->
-<div class="wrap">
-  <div class="cta-block">
-    <h2 class="cta-title">Stop searching.<br>Start receiving.</h2>
-    <p class="cta-sub">Upload in 60 seconds. Your first digest arrives tomorrow morning at 7AM.</p>
-    <div class="cta-acts">
-      <a href="#" class="cta-btn">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-        Upload Resume Free
-      </a>
-      <span class="cta-note">No credit card &nbsp;·&nbsp; Free plan available forever</span>
-    </div>
-  </div>
-</div>
-
-<!-- FOOTER -->
-<footer>
-  <div class="wrap">
-    <div class="foot-inner">
-      <span class="foot-logo">Job<em>Match</em> AI</span>
-      <span class="foot-note">Made in India 🇮🇳 · © 2026 JobMatch AI</span>
-      <div class="foot-links">
-        <a href="#">Privacy</a><a href="#">Terms</a><a href="#">Contact</a>
-      </div>
-    </div>
-  </div>
-</footer>
-
-<!-- THREE.JS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   THREE.JS HERO ANIMATION
-   FIX: renderer always uses window.innerWidth × window.innerHeight
-   so the canvas fills the full 100vh hero regardless of
-   element layout timing issues.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-(function() {
-  const canvas = document.getElementById('hero-canvas');
-
-  // Always use full viewport dimensions — never element.offsetHeight
-  let VW = window.innerWidth;
-  let VH = window.innerHeight;
-
-  const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x03040f, 0.038);
-
-  const cam = new THREE.PerspectiveCamera(50, VW / VH, 0.1, 120);
-  cam.position.set(0, 1.0, 8.0);
-  cam.lookAt(0, 0, 0);
-
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.setSize(VW, VH);
-  renderer.setClearColor(0x03040f, 1);
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
-
-  // Lights
-  scene.add(new THREE.AmbientLight(0x080520, 2.5));
-  const cl = new THREE.PointLight(0x7c3aed, 5, 8, 1.5);
-  scene.add(cl);
-  const dl1 = new THREE.DirectionalLight(0x6d28d9, 2.0);
-  dl1.position.set(-5, 5, 3); scene.add(dl1);
-  const dl2 = new THREE.DirectionalLight(0x1e3a8a, 0.9);
-  dl2.position.set(4, -3, 4); scene.add(dl2);
-
-  // Bokeh
-  const bc = document.createElement('canvas'); bc.width = bc.height = 64;
-  const bx = bc.getContext('2d');
-  const bg = bx.createRadialGradient(32,32,0,32,32,32);
-  bg.addColorStop(0,'rgba(255,255,255,1)'); bg.addColorStop(0.4,'rgba(255,255,255,0.4)'); bg.addColorStop(1,'rgba(255,255,255,0)');
-  bx.fillStyle=bg; bx.fillRect(0,0,64,64);
-  const btex = new THREE.CanvasTexture(bc);
-  const bokeh = new THREE.Group();
-  const bpal = [[0.25,0.10,0.65],[0.10,0.15,0.70],[0.40,0.15,0.75],[0.18,0.26,0.80],[0.48,0.18,0.82]];
-  for(let i=0;i<200;i++){
-    const p=bpal[i%bpal.length], sz=0.08+Math.random()*0.65;
-    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:btex,color:new THREE.Color(p[0]*1.5,p[1]*1.5,p[2]*1.5),transparent:true,opacity:0.04+Math.random()*0.09,blending:THREE.AdditiveBlending,depthWrite:false}));
-    sp.position.set((Math.random()-0.5)*26,(Math.random()-0.5)*16,-5-Math.random()*12);
-    sp.scale.set(sz,sz,1); bokeh.add(sp);
-  }
-  scene.add(bokeh);
-
-  // Glass sphere (7 layers)
-  const sg = new THREE.Group();
-  const addM=(r,mat,s=32)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(r,s,s),mat);sg.add(m);return m;};
-  const bm=(c,op,sd,bl)=>new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:op,side:sd||THREE.FrontSide,blending:bl||THREE.NormalBlending,depthWrite:false});
-  const pm=(c,e,op,sh,sd)=>new THREE.MeshPhongMaterial({color:c,emissive:e,transparent:true,opacity:op,shininess:sh,side:sd||THREE.FrontSide,depthWrite:false});
-  addM(2.0,bm(0x3b0764,0.04,THREE.BackSide,THREE.AdditiveBlending));
-  addM(1.52,bm(0x5b21b6,0.07,THREE.BackSide,THREE.AdditiveBlending));
-  addM(1.18,pm(0x1e1b4b,0x0d0b2a,0.30,60,THREE.BackSide));
-  const gf=addM(1.15,Object.assign(pm(0x4c1d95,0x2d1b69,0.08,600),{specular:new THREE.Color(0.95,0.9,1.0)}),64);
-  addM(1.08,bm(0x8b5cf6,0.13,THREE.BackSide,THREE.AdditiveBlending));
-  const mc2=addM(0.58,bm(0x6d28d9,0.38,undefined,THREE.AdditiveBlending));
-  const nuc=addM(0.20,bm(0xede9fe,1.0,undefined,THREE.AdditiveBlending));
-  const pw1=addM(1.15,bm(0x8b5cf6,0,undefined,THREE.AdditiveBlending));
-  const pw2=addM(1.15,bm(0xa78bfa,0,undefined,THREE.AdditiveBlending));
-  scene.add(sg);
-
-  // Neural nodes (Fibonacci sphere)
-  const ng=new THREE.Group(); const N=26,NR=3.1,PHI=(1+Math.sqrt(5))/2; const npos=[];
-  for(let i=0;i<N;i++){const th=Math.acos(1-2*(i+0.5)/N),az=2*Math.PI*i/PHI;npos.push(new THREE.Vector3(NR*Math.sin(th)*Math.cos(az),NR*Math.sin(th)*Math.sin(az),NR*Math.cos(th)));}
-  const nc=[0x7c3aed,0x8b5cf6,0x6366f1,0xa78bfa,0x4f46e5,0xc084fc,0x818cf8,0x9333ea];
-  npos.forEach((p,i)=>{
-    const r=0.042+Math.random()*0.044,c=nc[i%nc.length];
-    const core=new THREE.Mesh(new THREE.SphereGeometry(r,12,12),new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:0.95,blending:THREE.AdditiveBlending,depthWrite:false}));
-    core.position.copy(p);ng.add(core);
-    const halo=new THREE.Mesh(new THREE.SphereGeometry(r*4,8,8),new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:0.10,blending:THREE.AdditiveBlending,depthWrite:false}));
-    halo.position.copy(p);ng.add(halo);
-  });
-
-  // Connections
-  const curves=[],used=new Set();
-  npos.forEach((pA,i)=>{
-    npos.map((pB,j)=>({j,d:pA.distanceTo(pB)})).sort((a,b)=>a.d-b.d).slice(1,4).forEach(({j})=>{
-      const k=\`\${Math.min(i,j)}-\${Math.max(i,j)}\`;
-      if(!used.has(k)){used.add(k);
-        const A=npos[i],B=npos[j];
-        const mid=A.clone().add(B).multiplyScalar(0.5);
-        mid.addScaledVector(mid.clone().normalize(),0.45+Math.random()*0.5);
-        const curve=new THREE.QuadraticBezierCurve3(A.clone(),mid,B.clone());
-        curves.push(curve);
-        const geo=new THREE.BufferGeometry().setFromPoints(curve.getPoints(52));
-        ng.add(new THREE.Line(geo,new THREE.LineBasicMaterial({color:0x4c1d95,transparent:true,opacity:0.28,blending:THREE.AdditiveBlending,depthWrite:false})));
-        ng.add(new THREE.Line(geo,new THREE.LineBasicMaterial({color:0x7c3aed,transparent:true,opacity:0.11,blending:THREE.AdditiveBlending,depthWrite:false})));
-      }
-    });
-  });
-  scene.add(ng);
-
-  // Particles
-  const parts=[];
-  curves.forEach(curve=>{
-    for(let p=0;p<2+Math.floor(Math.random()*3);p++){
-      const m=new THREE.Mesh(new THREE.SphereGeometry(0.022,8,8),new THREE.MeshBasicMaterial({color:0xede9fe,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
-      ng.add(m); parts.push({m,curve,t:Math.random(),sp:0.00055+Math.random()*0.00085,ph:Math.random()*Math.PI*2});
-    }
-  });
-
-  // Pulse state
-  let pt1=1,pt2=1,ptimer=0;
-  const eoc=t=>1-Math.pow(1-t,3),eoq=t=>1-Math.pow(1-t,4);
-  const _c=new THREE.Color();
-  const iCol=t=>{_c.setHSL(0.72+Math.sin(t*0.18)*0.08,0.75+Math.sin(t*0.11)*0.10,0.38+Math.sin(t*0.23)*0.06);return _c;};
-
-  // Animation loop
-  const clk=new THREE.Clock(); let el=0;
-  const heroEl=document.getElementById('hero');
-
-  (function tick(){
-    requestAnimationFrame(tick);
-    const dt=Math.min(clk.getDelta(),0.05); el+=dt;
-    if(heroEl.getBoundingClientRect().bottom<0) return;
-
-    cam.position.x=Math.sin(el*0.10)*0.50;
-    cam.position.y=1.0+Math.sin(el*0.07)*0.25;
-    cam.position.z=8.0+Math.sin(el*0.05)*0.35;
-    cam.lookAt(0,0,0);
-
-    ng.rotation.y+=0.00062; ng.rotation.x=Math.sin(el*0.044)*0.08;
-    sg.scale.setScalar(1+Math.sin(el*0.75)*0.016);
-    nuc.material.opacity=0.80+Math.sin(el*2.1)*0.18;
-    mc2.material.opacity=0.30+Math.sin(el*1.3)*0.11;
-    gf.material.emissive.copy(iCol(el)).multiplyScalar(0.45);
-    cl.intensity=cl.intensity>6?cl.intensity*0.87:4.0+Math.sin(el*0.9)*1.5;
-    cl.color.copy(iCol(el*1.3));
-
-    ptimer+=dt;
-    if(ptimer>2.0){ptimer=0;pt1=0;pt2=-0.35;cl.intensity=15;}
-    if(pt1<1){pt1=Math.min(pt1+dt*0.55,1);const e=eoq(pt1);pw1.scale.setScalar(1+e*1.4);pw1.material.opacity=(1-e)*0.27;}
-    else pw1.material.opacity=0;
-    if(pt2<0) pt2+=dt*0.55;
-    else if(pt2<1){pt2=Math.min(pt2+dt*0.44,1);const e=eoc(pt2);pw2.scale.setScalar(1+e*2.1);pw2.material.opacity=(1-e)*0.12;}
-    else pw2.material.opacity=0;
-
-    parts.forEach(p=>{
-      p.t+=p.sp; if(p.t>=1)p.t-=1;
-      p.m.position.copy(p.curve.getPoint(p.t));
-      const fade=Math.sin(p.t*Math.PI);
-      p.m.material.opacity=fade*(0.55+Math.sin(el*4.5+p.ph)*0.22);
-    });
-
-    bokeh.rotation.z+=0.00005;
-    renderer.render(scene,cam);
-  })();
-
-  // Resize — always window dimensions
-  window.addEventListener('resize',()=>{
-    VW=window.innerWidth; VH=window.innerHeight;
-    cam.aspect=VW/VH; cam.updateProjectionMatrix();
-    renderer.setSize(VW,VH);
-  },{passive:true});
-})();
-
-/* ── Real stats from your Airtable via /api/stats ── */
-(function() {
-  const cEl = document.getElementById('live-count');
-  const mEl = document.getElementById('live-matches');
-  const fmt = n => (n||0).toLocaleString('en-IN');
-
-  async function loadStats() {
-    try {
-      const res = await fetch('/api/stats');
-      if (!res.ok) throw new Error('api error');
-      const d = await res.json();
-      if (d.ok) {
-        cEl.style.opacity = mEl.style.opacity = '0.4';
-        requestAnimationFrame(() => {
-          cEl.textContent = fmt(d.activeUsers);
-          mEl.textContent = fmt(d.matchesToday);
-          cEl.style.opacity = mEl.style.opacity = '1';
-        });
-      }
-    } catch(e) {
-      // Fallback if API unreachable (e.g. local dev or server error)
-      const h = new Date().getHours();
-      const peak = (h >= 9 && h <= 19) ? 1.0 : 0.42;
-      if (cEl.textContent === '—') {
-        cEl.textContent = fmt(Math.round((680 + Math.random()*200) * peak));
-        mEl.textContent = fmt(Math.round(2400 + Math.random()*800 + h*100));
-      }
-    }
-  }
-
-  // Load immediately, then refresh every 5 min (matches server cache TTL)
-  loadStats();
-  setInterval(loadStats, 5 * 60 * 1000);
-})();
-
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   NAV + SCROLL REVEALS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-const nav  = document.getElementById('nav');
-const hero = document.getElementById('hero');
-
-new IntersectionObserver(
-  ([e]) => nav.classList.toggle('solid', !e.isIntersecting),
-  { rootMargin: '-60px 0px 0px 0px' }
-).observe(hero);
-
-const revObs = new IntersectionObserver(entries => {
-  entries.forEach(e => {
-    if (!e.isIntersecting) return;
-    const el = e.target, d = parseFloat(el.dataset.d || 0);
-    setTimeout(() => {
-      el.classList.add('vis');
-      el.querySelectorAll('.bar-fill[data-w]').forEach(b => {
-        b.style.width='0%';
-        setTimeout(()=>{ b.style.width = b.dataset.w+'%'; }, 120);
-      });
-    }, d);
-    revObs.unobserve(el);
-  });
-}, { threshold: 0.12 });
-
-document.querySelectorAll('.mc').forEach((el,i)  => { el.dataset.d=i*90;  revObs.observe(el); });
-document.querySelectorAll('.plan').forEach((el,i) => { el.dataset.d=i*80;  revObs.observe(el); });
-</script>
-</body>
-</html>
-`;
-
-app.get('/', (_req, res) => {
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(LANDING_HTML);
+// ── GET /api/ping — deployment check ─────────────────────────────────────────
+app.get('/api/ping', (_req, res) => {
+  cors(res);
+  console.log('[ping] ok');
+  res.json({ ok: true, ts: new Date().toISOString(), airtable: !!(AT_TOKEN && AT_BASE), node: process.version });
 });
 
-// ── CORS (landing page fetches /api/stats from browser) ───────────────────────
-app.use('/api', (req, res, next) => {
-  res.set('Access-Control-Allow-Origin', '*');
-  next();
-});
+// ── GET /api/stats ────────────────────────────────────────────────────────────
+let _cache = null, _cacheAt = 0;
 
-// ═════════════════════════════════════════════════════════════════════════════
-// GET /api/stats
-// Returns real active-user count + total matches delivered today from Airtable.
-// Cached 5 min to avoid hammering Airtable on every page load.
-// ═════════════════════════════════════════════════════════════════════════════
-let _cache   = null;
-let _cacheAt = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-async function fetchStats() {
-  const now = Date.now();
-  if (_cache && now - _cacheAt < CACHE_TTL) return _cache;
-
-  const h = atHeaders();
-
-  // 1. Count Status="Active" records (= real registered users)
-  const ur = await fetch(
-    `${AT_API}?filterByFormula={Status}%3D%22Active%22&fields%5B%5D=Email&maxRecords=1000`,
-    { headers: h }
-  );
-  const ud = await ur.json();
-  const activeUsers = (ud.records || []).length;
-
-  // 2. Sum matches delivered today across all active users
-  //    LastRun is an ISO timestamp; we compare the date portion.
-  //    LastMatches is a JSON array of compact job objects.
-  const todayISO = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
-  const mr = await fetch(
-    `${AT_API}?filterByFormula=AND({Status}%3D%22Active%22%2CNOT({LastRun}%3D%22%22))&fields%5B%5D=LastMatches&fields%5B%5D=LastRun&maxRecords=1000`,
-    { headers: h }
-  );
-  const md = await mr.json();
-
-  let matchesToday = 0;
-  for (const rec of md.records || []) {
-    const lastRun = rec.fields?.LastRun || '';
-    if (!lastRun.startsWith(todayISO)) continue;
-    try {
-      const arr = JSON.parse(rec.fields?.LastMatches || '[]');
-      if (Array.isArray(arr)) matchesToday += arr.length;
-    } catch { /* malformed JSON — skip */ }
-  }
-
-  _cache   = { activeUsers, matchesToday, asOf: new Date().toISOString() };
-  _cacheAt = now;
-  return _cache;
-}
-
-app.get('/api/stats', async (req, res) => {
-  // Public endpoint — allow CDN caching for 5 min too
-  res.set('Cache-Control', 'public, max-age=300');
+app.get('/api/stats', async (_req, res) => {
+  cors(res);
+  console.log('[stats] request');
   try {
-    const stats = await fetchStats();
-    res.json({ ok: true, ...stats });
-  } catch (err) {
-    console.error('[stats]', err.message);
-    // Return a safe fallback so the landing page degrades gracefully
-    res.status(500).json({ ok: false, error: 'Stats temporarily unavailable' });
+    const now = Date.now();
+    if (!_cache || now - _cacheAt > 5 * 60 * 1000) {
+      const [ur, mr] = await Promise.all([
+        fetch(`${AT_API}?filterByFormula=${encodeURIComponent('{Status}="Active"')}&fields[]=Email&maxRecords=1000`, { headers: atH() }),
+        fetch(`${AT_API}?filterByFormula=${encodeURIComponent('AND({Status}="Active",NOT({LastRun}=""))')}&fields[]=LastRun&fields[]=LastMatches&maxRecords=1000`, { headers: atH() }),
+      ]);
+      const [ud, md] = await Promise.all([ur.json(), mr.json()]);
+      const today = new Date().toISOString().slice(0, 10);
+      let matchesToday = 0;
+      for (const r of md.records || []) {
+        if (!(r.fields?.LastRun || '').startsWith(today)) continue;
+        try { const a = JSON.parse(r.fields?.LastMatches || '[]'); if (Array.isArray(a)) matchesToday += a.length; } catch {}
+      }
+      _cache = { activeUsers: (ud.records || []).length, matchesToday, asOf: new Date().toISOString() };
+      _cacheAt = now;
+      console.log('[stats]', _cache.activeUsers, 'users,', _cache.matchesToday, 'matches today');
+    }
+    res.json({ ok: true, ..._cache });
+  } catch (e) {
+    console.error('[stats] error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// GET /feedback?email=...&rating=1-5&token=...
-// Called when user taps emoji in the daily digest.
-// Writes LastRating + LastRatingDate to Airtable.
-// ═════════════════════════════════════════════════════════════════════════════
+// ── GET /feedback ─────────────────────────────────────────────────────────────
 app.get('/feedback', async (req, res) => {
   const { email, rating, token } = req.query;
   const r = parseInt(rating, 10);
-
-  if (!email || !validToken(email, token)) {
-    return res.status(400).send(shell('Invalid link',
-      `<div class="card"><p>This link is invalid or has expired.</p></div>`));
-  }
-  if (!r || r < 1 || r > 5) {
-    return res.status(400).send(shell('Bad rating',
-      `<div class="card"><p>Rating must be 1–5.</p></div>`));
-  }
-
-  const EMOJIS  = ['', '😞', '😐', '🙂', '😊', '🤩'];
-  const LABELS  = ['', 'Poor', 'Okay', 'Good', 'Great', 'Excellent'];
-
+  if (!email || !validToken(email, token) || !r || r < 1 || r > 5)
+    return res.status(400).send(page('Error', '<p>Invalid link.</p>'));
   try {
-    const user = await findUser(email);
-    if (user) {
-      await patchUser(user.id, {
-        'LastRating':      r,
-        'LastRatingDate':  new Date().toISOString().slice(0, 10),
-        'LastRatingLabel': `${EMOJIS[r]} ${LABELS[r]}`,
-      });
-    }
-
-    res.send(shell('Thanks!', `
-      <div class="card">
-        <div class="big-emoji">${EMOJIS[r]}</div>
-        <h2>Thanks${user?.fields?.Name ? ', ' + user.fields.Name : ''}!</h2>
-        <p>You rated today's matches <strong>${LABELS[r]}</strong>.</p>
-        <p class="muted">We use this to improve tomorrow's results.</p>
-      </div>`));
-  } catch (err) {
-    console.error('[feedback]', err.message);
-    res.status(500).send(shell('Error', `<div class="card"><p>Something went wrong. Please try again.</p></div>`));
-  }
+    const u = await findUser(email);
+    if (u) await patchUser(u.id, { LastRating: r, LastRatingDate: new Date().toISOString().slice(0,10) });
+    const E = ['','😞','😐','🙂','😊','🤩'], L = ['','Poor','Okay','Good','Great','Excellent'];
+    res.send(page('Thanks!', `<div class="big-emoji">${E[r]}</div><h2>Thanks!</h2><p>You rated today's matches <strong>${L[r]}</strong>.</p>`));
+  } catch (e) { res.status(500).send(page('Error', '<p>Something went wrong.</p>')); }
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// GET /unsubscribe?email=...&token=...
-// Sets Status=Inactive in Airtable and blacklists in Brevo.
-// ═════════════════════════════════════════════════════════════════════════════
+// ── GET /unsubscribe ──────────────────────────────────────────────────────────
 app.get('/unsubscribe', async (req, res) => {
   const { email, token } = req.query;
-
-  if (!email || !validToken(email, token)) {
-    return res.status(400).send(shell('Invalid link',
-      `<div class="card"><p>This unsubscribe link is invalid.</p></div>`));
-  }
-
+  if (!email || !validToken(email, token)) return res.status(400).send(page('Invalid', '<p>Invalid link.</p>'));
   try {
-    const user = await findUser(email);
-    if (user) {
-      await patchUser(user.id, {
-        Status: 'Inactive',
-        Notes:  'Unsubscribed via email link ' + new Date().toISOString().slice(0, 10),
-      });
-    }
-
-    // Brevo — blacklist contact
-    if (BREVO_API_KEY) {
-      await fetch(`https://api.brevo.com/v3/contacts`, {
-        method:  'POST',
-        headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ email, emailBlacklisted: true }),
-      }).catch(() => {});
-    }
-
-    const resubUrl = `/resubscribe?email=${encodeURIComponent(email)}&token=${token}`;
-    res.send(shell('Unsubscribed', `
-      <div class="card">
-        <div class="big-emoji">👋</div>
-        <h2>You've been unsubscribed</h2>
-        <p>No more daily digests. We hope we helped.</p>
-        <p class="muted" style="margin-top:16px">Changed your mind?</p>
-        <a href="${resubUrl}" class="btn">Resume my matches →</a>
-      </div>`));
-  } catch (err) {
-    console.error('[unsubscribe]', err.message);
-    res.status(500).send(shell('Error', `<div class="card"><p>Something went wrong.</p></div>`));
-  }
+    const u = await findUser(email);
+    if (u) await patchUser(u.id, { Status: 'Inactive', Notes: 'Unsubscribed ' + new Date().toISOString().slice(0,10) });
+    if (BREVO_KEY) await fetch('https://api.brevo.com/v3/contacts', { method:'POST', headers:{'api-key':BREVO_KEY,'Content-Type':'application/json'}, body: JSON.stringify({ email, emailBlacklisted: true }) }).catch(()=>{});
+    res.send(page('Unsubscribed', `<div class="big-emoji">👋</div><h2>Done.</h2><p>No more digests.<br><a href="/resubscribe?email=${encodeURIComponent(email)}&token=${token}" class="btn">Undo →</a></p>`));
+  } catch (e) { res.status(500).send(page('Error', '<p>Something went wrong.</p>')); }
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// GET /resubscribe?email=...&token=...
-// Re-activates account and removes Brevo blacklist.
-// ═════════════════════════════════════════════════════════════════════════════
+// ── GET /resubscribe ──────────────────────────────────────────────────────────
 app.get('/resubscribe', async (req, res) => {
   const { email, token } = req.query;
-
-  if (!email || !validToken(email, token)) {
-    return res.status(400).send(shell('Invalid link',
-      `<div class="card"><p>This link is invalid.</p></div>`));
-  }
-
+  if (!email || !validToken(email, token)) return res.status(400).send(page('Invalid', '<p>Invalid link.</p>'));
   try {
-    const user = await findUser(email);
-    if (user) {
-      await patchUser(user.id, {
-        Status: 'Active',
-        Notes:  'Resubscribed ' + new Date().toISOString().slice(0, 10),
-      });
-    }
-
-    if (BREVO_API_KEY) {
-      await fetch(`https://api.brevo.com/v3/contacts/${encodeURIComponent(email)}`, {
-        method:  'PUT',
-        headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ emailBlacklisted: false }),
-      }).catch(() => {});
-    }
-
-    res.send(shell('Welcome back!', `
-      <div class="card">
-        <div class="big-emoji">🎉</div>
-        <h2>You're back on!</h2>
-        <p>Daily matches resume from tomorrow morning at 7AM.</p>
-      </div>`));
-  } catch (err) {
-    console.error('[resubscribe]', err.message);
-    res.status(500).send(shell('Error', `<div class="card"><p>Something went wrong.</p></div>`));
-  }
+    const u = await findUser(email);
+    if (u) await patchUser(u.id, { Status: 'Active', Notes: 'Resubscribed ' + new Date().toISOString().slice(0,10) });
+    if (BREVO_KEY) await fetch(`https://api.brevo.com/v3/contacts/${encodeURIComponent(email)}`, { method:'PUT', headers:{'api-key':BREVO_KEY,'Content-Type':'application/json'}, body: JSON.stringify({ emailBlacklisted: false }) }).catch(()=>{});
+    res.send(page('Welcome back!', '<div class="big-emoji">🎉</div><h2>You\'re back on.</h2><p>Matches resume tomorrow morning.</p>'));
+  } catch (e) { res.status(500).send(page('Error', '<p>Something went wrong.</p>')); }
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// GET /dashboard?email=...&token=...
-// Renders last match batch from Airtable LastMatches field.
-// ═════════════════════════════════════════════════════════════════════════════
+// ── GET /dashboard ────────────────────────────────────────────────────────────
 app.get('/dashboard', async (req, res) => {
   const { email, token } = req.query;
-
-  if (!email || !validToken(email, token)) {
-    return res.status(400).send(shell('Invalid link',
-      `<div class="card"><p>This dashboard link is invalid.</p></div>`));
-  }
-
+  if (!email || !validToken(email, token)) return res.status(400).send(page('Invalid', '<p>Invalid link.</p>'));
   try {
-    const user = await findUser(email);
-    if (!user) {
-      return res.status(404).send(shell('Not found',
-        `<div class="card"><p>No account found for this email.</p></div>`));
-    }
-
-    const f       = user.fields || {};
-    const name    = f.Name || email.split('@')[0];
-    const lastRun = f.LastRun
-      ? new Date(f.LastRun).toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long' })
-      : null;
-
-    let jobs = [];
-    try { jobs = JSON.parse(f.LastMatches || '[]'); } catch {}
-
-    // Score colour helpers
-    const sc = s => s >= 85 ? '#059669' : s >= 70 ? '#4F46E5' : '#8888A0';
-    const sl = s => s >= 85 ? 'Strong Match' : s >= 70 ? 'Good Match' : 'Possible Match';
-
-    const cards = jobs.length === 0
-      ? `<div style="text-align:center;padding:48px 0;color:#8888A0">
-           <div style="font-size:32px;margin-bottom:12px">📭</div>
-           <p style="font-size:15px">No matches yet — check back after your next morning digest.</p>
-         </div>`
-      : jobs.map(j => `
-          <div style="background:#fff;border:1px solid #E6E6E2;border-radius:14px;padding:18px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px">
-              <div style="flex:1;min-width:0">
-                <div style="font-size:15px;font-weight:700;color:#0C0C10;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${j.t || '—'}</div>
-                <div style="font-size:12px;color:#8888A0">${[j.c, j.src].filter(Boolean).join(' · ')}</div>
-              </div>
-              <div style="text-align:right;flex-shrink:0">
-                <div style="font-size:22px;font-weight:800;color:${sc(j.s)};line-height:1">${j.s}%</div>
-                <div style="font-size:10px;color:#8888A0;margin-top:2px">${sl(j.s)}</div>
-              </div>
-            </div>
-            ${j.v ? `<div style="font-size:13px;color:#3D3D47;line-height:1.6;background:#F8F8F6;padding:10px 12px;border-radius:8px;margin-bottom:10px;border-left:3px solid ${sc(j.s)}">${j.v}</div>` : ''}
-            ${j.sal || j.exp ? `<div style="font-size:12px;color:#059669;font-weight:600;margin-bottom:10px">${[j.sal, j.exp].filter(Boolean).join(' · ')}</div>` : ''}
-            ${j.ap ? `<div style="font-size:11px;color:#8888A0;margin-bottom:10px">${j.ap} applicants</div>` : ''}
-            ${j.u  ? `<a href="${j.u}" target="_blank" rel="noopener" style="display:inline-block;padding:7px 18px;background:#0C0C10;color:#fff;border-radius:999px;font-size:12px;font-weight:700;text-decoration:none">Apply →</a>` : ''}
-          </div>`).join('');
-
-    res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Your matches — JobMatch AI</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'DM Sans',sans-serif;background:#F8F8F6;color:#0C0C10;-webkit-font-smoothing:antialiased}
-  .topbar{background:#fff;border-bottom:1px solid #E6E6E2;padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
-  .logo{font-size:16px;font-weight:700;color:#0C0C10}.logo span{color:#4F46E5}
-  .em{font-size:12px;color:#8888A0}
-  .inner{max-width:640px;margin:0 auto;padding:32px 20px 80px}
-  .hdr{margin-bottom:24px}
-  .hdr h1{font-size:22px;font-weight:700;letter-spacing:-0.5px;margin-bottom:5px}
-  .hdr p{font-size:13px;color:#8888A0}
-  .unsublink{display:inline-block;margin-top:32px;font-size:12px;color:#C4C4C4;text-decoration:none}
-  .unsublink:hover{color:#8888A0}
-</style>
-</head>
-<body>
-  <div class="topbar">
-    <div class="logo">Job<span>Match</span> AI</div>
-    <div class="em">${email}</div>
-  </div>
-  <div class="inner">
-    <div class="hdr">
-      <h1>Your matches, ${name}</h1>
-      <p>${lastRun ? `Last run: ${lastRun} · ` : ''}${jobs.length} job${jobs.length !== 1 ? 's' : ''} in this digest</p>
-    </div>
-    ${cards}
-    <a href="/unsubscribe?email=${encodeURIComponent(email)}&token=${token}" class="unsublink">Unsubscribe from daily digests</a>
-  </div>
-</body>
-</html>`);
-  } catch (err) {
-    console.error('[dashboard]', err.message);
-    res.status(500).send(shell('Error', `<div class="card"><p>Something went wrong loading your dashboard.</p></div>`));
-  }
+    const u = await findUser(email);
+    if (!u) return res.status(404).send(page('Not found', '<p>No account found.</p>'));
+    const f = u.fields || {};
+    let jobs = []; try { jobs = JSON.parse(f.LastMatches || '[]'); } catch {}
+    const sc = s => s>=85?'#059669':s>=70?'#4F46E5':'#888';
+    const cards = jobs.length
+      ? jobs.map(j=>`<div style="border:1px solid #E6E6E2;border-radius:12px;padding:16px;margin-bottom:10px;background:#fff">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <div><strong style="color:#0C0C10">${j.t||'—'}</strong><br><span style="font-size:12px;color:#888">${[j.c,j.src].filter(Boolean).join(' · ')}</span></div>
+            <strong style="font-size:24px;color:${sc(j.s)}">${j.s}%</strong>
+          </div>
+          ${j.v?`<p style="font-size:13px;color:#555;line-height:1.6;background:#f8f8f6;padding:10px;border-radius:8px;border-left:3px solid ${sc(j.s)}">${j.v}</p>`:''}
+          ${j.u?`<a href="${j.u}" target="_blank" style="display:inline-block;margin-top:10px;padding:6px 16px;background:#0C0C10;color:#fff;border-radius:999px;font-size:12px;font-weight:700;text-decoration:none">Apply →</a>`:''}
+        </div>`).join('')
+      : '<p style="color:#888;padding:32px 0;text-align:center">No matches yet — check back after your next morning digest.</p>';
+    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Your matches</title>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+      <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;background:#f8f8f6;padding:0 0 60px}
+      .top{background:#fff;border-bottom:1px solid #E6E6E2;padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0}
+      .inner{max-width:600px;margin:0 auto;padding:28px 20px}h1{font-size:20px;font-weight:700;margin-bottom:4px}p.sub{font-size:13px;color:#888;margin-bottom:20px}</style></head>
+      <body><div class="top"><strong>JobMatch AI</strong><span style="font-size:12px;color:#888">${email}</span></div>
+      <div class="inner"><h1>Your matches</h1><p class="sub">${jobs.length} job${jobs.length!==1?'s':''} in this digest · <a href="/unsubscribe?email=${encodeURIComponent(email)}&token=${token}" style="color:#888">Unsubscribe</a></p>
+      ${cards}</div></body></html>`);
+  } catch (e) { res.status(500).send(page('Error', '<p>Something went wrong.</p>')); }
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// GET  /profile?email=...&token=...   — render editable profile form
-// POST /profile                       — persist changes to Airtable
-// ═════════════════════════════════════════════════════════════════════════════
+// ── GET + POST /profile ───────────────────────────────────────────────────────
 app.get('/profile', async (req, res) => {
   const { email, token } = req.query;
-
-  if (!email || !validToken(email, token)) {
-    return res.status(400).send(shell('Invalid link',
-      `<div class="card"><p>This profile link is invalid.</p></div>`));
-  }
-
+  if (!email || !validToken(email, token)) return res.status(400).send(page('Invalid', '<p>Invalid link.</p>'));
   try {
-    const user = await findUser(email);
-    if (!user) {
-      return res.status(404).send(shell('Not found',
-        `<div class="card"><p>No account found for this email.</p></div>`));
-    }
-
-    const f = user.fields || {};
-    const seniorities = ['Fresher','Junior','Mid-level','Senior','Lead','Head','Director','VP','C-suite'];
-    const opt = (val) => seniorities
-      .map(s => `<option value="${s.toLowerCase()}"${(f.Seniority||'').toLowerCase()===s.toLowerCase()?' selected':''}>${s}</option>`)
-      .join('');
-
-    res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Update profile — JobMatch AI</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'DM Sans',sans-serif;background:#F8F8F6;color:#0C0C10;-webkit-font-smoothing:antialiased}
-  .topbar{background:#fff;border-bottom:1px solid #E6E6E2;padding:0 20px;height:56px;display:flex;align-items:center;position:sticky;top:0;z-index:10}
-  .logo{font-size:16px;font-weight:700;color:#0C0C10}.logo span{color:#4F46E5}
-  .inner{max-width:520px;margin:0 auto;padding:32px 20px 80px}
-  h1{font-size:22px;font-weight:700;letter-spacing:-0.5px;margin-bottom:6px}
-  .sub{font-size:14px;color:#8888A0;margin-bottom:28px}
-  .field{margin-bottom:18px}
-  label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#8888A0;margin-bottom:6px}
-  input,select,textarea{width:100%;padding:10px 14px;background:#fff;border:1px solid #E6E6E2;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:#0C0C10;outline:none;transition:border-color 0.2s;-webkit-appearance:none}
-  input:focus,select:focus,textarea:focus{border-color:#4F46E5;box-shadow:0 0 0 3px rgba(79,70,229,0.08)}
-  textarea{resize:vertical;min-height:72px}
-  .save-btn{width:100%;padding:13px;border-radius:999px;background:#4F46E5;color:#fff;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;border:none;cursor:pointer;margin-top:8px;transition:background 0.2s;-webkit-appearance:none}
-  .save-btn:hover{background:#3730A3}
-  .save-btn:disabled{opacity:0.6;cursor:not-allowed}
-  .success{display:none;background:#ECFDF5;border:1px solid rgba(5,150,105,0.25);border-radius:10px;padding:14px;text-align:center;font-size:14px;color:#059669;font-weight:600;margin-bottom:18px}
-  .hint{font-size:11px;color:#B0B0BC;margin-top:5px}
-</style>
-</head>
-<body>
-  <div class="topbar">
-    <div class="logo">Job<span>Match</span> AI</div>
-  </div>
-  <div class="inner">
-    <h1>Update your profile</h1>
-    <p class="sub">Changes apply from your next morning digest.</p>
-    <div class="success" id="ok">✓ Profile saved — your next digest will use these settings.</div>
-    <form id="pf">
-      <input type="hidden" name="email" value="${email}">
-      <input type="hidden" name="token" value="${token}">
-
-      <div class="field">
-        <label>Target role</label>
-        <input name="targetRole" value="${f['Target role']||''}" placeholder="e.g. Head of Partnerships">
-      </div>
-      <div class="field">
-        <label>Current role</label>
-        <input name="currentRole" value="${f['Current role']||''}" placeholder="e.g. Senior Manager, Alliances">
-      </div>
-      <div class="field">
-        <label>Seniority</label>
-        <select name="seniority">${opt()}</select>
-      </div>
-      <div class="field">
-        <label>Total experience</label>
-        <input name="experience" value="${f['Experience']||''}" placeholder="e.g. 7 years">
-      </div>
-      <div class="field">
-        <label>Domain / Industry</label>
-        <input name="domain" value="${f['Domain']||''}" placeholder="e.g. Fintech / NBFC / Digital Lending">
-      </div>
-      <div class="field">
-        <label>Key skills</label>
-        <textarea name="skills">${f['Skills']||''}</textarea>
-        <p class="hint">Comma-separated, up to 10 skills</p>
-      </div>
-      <div class="field">
-        <label>Preferred location</label>
-        <input name="location" value="${f['Location']||''}" placeholder="e.g. Bengaluru">
-      </div>
-      <div class="field">
-        <label>Cities to search</label>
-        <input name="cities" value="${f['Cities']||''}" placeholder="e.g. Bengaluru, Mumbai, Hyderabad">
-        <p class="hint">Comma-separated</p>
-      </div>
-      <div class="field">
-        <label>Company type preference</label>
-        <input name="companyType" value="${f['Company type']||''}" placeholder="e.g. Startup, NBFC, MNC">
-      </div>
-
-      <button type="submit" class="save-btn" id="sb">Save changes</button>
-    </form>
-  </div>
-  <script>
-    document.getElementById('pf').addEventListener('submit', async e => {
-      e.preventDefault();
-      const btn = document.getElementById('sb');
-      btn.textContent = 'Saving…'; btn.disabled = true;
-      try {
-        const res = await fetch('/profile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams(new FormData(e.target)).toString(),
-        });
-        if (res.ok) {
-          document.getElementById('ok').style.display = 'block';
-          btn.textContent = '✓ Saved';
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        } else {
-          throw new Error('Server error');
-        }
-      } catch {
-        btn.textContent = 'Error — please try again';
-        btn.disabled = false;
-      }
-    });
-  </script>
-</body>
-</html>`);
-  } catch (err) {
-    console.error('[profile GET]', err.message);
-    res.status(500).send(shell('Error', `<div class="card"><p>Could not load your profile.</p></div>`));
-  }
+    const u = await findUser(email);
+    if (!u) return res.status(404).send(page('Not found', '<p>No account found.</p>'));
+    const f = u.fields || {};
+    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Update profile</title>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+      <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;background:#f8f8f6;padding:40px 20px}
+      .wrap{max-width:480px;margin:0 auto}h1{font-size:20px;font-weight:700;margin-bottom:6px}p.sub{font-size:13px;color:#888;margin-bottom:24px}
+      label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:5px;margin-top:14px}
+      input{width:100%;padding:9px 12px;border:1px solid #E6E6E2;border-radius:8px;font-family:inherit;font-size:14px;outline:none}
+      input:focus{border-color:#4F46E5}
+      button{width:100%;margin-top:20px;padding:12px;background:#0C0C10;color:#fff;border:none;border-radius:999px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}
+      #ok{display:none;background:#ecfdf5;color:#059669;border:1px solid rgba(5,150,105,.2);border-radius:8px;padding:12px;text-align:center;margin-bottom:16px;font-weight:600}</style></head>
+      <body><div class="wrap"><h1>Update your profile</h1><p class="sub">Changes apply from your next morning digest.</p>
+      <div id="ok">✓ Profile saved.</div>
+      <form id="pf"><input type="hidden" name="email" value="${email}"><input type="hidden" name="token" value="${token}">
+      <label>Target role</label><input name="targetRole" value="${f['Target role']||''}">
+      <label>Current role</label><input name="currentRole" value="${f['Current role']||''}">
+      <label>Domain / Industry</label><input name="domain" value="${f['Domain']||''}">
+      <label>Location</label><input name="location" value="${f['Location']||''}">
+      <label>Key skills</label><input name="skills" value="${f['Skills']||''}">
+      <label>Cities to search</label><input name="cities" value="${f['Cities']||''}">
+      <button type="submit">Save changes</button></form></div>
+      <script>document.getElementById('pf').addEventListener('submit',async e=>{e.preventDefault();
+      const r=await fetch('/profile',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(new FormData(e.target)).toString()});
+      if(r.ok){document.getElementById('ok').style.display='block';window.scrollTo({top:0,behavior:'smooth'});}});</script>
+      </body></html>`);
+  } catch (e) { res.status(500).send(page('Error', '<p>Something went wrong.</p>')); }
 });
 
 app.post('/profile', async (req, res) => {
-  const { email, token, targetRole, currentRole, experience, domain, skills, location, cities, seniority, companyType } = req.body;
+  const { email, token, targetRole, currentRole, domain, location, skills, cities } = req.body;
+  if (!email || !validToken(email, token)) return res.status(403).json({ ok: false });
+  try {
+    const u = await findUser(email);
+    if (!u) return res.status(404).json({ ok: false });
+    await patchUser(u.id, { 'Target role': targetRole, 'Current role': currentRole, Domain: domain, Location: location, Skills: skills, Cities: cities });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
 
-  if (!email || !validToken(email, token)) {
-    return res.status(403).json({ ok: false, error: 'Invalid token' });
+// ── POST /api/signup — create / update Airtable record ───────────────────────
+app.options('/api/signup', (req, res) => {
+  cors(res);
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.sendStatus(200);
+});
+
+app.post('/api/signup', async (req, res) => {
+  cors(res);
+  const { name, email, industry, location } = req.body || {};
+
+  // Basic validation
+  if (!name || !email) {
+    return res.status(400).json({ ok: false, error: 'Name and email are required.' });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ ok: false, error: 'Invalid email address.' });
+  }
+  if (!AT_TOKEN || !AT_BASE) {
+    console.error('[signup] Airtable not configured');
+    return res.status(503).json({ ok: false, error: 'Service temporarily unavailable.' });
   }
 
   try {
-    const user = await findUser(email);
-    if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
+    const existing = await findUser(email);
 
-    await patchUser(user.id, {
-      'Target role':   targetRole   || undefined,
-      'Current role':  currentRole  || undefined,
-      'Experience':    experience   || undefined,
-      'Domain':        domain       || undefined,
-      'Skills':        skills       || undefined,
-      'Location':      location     || undefined,
-      'Cities':        cities       || undefined,
-      'Seniority':     seniority    || undefined,
-      'Company type':  companyType  || undefined,
-    });
+    const fields = {
+      'Name':         name.trim(),
+      'Email':        email.trim().toLowerCase(),
+      'Domain':       (industry || '').trim(),
+      'Location':     (location || 'Bengaluru').trim(),
+      'Cities':       (location || 'Bengaluru').trim(),
+      'Status':       'Active',
+      'Signup Date':  new Date().toISOString().slice(0, 10),
+    };
 
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('[profile POST]', err.message);
-    res.status(500).json({ ok: false, error: 'Update failed' });
+    if (existing) {
+      // Update existing record — re-activate if they signed up again
+      await patchUser(existing.id, { ...fields, 'Notes': 'Re-signup ' + fields['Signup Date'] });
+      console.log('[signup] updated existing user:', email);
+    } else {
+      // Create new record
+      const r = await fetch(AT_API, {
+        method: 'POST',
+        headers: atH(),
+        body: JSON.stringify({ fields }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        console.error('[signup] Airtable create error:', JSON.stringify(err));
+        return res.status(502).json({ ok: false, error: 'Could not save your profile. Try again.' });
+      }
+      console.log('[signup] created new user:', email);
+    }
+
+    // Welcome email via Brevo (fire-and-forget — don't block response)
+    if (BREVO_KEY && !existing) {
+      fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({
+          sender:      { name: 'JobMatch AI', email: 'hello@jobmatchai.co.in' },
+          to:          [{ email, name }],
+          subject:     `Welcome to JobMatch AI — first digest tomorrow at 7AM`,
+          htmlContent: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
+            <div style="background:#F97316;border-radius:14px;padding:20px 24px;margin-bottom:24px">
+              <div style="font-size:18px;font-weight:800;color:#fff;font-family:'Syne',sans-serif">JobMatch AI</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:4px">You're in.</div>
+            </div>
+            <h2 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:10px">Hi ${name}! 🎉</h2>
+            <p style="font-size:14px;color:#6B7280;line-height:1.7;margin-bottom:14px">
+              Your profile is live. Your first job digest will arrive <strong style="color:#111827">tomorrow morning at 7AM</strong>.
+            </p>
+            <p style="font-size:14px;color:#6B7280;line-height:1.7;margin-bottom:14px">
+              Every morning we search LinkedIn, Naukri, Google Jobs, Adzuna and more — and send you only the roles that actually match your profile, with a score and a plain-English reason.
+            </p>
+            <div style="background:#FFF7ED;border:1px solid rgba(249,115,22,0.2);border-radius:10px;padding:14px 16px;margin-bottom:20px">
+              <strong style="font-size:13px;color:#92400E">Your search profile</strong><br>
+              <span style="font-size:13px;color:#6B7280">Domain: ${industry || 'not set'} · City: ${location || 'not set'}</span>
+            </div>
+            <p style="font-size:12px;color:#9CA3AF">
+              JobMatch AI · <a href="mailto:hello@jobmatchai.co.in" style="color:#F97316">hello@jobmatchai.co.in</a>
+            </p>
+          </div>`,
+        }),
+      }).catch(e => console.error('[signup] welcome email error:', e.message));
+    }
+
+    // Invalidate stats cache so counter updates
+    _cache = null;
+
+    res.json({ ok: true, message: 'You\'re all set! First digest arrives tomorrow at 7AM.' });
+  } catch (e) {
+    console.error('[signup] error:', e.message);
+    res.status(500).json({ ok: false, error: 'Something went wrong. Please try again.' });
   }
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// GET /health  — Render uptime probe
-// ═════════════════════════════════════════════════════════════════════════════
-app.get('/health', (_req, res) => {
-  res.json({ ok: true, uptime: Math.round(process.uptime()), ts: new Date().toISOString() });
+// ── GET /health ───────────────────────────────────────────────────────────────
+app.get('/health', (_req, res) => res.json({ ok: true, uptime: Math.round(process.uptime()) }));
+
+// ── GET / — serve landing page ────────────────────────────────────────────────
+app.get('/', (_req, res) => {
+  if (!HTML_PATH) return res.status(500).send('<h2>Missing public/index.html — add it to your repo.</h2>');
+  res.sendFile(HTML_PATH);
 });
 
-// ── Shared HTML shell for simple one-card pages ───────────────────────────────
-function shell(title, body) {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${title} — JobMatch AI</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'DM Sans',sans-serif;background:#F8F8F6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;-webkit-font-smoothing:antialiased}
-  .card{background:#fff;border:1px solid #E6E6E2;border-radius:18px;padding:40px 36px;max-width:400px;width:100%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.06)}
-  .big-emoji{font-size:48px;margin-bottom:16px;line-height:1}
-  h2{font-size:22px;font-weight:700;letter-spacing:-0.5px;color:#0C0C10;margin-bottom:10px}
-  p{font-size:15px;color:#3D3D47;line-height:1.65;margin-bottom:6px}
-  strong{color:#0C0C10}
-  .muted{font-size:13px;color:#8888A0;margin-top:12px}
-  .btn{display:inline-block;margin-top:20px;padding:11px 24px;background:#4F46E5;color:#fff;border-radius:999px;font-weight:700;font-size:14px;text-decoration:none;transition:background 0.2s}
-  .btn:hover{background:#3730A3}
-</style>
-</head>
-<body>${body}</body>
-</html>`;
+// ── Shared mini page shell ────────────────────────────────────────────────────
+function page(title, body) {
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${title} — JobMatch AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;background:#f8f8f6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{background:#fff;border:1px solid #E6E6E2;border-radius:16px;padding:36px;max-width:380px;width:100%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.06)}
+  .big-emoji{font-size:44px;margin-bottom:14px}h2{font-size:20px;font-weight:700;margin-bottom:10px}p{font-size:14px;color:#555;line-height:1.65}
+  a{color:#4F46E5}.btn{display:inline-block;margin-top:16px;padding:9px 22px;background:#0C0C10;color:#fff;border-radius:999px;font-weight:700;font-size:13px;text-decoration:none}</style>
+  </head><body><div class="card">${body}</div></body></html>`;
 }
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`JobMatch AI server on :${PORT}`);
-  console.log(`  Airtable base : ${AT_BASE || '(missing)'}`);
-  console.log(`  Brevo enabled : ${!!BREVO_API_KEY}`);
+  console.log('');
+  console.log('  JobMatch AI server running on port', PORT);
+  console.log('  ----------------------------------------');
+  console.log('  GET  /              →', HTML_PATH ? 'public/index.html ✓' : 'MISSING public/index.html ✗');
+  console.log('  GET  /api/ping      → always 200 (deployment test)');
+  console.log('  GET  /api/stats     → Airtable live counter');
+  console.log('  POST /api/signup    → create / update user in Airtable + welcome email');
+  console.log('  GET  /feedback      → email rating handler');
+  console.log('  GET  /unsubscribe   → unsubscribe handler');
+  console.log('  GET  /dashboard     → user match dashboard');
+  console.log('  GET  /profile       → profile edit form');
+  console.log('  ----------------------------------------');
+  console.log('  Airtable base :', AT_BASE  || '✗ MISSING — set AIRTABLE_BASE_ID');
+  console.log('  Airtable token:', AT_TOKEN ? AT_TOKEN.slice(0,12)+'...' : '✗ MISSING — set AIRTABLE_TOKEN');
+  console.log('');
 });
