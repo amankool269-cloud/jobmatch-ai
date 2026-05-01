@@ -913,15 +913,14 @@ footer {
   const tkGeo = new THREE.TorusKnotGeometry(1.0, 0.30, 220, 32, 2, 3);
   const tkMat = new THREE.MeshPhysicalMaterial({
     color:              new THREE.Color(0.97, 0.97, 1.00),
-    transmission:       0.96,         // spec: high transmission
+    transmission:       0.96,   // high transmission (r117+)
     roughness:          0.03,
     metalness:          0.00,
-    ior:                1.55,          // spec: light refraction index
-    thickness:          2.4,
-    clearcoat:          1.0,
+    reflectivity:       0.95,   // boosts glass specular in r128 (replaces ior)
+    clearcoat:          1.0,    // glassy sheen (r113+)
     clearcoatRoughness: 0.04,
     transparent:        true,
-    opacity:            0.94,
+    opacity:            0.88,
     side:               THREE.DoubleSide,
     envMapIntensity:    1.1,
   });
@@ -1211,35 +1210,75 @@ async function processFile (file) {
   }, 350);
 }
 
-/* Submit */
-document.getElementById('submit-btn').addEventListener('click', () => {
+/* Submit — POST to /api/signup */
+document.getElementById('submit-btn').addEventListener('click', async () => {
   const n   = document.getElementById('fn').value.trim();
   const e   = document.getElementById('fe').value.trim();
   const ind = document.getElementById('fi').value.trim();
   const loc = document.getElementById('fl').value.trim();
   const err = document.getElementById('ferr');
 
+  // Client-side validation
   const missing = [];
-  if (!n)                                           missing.push('full name');
-  if (!e || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) missing.push('valid email');
-  if (!ind)                                         missing.push('industry');
-  if (!loc)                                         missing.push('city');
+  if (!n)                                             missing.push('full name');
+  if (!e || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))   missing.push('valid email');
+  if (!ind)                                           missing.push('industry / domain');
+  if (!loc)                                           missing.push('preferred city');
 
   if (missing.length) {
-    err.textContent    = 'Please fill in: ' + missing.join(', ') + '.';
-    err.style.display  = 'block';
+    err.textContent   = 'Please fill in: ' + missing.join(', ') + '.';
+    err.style.display = 'block';
+    err.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     return;
   }
   err.style.display = 'none';
 
   const btn = document.getElementById('submit-btn');
-  btn.textContent = 'Finding your matches…';
-  btn.disabled    = true;
+  btn.textContent  = 'Saving your profile…';
+  btn.disabled     = true;
   btn.classList.add('sent');
-  window._intake  = { name: n, email: e, industry: ind, location: loc };
 
-  setTimeout(() =>
-    document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' }), 700);
+  try {
+    const res = await fetch('/api/signup', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ name: n, email: e, industry: ind, location: loc }),
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      // ── Success state ──
+      btn.textContent = '✓ You\'re in — digest arrives tomorrow at 7AM!';
+      btn.style.background = 'linear-gradient(135deg,#22C55E,#16A34A)';
+      btn.style.boxShadow  = '0 4px 16px rgba(34,197,94,.3)';
+
+      // Confetti-style flash on the drop zone
+      document.getElementById('dz').classList.add('done');
+
+      // Store for any downstream use
+      window._intake = { name: n, email: e, industry: ind, location: loc };
+
+      // Scroll to pricing after short delay
+      setTimeout(() =>
+        document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' }), 1400);
+    } else {
+      // Server returned an error
+      err.textContent   = data.error || 'Something went wrong. Please try again.';
+      err.style.display = 'block';
+      btn.textContent   = 'Get my matches →';
+      btn.disabled      = false;
+      btn.classList.remove('sent');
+      btn.style.background = '';
+    }
+  } catch (fetchErr) {
+    // Network error
+    err.textContent   = 'Could not connect. Please check your internet and try again.';
+    err.style.display = 'block';
+    btn.textContent   = 'Get my matches →';
+    btn.disabled      = false;
+    btn.classList.remove('sent');
+    btn.style.background = '';
+  }
 });
 
 /* ══ SCROLL REVEALS ═══════════════════════════════════════════════ */
