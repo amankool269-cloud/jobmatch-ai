@@ -33,6 +33,8 @@ const AT_TOKEN      = process.env.AIRTABLE_TOKEN      || '';
 const AT_BASE       = process.env.AIRTABLE_BASE_ID    || '';
 const BREVO_KEY     = process.env.BREVO_API_KEY       || '';
 const UNSUB_SECRET  = process.env.UNSUBSCRIBE_SECRET  || 'jobmatch-2026';
+const APIFY_TOKEN   = process.env.APIFY_TOKEN          || '';
+const ACTOR_ID      = process.env.APIFY_ACTOR_ID       || '';  // e.g. "youruser~jobmatch-actor"
 const TABLE         = 'tblJtDvebLwnXvV9i';
 const AT_API        = `https://api.airtable.com/v0/${AT_BASE}/${TABLE}`;
 
@@ -310,7 +312,26 @@ app.post('/api/signup', async (req, res) => {
     // Invalidate stats cache so counter updates
     _cache = null;
 
-    res.json({ ok: true, message: 'You\'re all set! First digest arrives tomorrow at 7AM.' });
+    // Trigger actor immediately for new users → first digest in ~2 min
+    // Existing users are already in the next scheduled run, so skip
+    if (!existing && APIFY_TOKEN && ACTOR_ID) {
+      fetch(`https://api.apify.com/v2/acts/${encodeURIComponent(ACTOR_ID)}/runs?token=${APIFY_TOKEN}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filterEmail:   email,
+          inlineProfile: { name, email, domain: industry, location, cities: [location] },
+        }),
+      })
+      .then(() => console.log('[signup] actor triggered for:', email))
+      .catch(e  => console.error('[signup] actor trigger failed:', e.message));
+      // fire-and-forget — don't await, don't block the response
+    }
+
+    const msg = existing
+      ? 'Profile updated! Changes apply from your next morning digest.'
+      : 'You\'re all set! First digest on its way shortly.';
+    res.json({ ok: true, message: msg });
   } catch (e) {
     console.error('[signup] error:', e.message);
     res.status(500).json({ ok: false, error: 'Something went wrong. Please try again.' });
