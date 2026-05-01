@@ -56,13 +56,11 @@ async function patchUser(id, fields) {
   await fetch(`${AT_API}/${id}`, { method: 'PATCH', headers: atH(), body: JSON.stringify({ fields: clean }) });
 }
 
-// ── Find public/index.html (works on any Render region) ───────────────────────
-const htmlCandidates = [
-  path.join(__dirname, 'public', 'index.html'),
-  path.join(process.cwd(), 'public', 'index.html'),
-];
-const HTML_PATH = htmlCandidates.find(p => fs.existsSync(p));
-console.log('[boot] HTML_PATH =', HTML_PATH || 'NOT FOUND — create public/index.html');
+// ── Serve static assets from same folder as server.js ────────────────────────
+// index.html lives in the repo root alongside server.js — no public/ needed
+app.use(express.static(__dirname));
+app.use(express.static(process.cwd()));
+console.log('[boot] static root =', __dirname);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ROUTES
@@ -322,10 +320,13 @@ app.post('/api/signup', async (req, res) => {
 // ── GET /health ───────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ ok: true, uptime: Math.round(process.uptime()) }));
 
-// ── GET / — serve landing page ────────────────────────────────────────────────
+// ── GET / — serve index.html from repo root ──────────────────────────────────
 app.get('/', (_req, res) => {
-  if (!HTML_PATH) return res.status(500).send('<h2>Missing public/index.html — add it to your repo.</h2>');
-  res.sendFile(HTML_PATH);
+  const p1 = path.join(__dirname,     'index.html');
+  const p2 = path.join(process.cwd(), 'index.html');
+  const p  = fs.existsSync(p1) ? p1 : fs.existsSync(p2) ? p2 : null;
+  if (!p) return res.status(500).send('<h2>index.html not found — make sure it is in the same folder as server.js</h2>');
+  res.sendFile(p);
 });
 
 // ── Shared mini page shell ────────────────────────────────────────────────────
@@ -345,7 +346,7 @@ app.listen(PORT, () => {
   console.log('');
   console.log('  JobMatch AI server running on port', PORT);
   console.log('  ----------------------------------------');
-  console.log('  GET  /              →', HTML_PATH ? 'public/index.html ✓' : 'MISSING public/index.html ✗');
+  console.log('  GET  /              → index.html from repo root');
   console.log('  GET  /api/ping      → always 200 (deployment test)');
   console.log('  GET  /api/stats     → Airtable live counter');
   console.log('  POST /api/signup    → create / update user in Airtable + welcome email');
