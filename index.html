@@ -247,6 +247,7 @@ h1 .highlight {
 }
 .mq-inner { display: flex; width: max-content; animation: mq-scroll 28s linear infinite }
 @keyframes mq-scroll { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+@keyframes spin { to { transform: rotate(360deg) } }
 .mq-item {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 0 28px;
@@ -836,6 +837,39 @@ footer {
     </div>
   </section>
 
+
+    <!-- ── LIVE RESULTS (appears after signup) ── -->
+    <div id="live-results" style="display:none;max-width:920px;margin:32px auto 0;padding:0 clamp(20px,5vw,80px)">
+      <!-- Searching state -->
+      <div id="lr-searching" style="text-align:center;padding:48px 24px;background:#fff;border:1px solid #E5E7EB;border-radius:20px">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:14px;background:#FFF7ED;border:1px solid rgba(249,115,22,.2);margin-bottom:16px">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1.4s linear infinite"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
+        </div>
+        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;letter-spacing:-.3px;color:#111827;margin-bottom:6px">Finding your matches…</div>
+        <div style="font-size:14px;color:#6B7280;font-weight:300">Searching LinkedIn, Naukri, Google Jobs and more. This takes 1–2 minutes.</div>
+        <div id="lr-progress" style="margin-top:20px;font-size:12px;color:#9CA3AF;letter-spacing:.03em"></div>
+      </div>
+      <!-- Results state -->
+      <div id="lr-cards" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:-.5px;color:#111827">Your matches</div>
+            <div style="font-size:13px;color:#6B7280;margin-top:3px">Scored against your profile · <span id="lr-date"></span></div>
+          </div>
+          <div id="lr-count" style="background:#FFF7ED;border:1px solid rgba(249,115,22,.2);border-radius:10px;padding:8px 16px;text-align:center">
+            <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#F97316;line-height:1"></div>
+            <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin-top:2px">matches</div>
+          </div>
+        </div>
+        <div id="lr-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px"></div>
+      </div>
+      <!-- No matches yet -->
+      <div id="lr-none" style="display:none;text-align:center;padding:40px 24px;background:#fff;border:1px solid #E5E7EB;border-radius:20px">
+        <div style="font-size:32px;margin-bottom:12px">📭</div>
+        <div style="font-family:'Syne',sans-serif;font-size:17px;font-weight:800;color:#111827;margin-bottom:8px">No matches yet</div>
+        <div style="font-size:14px;color:#6B7280;font-weight:300;line-height:1.7;max-width:360px;margin:0 auto">The search is running. Check your email tomorrow morning at 7AM — we'll send your first digest directly to your inbox.</div>
+      </div>
+    </div>
   <footer>
     <span class="f-logo">Job<em>Match</em> AI</span>
     <div class="f-links">
@@ -1247,22 +1281,19 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
     const data = await res.json();
 
     if (data.ok) {
-      // ── Success state ──
-      btn.textContent = '✓ You\'re in — digest arrives tomorrow at 7AM!';
+      btn.textContent      = '✓ You\'re in!';
       btn.style.background = 'linear-gradient(135deg,#22C55E,#16A34A)';
       btn.style.boxShadow  = '0 4px 16px rgba(34,197,94,.3)';
-
-      // Confetti-style flash on the drop zone
       document.getElementById('dz').classList.add('done');
-
-      // Store for any downstream use
       window._intake = { name: n, email: e, industry: ind, location: loc };
 
-      // Scroll to pricing after short delay
+      // Show live results panel and start polling
+      showLiveResults();
+      startMatchPolling(e);
+
       setTimeout(() =>
-        document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' }), 1400);
+        document.getElementById('live-results').scrollIntoView({ behavior: 'smooth', block: 'start' }), 600);
     } else {
-      // Server returned an error
       err.textContent   = data.error || 'Something went wrong. Please try again.';
       err.style.display = 'block';
       btn.textContent   = 'Get my matches →';
@@ -1271,7 +1302,6 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
       btn.style.background = '';
     }
   } catch (fetchErr) {
-    // Network error
     err.textContent   = 'Could not connect. Please check your internet and try again.';
     err.style.display = 'block';
     btn.textContent   = 'Get my matches →';
@@ -1280,6 +1310,84 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
     btn.style.background = '';
   }
 });
+
+
+/* ══ LIVE MATCH POLLING ════════════════════════════════════════════ */
+function showLiveResults() {
+  const panel = document.getElementById('live-results');
+  panel.style.display = 'block';
+  document.getElementById('lr-searching').style.display = 'block';
+  document.getElementById('lr-cards').style.display     = 'none';
+  document.getElementById('lr-none').style.display      = 'none';
+}
+
+function renderMatchCards(matches) {
+  const grid      = document.getElementById('lr-grid');
+  const scoreColor = s => s >= 85 ? '#16A34A' : s >= 70 ? '#0EA5E9' : '#9CA3AF';
+  const scoreBg    = s => s >= 85 ? '#DCFCE7' : s >= 70 ? '#E0F2FE' : '#F3F4F6';
+  const scoreLabel = s => s >= 85 ? 'Strong match' : s >= 70 ? 'Good match' : 'Possible match';
+
+  grid.innerHTML = matches.map(j => `
+    <div style="background:#fff;border:1px solid #E5E7EB;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+      <div style="height:3px;background:${scoreColor(j.s||0)}"></div>
+      <div style="padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${j.t||'—'}</div>
+            <div style="font-size:11px;color:#9CA3AF">${[j.c,j.src,j.sal].filter(Boolean).join(' · ')}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:10px">
+            <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:800;line-height:1;color:${scoreColor(j.s||0)}">${j.s||0}%</div>
+            <div style="font-size:9px;color:#9CA3AF;margin-top:2px;letter-spacing:.04em;text-transform:uppercase">${scoreLabel(j.s||0)}</div>
+          </div>
+        </div>
+        ${j.v ? `<div style="font-size:12px;color:#374151;line-height:1.6;padding:9px 11px;background:#F9FAFB;border-radius:8px;border-left:2px solid ${scoreColor(j.s||0)};margin-bottom:10px">${j.v.slice(0,180)}${j.v.length>180?'…':''}</div>` : ''}
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:999px;background:${scoreBg(j.s||0)};color:${scoreColor(j.s||0)}">${scoreLabel(j.s||0)}</span>
+          ${j.u ? `<a href="${j.u}" target="_blank" rel="noopener" style="font-size:11px;font-weight:700;padding:6px 14px;border-radius:8px;background:#F9FAFB;border:1px solid #E5E7EB;color:#374151;text-decoration:none" onmouseover="this.style.background='#F97316';this.style.color='#fff'" onmouseout="this.style.background='#F9FAFB';this.style.color='#374151'">Apply →</a>` : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  const countEl = document.querySelector('#lr-count div');
+  if (countEl) countEl.textContent = matches.length;
+  const dateEl  = document.getElementById('lr-date');
+  if (dateEl)   dateEl.textContent  = new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
+}
+
+let _pollTimer = null, _pollCount = 0;
+const POLL_INTERVAL = 12000; // 12s
+const POLL_MAX      = 20;    // ~4 min max
+
+function startMatchPolling(email) {
+  _pollCount = 0;
+  clearInterval(_pollTimer);
+  const progress = document.getElementById('lr-progress');
+  const steps = ['Searching LinkedIn…','Checking Naukri…','Scanning Google Jobs…','Scoring matches…','Almost done…'];
+
+  _pollTimer = setInterval(async () => {
+    _pollCount++;
+    if (progress) progress.textContent = steps[Math.min(_pollCount-1, steps.length-1)];
+
+    if (_pollCount > POLL_MAX) {
+      clearInterval(_pollTimer);
+      document.getElementById('lr-searching').style.display = 'none';
+      document.getElementById('lr-none').style.display      = 'block';
+      return;
+    }
+    try {
+      const r = await fetch(`/api/matches?email=${encodeURIComponent(email)}`);
+      const d = await r.json();
+      if (d.ok && d.matches && d.matches.length > 0) {
+        clearInterval(_pollTimer);
+        document.getElementById('lr-searching').style.display = 'none';
+        document.getElementById('lr-cards').style.display     = 'block';
+        renderMatchCards(d.matches);
+      }
+    } catch(e) { /* keep polling */ }
+  }, POLL_INTERVAL);
+}
 
 /* ══ SCROLL REVEALS ═══════════════════════════════════════════════ */
 const revealObs = new IntersectionObserver(entries => {
