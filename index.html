@@ -3,707 +3,1252 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>JobMatch AI — Better matches. Less searching.</title>
+<title>JobMatch AI — Your next role, delivered daily.</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{font-family:'DM Sans',sans-serif;color:#0C0C10;overflow-x:hidden;-webkit-font-smoothing:antialiased}
-a{text-decoration:none}button{font-family:inherit;cursor:pointer}
-:root{
-  --white:#FFFFFF;--bg:#F8F8F6;--dark:#0C0C10;--body:#3D3D47;--mute:#8888A0;
-  --bdr:#E6E6E2;--bdr2:#D0D0C8;--ind:#4F46E5;--ind-d:#3730A3;--ind-l:#EEF2FF;
-  --grn:#059669;--grn-l:#ECFDF5;--red:#DC2626;--red-l:#FFF1F1;--amb:#B45309;
-  --sh:0 1px 3px rgba(0,0,0,0.05),0 4px 14px rgba(0,0,0,0.07);
-  --sh2:0 2px 8px rgba(0,0,0,0.07),0 16px 48px rgba(0,0,0,0.11);
+/* ─────────────────────────────────────────────
+   RESET
+───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+html { scroll-behavior: smooth }
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  /* spec: subtle gradient #FAFAFA → #F3F4F6 */
+  background: linear-gradient(170deg, #FAFAFA 0%, #F3F4F6 100%);
+  background-attachment: fixed;
+  color: #111827;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
-.wrap{max-width:1080px;margin:0 auto;padding:0 32px}
 
-/* NAV */
-#nav{position:fixed;top:0;left:0;right:0;z-index:300;height:60px;transition:background 0.35s,border-color 0.35s;border-bottom:1px solid transparent}
-#nav.solid{background:rgba(255,255,255,0.90);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-color:var(--bdr)}
-#nav .wrap{height:100%;display:flex;align-items:center;justify-content:space-between}
-.nav-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:800;letter-spacing:-0.3px;color:#fff;transition:color 0.3s}
-#nav.solid .nav-logo{color:var(--dark)}
-.nav-logo em{color:#a78bfa;font-style:normal;transition:color 0.3s}
-#nav.solid .nav-logo em{color:var(--ind)}
-.nav-right{display:flex;align-items:center;gap:8px}
-.nav-lk{font-size:14px;font-weight:500;color:rgba(255,255,255,0.6);padding:7px 14px;border-radius:8px;transition:color 0.2s,background 0.2s}
-.nav-lk:hover{color:#fff;background:rgba(255,255,255,0.1)}
-#nav.solid .nav-lk{color:var(--body)}
-#nav.solid .nav-lk:hover{color:var(--dark);background:var(--bg)}
-.nav-btn{padding:8px 20px;border-radius:999px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);font-size:14px;font-weight:700;color:#fff;transition:all 0.2s;display:inline-block}
-.nav-btn:hover{background:rgba(255,255,255,0.28)}
-#nav.solid .nav-btn{background:var(--dark);border-color:transparent}
-#nav.solid .nav-btn:hover{background:var(--ind)}
-
-/* HERO — canvas must fill 100vh exactly */
-#hero{
-  position:relative;
-  height:100vh;
-  min-height:640px;
-  background:#03040f;
-  overflow:hidden;
-  display:flex;
-  align-items:center;
+/* ─────────────────────────────────────────────
+   CANVAS WRAP
+   Starts full-screen; GSAP morphs it to a
+   52 × 52 badge in the top-right on scroll.
+   ResizeObserver keeps Three.js in sync.
+───────────────────────────────────────────── */
+#cw {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: 0;
+  /* glass panel when badge */
+  transition: box-shadow .6s ease, border .6s ease, background .6s ease;
 }
-#hero-canvas{
-  /* KEY FIX: absolute fill — width/height via CSS, renderer uses window dims */
-  position:absolute;
-  top:0;left:0;
-  width:100% !important;
-  height:100% !important;
-  display:block;
+#cw.is-badge {
+  pointer-events: auto;
+  background: rgba(255,255,255,.72);
+  border: 1px solid rgba(249,115,22,.22);
+  box-shadow: 0 4px 28px rgba(249,115,22,.13), 0 1px 6px rgba(0,0,0,.07);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  cursor: pointer;
 }
-.hero-fade{position:absolute;bottom:0;left:0;right:0;height:180px;background:linear-gradient(to bottom,transparent,#ffffff);pointer-events:none;z-index:2}
-.hero-inner{position:relative;z-index:5;padding-top:60px;max-width:620px}
+#cw canvas { display: block; width: 100%; height: 100% }
 
-/* Live counter badge */
-.live-badge{
-  display:inline-flex;align-items:center;gap:9px;
-  background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);
-  border-radius:999px;padding:6px 16px;
-  font-size:13px;font-weight:500;color:rgba(255,255,255,0.60);
-  margin-bottom:22px;backdrop-filter:blur(8px);
+/* Live pip — only visible in badge mode */
+.pip {
+  position: absolute;
+  top: 7px; right: 7px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #22C55E;
+  border: 1.5px solid rgba(255,255,255,.9);
+  opacity: 0;
+  transition: opacity .35s ease .55s;
+  z-index: 10;
 }
-.live-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;animation:lp 2s ease-in-out infinite}
-@keyframes lp{0%{box-shadow:0 0 0 0 rgba(74,222,128,0.5)}70%{box-shadow:0 0 0 7px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
-.live-num{color:#fff;font-weight:700;font-variant-numeric:tabular-nums;transition:opacity 0.25s}
-.live-sep{color:rgba(255,255,255,0.25);margin:0 4px}
+.pip::after {
+  content: '';
+  position: absolute; inset: -3px;
+  border-radius: 50%;
+  background: rgba(34,197,94,.25);
+  animation: pip-pulse 2s ease-in-out infinite;
+}
+@keyframes pip-pulse {
+  0%   { transform: scale(1); opacity: .8 }
+  70%  { transform: scale(2.4); opacity: 0 }
+  100% { transform: scale(1); opacity: 0 }
+}
+#cw.is-badge .pip { opacity: 1 }
 
-.hero-title{font-family:'Bricolage Grotesque',sans-serif;font-size:clamp(40px,5.5vw,68px);font-weight:800;letter-spacing:-2.5px;line-height:1.04;color:#fff;margin-bottom:20px}
-.hi{color:#a78bfa}
-.hero-sub{font-size:17px;color:rgba(255,255,255,0.50);line-height:1.75;max-width:430px;margin-bottom:34px}
-.hero-acts{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.btn-p{display:inline-flex;align-items:center;gap:8px;padding:13px 28px;border-radius:999px;background:#fff;color:var(--dark);font-size:15px;font-weight:700;border:none;box-shadow:0 4px 24px rgba(0,0,0,0.25);transition:all 0.2s}
-.btn-p:hover{background:var(--ind-l);color:var(--ind);transform:translateY(-1px)}
-.btn-p svg{transition:transform 0.2s}
-.btn-p:hover svg{transform:translateX(2px)}
-.btn-s{display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:rgba(255,255,255,0.50);border:none;background:none;padding:8px 0;transition:color 0.18s}
-.btn-s:hover{color:#fff}
-.hero-trust{display:flex;align-items:center;gap:8px;margin-top:26px;font-size:13px;color:rgba(255,255,255,0.30)}
-.tdiv{width:1px;height:11px;background:rgba(255,255,255,0.15)}
-.scroll-cue{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);z-index:5;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:rgba(255,255,255,0.22);animation:scue 2.5s ease-in-out infinite}
-@keyframes scue{0%,100%{opacity:0.5;transform:translateX(-50%) translateY(0)}50%{opacity:1;transform:translateX(-50%) translateY(5px)}}
+/* Tooltip label */
+.badge-label {
+  position: absolute;
+  right: 60px; top: 50%;
+  transform: translateY(-50%);
+  background: #111827;
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  padding: 4px 10px;
+  border-radius: 7px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+#cw.is-badge:hover .badge-label { opacity: 1 }
 
-/* SECTIONS */
-section{padding:96px 0}
-.section-alt{background:var(--bg)}
-.eyebrow{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--ind);margin-bottom:13px}
-.s-title{font-family:'Bricolage Grotesque',sans-serif;font-size:clamp(28px,3.5vw,44px);font-weight:800;letter-spacing:-1.5px;line-height:1.1;color:var(--dark);margin-bottom:12px}
-.s-sub{font-size:16px;color:var(--body);line-height:1.75;max-width:480px}
+/* ─────────────────────────────────────────────
+   NAV
+───────────────────────────────────────────── */
+#nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 900;
+  height: 58px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 clamp(20px, 5vw, 72px);
+  transition: background .35s, box-shadow .35s;
+}
+#nav.scrolled {
+  background: rgba(250,250,250,.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0,0,0,.06);
+  box-shadow: 0 1px 16px rgba(0,0,0,.05);
+}
+.logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 17px; font-weight: 800;
+  letter-spacing: -.4px; color: #111827;
+  text-decoration: none;
+}
+.logo em { color: #F97316; font-style: normal }
+nav ul { display: flex; gap: 2px; list-style: none }
+nav a {
+  font-size: 13px; font-weight: 500;
+  color: #6B7280; letter-spacing: .02em;
+  padding: 6px 14px; border-radius: 8px;
+  text-decoration: none;
+  transition: color .15s, background .15s;
+}
+nav a:hover { color: #111827; background: rgba(0,0,0,.04) }
+.nav-cta {
+  padding: 8px 22px; border-radius: 10px;
+  background: #F97316; color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 700; letter-spacing: .02em;
+  border: none; cursor: pointer;
+  box-shadow: 0 2px 12px rgba(249,115,22,.3);
+  transition: background .2s, transform .2s, box-shadow .2s;
+}
+.nav-cta:hover {
+  background: #EA580C;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(249,115,22,.4);
+}
 
-/* HOW IT WORKS */
-.how-hdr{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:end;margin-bottom:52px}
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--bdr);border-radius:18px;overflow:hidden}
-.step{background:#fff;padding:34px 30px}
-.step-ico{width:44px;height:44px;border-radius:12px;background:var(--ind-l);border:1px solid rgba(79,70,229,0.15);display:flex;align-items:center;justify-content:center;margin-bottom:16px}
-.step-ico svg{width:20px;height:20px;color:var(--ind);stroke-width:1.8}
-.step-n{font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ind);margin-bottom:10px}
-.step-t{font-family:'Bricolage Grotesque',sans-serif;font-size:19px;font-weight:800;letter-spacing:-0.3px;color:var(--dark);margin-bottom:9px}
-.step-d{font-size:14px;color:var(--body);line-height:1.75}
+/* ─────────────────────────────────────────────
+   HERO
+───────────────────────────────────────────── */
+#hero {
+  position: relative; z-index: 1;
+  min-height: 100vh;
+  display: flex; align-items: center;
+  padding: 80px clamp(20px, 8vw, 140px) 60px;
+}
+.hero-copy { max-width: 580px; position: relative; z-index: 2 }
 
-/* MATCH CARDS */
-.match-hdr{text-align:center;margin-bottom:52px}
-.match-hdr .s-sub{margin:0 auto}
-.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start}
-.mc{background:#fff;border:1px solid var(--bdr);border-radius:18px;overflow:hidden;box-shadow:var(--sh);opacity:0;transform:translateY(18px);transition:opacity 0.5s,transform 0.5s,box-shadow 0.2s}
-.mc.vis{opacity:1;transform:translateY(0)}
-.mc:hover{box-shadow:var(--sh2);transform:translateY(-3px)}
-.mc-stripe{height:4px}
-.mc-stripe.s{background:linear-gradient(90deg,#059669,#34D399)}
-.mc-stripe.g{background:linear-gradient(90deg,#4F46E5,#818CF8)}
-.mc-stripe.r{background:linear-gradient(90deg,#DC2626,#F87171)}
-.mc-body{padding:22px}
-.mc-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:13px}
-.mc-logo{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-size:13px;font-weight:800;color:#fff;flex-shrink:0}
-.mc-score{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;letter-spacing:-1px;line-height:1;text-align:right}
-.mc-score small{display:block;font-size:10px;font-weight:500;color:var(--mute);letter-spacing:0}
-.mc-score.s{color:var(--grn)}.mc-score.g{color:var(--ind)}.mc-score.r{color:var(--red)}
-.mc-role{font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:800;letter-spacing:-0.2px;color:var(--dark);margin-bottom:4px}
-.mc-meta{font-size:12px;color:var(--mute);margin-bottom:14px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
-.msep{color:var(--bdr2)}
-.mc-verdict{font-size:13px;color:var(--body);line-height:1.7;padding:11px 13px;border-radius:10px;background:var(--bg);margin-bottom:14px;border-left:3px solid}
-.mc-verdict.sv{border-left-color:var(--grn)}.mc-verdict.gv{border-left-color:var(--ind)}.mc-verdict.rv{border-left-color:var(--red);background:var(--red-l)}
-.bar-row{display:flex;align-items:center;gap:9px;margin-bottom:7px}
-.bar-lbl{font-size:11px;color:var(--mute);width:84px;flex-shrink:0}
-.bar-track{flex:1;height:6px;background:var(--bg);border-radius:99px;overflow:hidden;border:1px solid var(--bdr)}
-.bar-fill{height:100%;border-radius:99px;transition:width 0.9s cubic-bezier(0.4,0,0.2,1)}
-.bar-fill.s{background:linear-gradient(90deg,#059669,#34D399)}
-.bar-fill.g{background:linear-gradient(90deg,#4F46E5,#818CF8)}
-.bar-fill.r{background:linear-gradient(90deg,#DC2626,#F87171)}
-.bar-pct{font-size:11px;color:var(--mute);width:30px;text-align:right;font-variant-numeric:tabular-nums}
-.mc-foot{display:flex;align-items:center;justify-content:space-between;margin-top:14px}
-.rpill{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:999px;font-size:11px;font-weight:700}
-.rpill.s{background:var(--grn-l);color:var(--grn)}.rpill.g{background:var(--ind-l);color:var(--ind)}.rpill.r{background:var(--red-l);color:var(--red)}
-.mc-cta{padding:7px 18px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;background:var(--dark);border:none;cursor:pointer;transition:all 0.18s}
-.mc-cta:hover{background:var(--ind)}
-.mc-cta.na{background:var(--bg);color:var(--mute);border:1px solid var(--bdr);cursor:default}.mc-cta.na:hover{background:var(--bg)}
-.new-tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600;background:var(--grn-l);color:var(--grn)}
-.blk-tag{background:var(--red-l);color:var(--red);display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600}
+.live-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,.07);
+  border-radius: 999px;
+  padding: 5px 16px; margin-bottom: 30px;
+  font-size: 12px; color: #6B7280; letter-spacing: .04em;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05);
+}
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #22C55E;
+  animation: live-pulse 2s ease-in-out infinite;
+}
+@keyframes live-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(34,197,94,.4) }
+  70%  { box-shadow: 0 0 0 6px rgba(34,197,94,0) }
+  100% { box-shadow: 0 0 0 0 rgba(34,197,94,0) }
+}
+.live-badge strong { color: #111827; font-weight: 600 }
 
-/* BENEFITS */
-.ben-hdr{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:end;margin-bottom:52px}
-.bens{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--bdr);border-radius:18px;overflow:hidden}
-.ben{background:#fff;padding:34px 30px}
-.ben-ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
-.ben-t{font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:800;letter-spacing:-0.2px;color:var(--dark);margin-bottom:8px}
-.ben-d{font-size:14px;color:var(--body);line-height:1.75}
+h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(44px, 6.5vw, 82px);
+  font-weight: 800;
+  letter-spacing: -3.5px;
+  line-height: 1.02;
+  color: #111827;
+  margin-bottom: 22px;
+}
+/* spec: Syne bold heading with generous letter spacing (tracked tight on display, open on sub) */
+h1 .highlight {
+  display: block;
+  background: linear-gradient(92deg, #F97316 0%, #FB923C 42%, #38BDF8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero-sub {
+  font-size: clamp(15px, 1.8vw, 18px);
+  color: #6B7280; font-weight: 300;
+  line-height: 1.82; letter-spacing: .025em;
+  max-width: 460px; margin-bottom: 38px;
+}
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 44px }
 
-/* PRICING */
-.price-hdr{text-align:center;margin-bottom:48px}
-.price-hdr .s-sub{margin:10px auto 0}
-.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:stretch}
-.plan{background:#fff;border:1px solid var(--bdr);border-radius:18px;padding:30px 26px;display:flex;flex-direction:column;box-shadow:var(--sh);opacity:0;transform:translateY(16px);transition:opacity 0.45s,transform 0.45s}
-.plan.vis{opacity:1;transform:translateY(0)}
-.plan.pro{background:var(--dark);border-color:transparent;box-shadow:0 8px 48px rgba(12,12,16,0.22);position:relative;overflow:visible}
-.plan.pro::after{content:'';position:absolute;inset:-1px;border-radius:19px;background:linear-gradient(135deg,rgba(79,70,229,0.45),transparent 55%,rgba(79,70,229,0.18));pointer-events:none;z-index:0}
-.plan.pro>*{position:relative;z-index:1}
-.plan-badge{display:inline-block;background:linear-gradient(135deg,var(--ind),#818CF8);color:#fff;font-size:10px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;padding:5px 14px;border-radius:999px;margin-bottom:18px;box-shadow:0 3px 14px rgba(79,70,229,0.4)}
-.plan-name{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--mute);margin-bottom:11px}
-.plan-name.pr{color:rgba(255,255,255,0.4)}
-.plan-price{display:flex;align-items:baseline;gap:2px;margin-bottom:3px}
-.plan-sym{font-size:16px;font-weight:600;color:var(--mute);align-self:flex-start;margin-top:10px}
-.plan-sym.pr{color:rgba(255,255,255,0.3)}
-.plan-num{font-family:'Bricolage Grotesque',sans-serif;font-size:48px;font-weight:800;letter-spacing:-2px;line-height:1;color:var(--dark)}
-.plan-num.pr{color:#fff}
-.plan-num.ac{background:linear-gradient(135deg,var(--ind),#818CF8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.plan-og{text-decoration:line-through;color:rgba(255,255,255,0.25);font-size:14px;margin-left:8px}
-.plan-mo{font-size:13px;color:var(--mute)}.plan-mo.pr{color:rgba(255,255,255,0.35)}
-.plan-note{font-size:11px;color:var(--mute);margin-bottom:20px;margin-top:2px}.plan-note.pr{color:rgba(255,255,255,0.22)}
-.pdiv{height:1px;background:var(--bdr);margin-bottom:20px}.pdiv.pr{background:rgba(255,255,255,0.08)}
-.feats{list-style:none;flex:1;margin-bottom:24px}
-.feats li{display:flex;align-items:flex-start;gap:10px;font-size:14px;color:var(--body);padding:4px 0}
-.feats.pr li{color:rgba(255,255,255,0.62)}
-.fck{width:18px;height:18px;border-radius:50%;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700}
-.fck.on{background:var(--grn-l);color:var(--grn)}.fck.onp{background:rgba(52,211,153,0.15);color:#34D399}.fck.off{background:var(--bg);color:var(--mute)}
-.plan-btn{width:100%;padding:13px;border-radius:999px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;border:none;cursor:pointer;transition:all 0.2s}
-.plan-btn.fb{background:var(--bg);color:var(--ind);border:1.5px solid rgba(79,70,229,0.22)}
-.plan-btn.fb:hover{background:var(--ind-l);border-color:var(--ind)}
-.plan-btn.pb{background:linear-gradient(135deg,var(--ind),#6366f1);color:#fff;box-shadow:0 4px 18px rgba(79,70,229,0.4)}
-.plan-btn.pb:hover{opacity:0.9;transform:translateY(-1px)}
-.plan-btn.tb{background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.1)}
-.plan-btn.tb:hover{background:rgba(255,255,255,0.12);color:#fff}
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 30px; border-radius: 12px;
+  background: linear-gradient(135deg, #F97316, #EA580C);
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px; font-weight: 700; letter-spacing: .02em;
+  border: none; cursor: pointer;
+  box-shadow: 0 4px 18px rgba(249,115,22,.32);
+  transition: transform .22s, box-shadow .22s;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 28px rgba(249,115,22,.44);
+}
+.btn-ghost {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 14px 24px; border-radius: 12px;
+  background: #fff; color: #374151;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px; font-weight: 600; letter-spacing: .02em;
+  border: 1.5px solid #E5E7EB; cursor: pointer;
+  transition: border-color .2s, color .2s, background .2s;
+}
+.btn-ghost:hover { border-color: #38BDF8; color: #0EA5E9; background: #F0F9FF }
 
-/* CTA */
-.cta-block{margin:0 0 96px;background:var(--dark);border-radius:22px;padding:68px 56px;text-align:center;position:relative;overflow:hidden;box-shadow:0 12px 60px rgba(12,12,16,0.18)}
-.cta-block::before{content:'';position:absolute;top:-60%;left:25%;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(79,70,229,0.2),transparent 60%);pointer-events:none}
-.cta-block::after{content:'';position:absolute;bottom:-60%;right:15%;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,0.12),transparent 60%);pointer-events:none}
-.cta-block>*{position:relative;z-index:1}
-.cta-title{font-family:'Bricolage Grotesque',sans-serif;font-size:clamp(28px,4vw,46px);font-weight:800;letter-spacing:-2px;color:#fff;line-height:1.08;margin-bottom:12px}
-.cta-sub{font-size:16px;color:rgba(255,255,255,0.45);margin-bottom:34px;line-height:1.6}
-.cta-acts{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap}
-.cta-btn{display:inline-flex;align-items:center;gap:8px;padding:14px 30px;border-radius:999px;background:#fff;color:var(--dark);font-size:15px;font-weight:700;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.2);transition:all 0.2s}
-.cta-btn:hover{background:var(--ind-l);color:var(--ind);transform:translateY(-1px)}
-.cta-note{font-size:14px;color:rgba(255,255,255,0.3)}
+.trust {
+  display: flex; gap: 22px;
+  font-size: 12px; color: #9CA3AF; letter-spacing: .05em;
+}
+.trust span::before { content: '✓  '; color: #F97316; font-weight: 700 }
 
-/* FOOTER */
-footer{border-top:1px solid var(--bdr);padding:32px 0}
-.foot-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
-.foot-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:800;color:var(--dark)}
-.foot-logo em{color:var(--ind);font-style:normal}
-.foot-note{font-size:12px;color:var(--mute)}
-.foot-links{display:flex;gap:20px}
-.foot-links a{font-size:12px;color:var(--mute);transition:color 0.15s}
-.foot-links a:hover{color:var(--dark)}
+/* ─────────────────────────────────────────────
+   CONTENT (below hero)
+───────────────────────────────────────────── */
+.sections { position: relative; z-index: 2 }
 
-@media(max-width:860px){
-  .wrap{padding:0 20px}
-  .how-hdr,.ben-hdr{grid-template-columns:1fr}
-  .steps,.bens{grid-template-columns:1fr}
-  .cards,.plans{grid-template-columns:1fr}
-  .cta-block{padding:48px 24px}
-  .foot-inner{flex-direction:column;text-align:center}
-  .foot-links{justify-content:center}
-  #nav .nav-lk{display:none}
+/* ── Marquee ── */
+.marquee-band {
+  padding: 16px 0;
+  background: #111827;
+  overflow: hidden;
+  border-top: 1px solid rgba(255,255,255,.04);
+}
+.mq-inner { display: flex; width: max-content; animation: mq-scroll 28s linear infinite }
+@keyframes mq-scroll { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+.mq-item {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 0 28px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: rgba(255,255,255,.3); white-space: nowrap;
+}
+.mq-dot { width: 4px; height: 4px; border-radius: 50%; background: #F97316; opacity: .5 }
+
+/* ── Section commons ── */
+section { padding: 96px clamp(20px,5vw,80px) }
+.w { max-width: 1060px; margin: 0 auto }
+
+.eye {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: #F97316; margin-bottom: 10px;
+}
+.sh {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(28px, 4vw, 46px);
+  font-weight: 800; letter-spacing: -1.8px;
+  line-height: 1.1; color: #111827; margin-bottom: 10px;
+}
+.sp {
+  font-size: 16px; color: #6B7280; font-weight: 300;
+  line-height: 1.82; letter-spacing: .02em; max-width: 460px;
+}
+
+/* ── How it works ── */
+.how-head { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: end; margin-bottom: 56px }
+.steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: #E5E7EB; border-radius: 20px; overflow: hidden }
+.step { background: #fff; padding: 32px 28px }
+.step-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: rgba(249,115,22,.08);
+  border: 1px solid rgba(249,115,22,.15);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 18px;
+}
+.step-icon svg { stroke: #F97316; width: 18px; height: 18px; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round }
+.step-num { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #F97316; margin-bottom: 8px }
+.step-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800; letter-spacing: -.2px; color: #111827; margin-bottom: 9px }
+.step-desc { font-size: 14px; color: #6B7280; line-height: 1.78; font-weight: 300; letter-spacing: .015em }
+
+/* ── Match cards ── */
+#cards { background: rgba(0,0,0,.018) }
+.cards-head { text-align: center; margin-bottom: 48px }
+.cards-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px }
+
+.mc {
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  border-radius: 18px; overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  transition: transform .2s, box-shadow .2s;
+}
+.mc:hover { transform: translateY(-4px); box-shadow: 0 10px 40px rgba(0,0,0,.09) }
+.mc-stripe { height: 3px }
+.mc-body { padding: 20px }
+.mc-hd { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px }
+.mc-logo {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 800; color: #fff;
+}
+.mc-pct {
+  font-family: 'Syne', sans-serif;
+  font-size: 26px; font-weight: 800; line-height: 1; text-align: right;
+}
+.mc-pct small {
+  display: block; font-size: 9px; font-weight: 500;
+  color: #9CA3AF; letter-spacing: .04em;
+  font-family: 'DM Sans', sans-serif; margin-top: 2px;
+}
+.mc-role { font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 3px; letter-spacing: -.1px }
+.mc-meta { font-size: 11px; color: #9CA3AF; margin-bottom: 13px; letter-spacing: .02em }
+
+/* Progress bars */
+.bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px }
+.bar-row:last-child { margin-bottom: 0 }
+.bar-lbl { font-size: 10px; color: #9CA3AF; width: 74px; flex-shrink: 0; letter-spacing: .03em }
+.bar-track { flex: 1; height: 5px; background: #F3F4F6; border-radius: 99px; overflow: hidden }
+.bar-fill { height: 100%; border-radius: 99px; transition: width 1.5s cubic-bezier(.4,0,.2,1) }
+.bar-or  { background: linear-gradient(90deg, #F97316, #FB923C) }
+.bar-sk  { background: linear-gradient(90deg, #0EA5E9, #38BDF8) }
+.bar-grn { background: linear-gradient(90deg, #22C55E, #16A34A) }
+.bar-gy  { background: #E5E7EB }
+.bar-pct { font-size: 10px; font-weight: 700; width: 26px; text-align: right }
+
+.mc-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 14px }
+.mc-tag { padding: 4px 10px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: .03em }
+.mc-btn {
+  padding: 6px 14px; border-radius: 8px;
+  background: #F9FAFB; border: 1px solid #E5E7EB;
+  font-size: 11px; font-weight: 700; color: #374151;
+  cursor: pointer; transition: all .15s;
+}
+.mc-btn:hover { background: #F97316; border-color: #F97316; color: #fff }
+
+/* ── Pricing ── */
+.plans { display: grid; grid-template-columns: 1fr 1.08fr 1fr; gap: 14px; max-width: 960px; margin: 0 auto }
+.plan {
+  background: #fff; border: 1px solid #E5E7EB;
+  border-radius: 20px; padding: 28px 24px;
+  display: flex; flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.plan.pro {
+  background: linear-gradient(162deg, #FFF7ED 0%, #fff 52%);
+  border-color: rgba(249,115,22,.28);
+  position: relative; overflow: visible;
+  box-shadow: 0 8px 40px rgba(249,115,22,.11), 0 2px 8px rgba(0,0,0,.04);
+}
+/* FOUNDING RATE badge */
+.founding {
+  position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+  background: linear-gradient(135deg, #F97316, #EA580C);
+  color: #fff; font-size: 10px; font-weight: 800;
+  letter-spacing: .08em; text-transform: uppercase;
+  padding: 5px 16px; border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 3px 14px rgba(249,115,22,.38);
+}
+.p-tier { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #9CA3AF; margin-bottom: 12px }
+.p-price { display: flex; align-items: baseline; gap: 1px; margin-bottom: 3px }
+.p-sym { font-size: 14px; color: #9CA3AF; align-self: flex-start; padding-top: 8px }
+.p-num { font-family: 'Syne', sans-serif; font-size: 48px; font-weight: 800; letter-spacing: -2.5px; color: #111827 }
+.plan.pro .p-num { color: #F97316 }
+.p-was { font-size: 14px; color: #D1D5DB; text-decoration: line-through; margin-left: 6px }
+.p-per { font-size: 12px; color: #9CA3AF; margin-bottom: 20px; letter-spacing: .02em }
+.p-hr { height: 1px; background: #F3F4F6; margin-bottom: 18px }
+.p-feats { list-style: none; flex: 1; margin-bottom: 22px }
+.p-feats li {
+  display: flex; gap: 9px;
+  font-size: 13px; color: #6B7280; letter-spacing: .015em;
+  padding: 4px 0; font-weight: 300; align-items: flex-start;
+}
+.p-feats li b { color: #111827; font-weight: 600 }
+.ck { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700 }
+.ck-y { background: rgba(249,115,22,.1); color: #F97316 }
+.ck-n { background: #F9FAFB; color: #D1D5DB }
+.p-btn { width: 100%; padding: 12px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: .02em; border: none; cursor: pointer; transition: all .2s }
+.pb-free { background: #F9FAFB; color: #6B7280; border: 1.5px solid #E5E7EB }
+.pb-free:hover { background: #F3F4F6; color: #111827 }
+.pb-pro  { background: linear-gradient(135deg, #F97316, #EA580C); color: #fff; box-shadow: 0 4px 14px rgba(249,115,22,.28) }
+.pb-pro:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(249,115,22,.4) }
+.pb-ent  { background: #111827; color: rgba(255,255,255,.45) }
+.pb-ent:hover { color: #fff }
+
+/* ── Final CTA + intake ── */
+#cta { padding-bottom: 0 }
+.cta-card {
+  max-width: 920px; margin: 0 auto;
+  background: #111827; border-radius: 24px;
+  padding: 70px clamp(28px,7vw,90px);
+  position: relative; overflow: hidden;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
+}
+.cta-card::before {
+  content: ''; position: absolute;
+  top: -100px; left: 50%; transform: translateX(-50%);
+  width: 500px; height: 400px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(249,115,22,.13) 0%, transparent 65%);
+  pointer-events: none;
+}
+.cta-card::after {
+  content: ''; position: absolute;
+  bottom: -60px; right: 4%;
+  width: 280px; height: 280px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(56,189,248,.08) 0%, transparent 65%);
+  pointer-events: none;
+}
+.cta-copy { position: relative; z-index: 1 }
+.cta-copy h2 {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(28px, 4vw, 46px);
+  font-weight: 800; letter-spacing: -2px; line-height: 1.08;
+  color: #fff; margin-bottom: 12px;
+}
+.cta-copy p { font-size: 15px; color: rgba(255,255,255,.35); font-weight: 300; line-height: 1.75; letter-spacing: .02em }
+
+/* Intake form */
+.intake { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 10px }
+.drop-zone {
+  border: 1.5px dashed rgba(249,115,22,.38);
+  border-radius: 12px; padding: 15px;
+  background: rgba(249,115,22,.05);
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer; transition: all .2s;
+  position: relative;
+}
+.drop-zone:hover, .drop-zone.over { border-color: #F97316; background: rgba(249,115,22,.1) }
+.drop-zone.done { border-style: solid; border-color: rgba(34,197,94,.4); background: rgba(34,197,94,.05) }
+.drop-icon {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: rgba(249,115,22,.15); border: 1px solid rgba(249,115,22,.25);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.drop-icon svg { stroke: #F97316; width: 13px; height: 13px; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.drop-title { font-size: 13px; font-weight: 600; color: #fff }
+.drop-sub   { font-size: 10px; color: rgba(255,255,255,.3); margin-top: 1px }
+.drop-input { position: absolute; inset: 0; opacity: 0; cursor: pointer }
+
+.fg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
+.f  { display: flex; flex-direction: column; gap: 3px }
+.f label {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .09em; text-transform: uppercase;
+  color: rgba(255,255,255,.3);
+}
+.f label em { color: #F97316; font-style: normal }
+.f input {
+  padding: 9px 12px;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 9px;
+  color: #fff; font-family: 'DM Sans', sans-serif;
+  font-size: 13px; letter-spacing: .01em;
+  outline: none; transition: border-color .18s, background .18s; width: 100%;
+}
+.f input:focus { border-color: #F97316; background: rgba(249,115,22,.08) }
+.f input::placeholder { color: rgba(255,255,255,.2) }
+.f small { font-size: 10px; color: rgba(255,255,255,.2); letter-spacing: .02em }
+.form-err { font-size: 11px; color: #FCA5A5; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.2); border-radius: 8px; padding: 7px 10px; display: none }
+.submit-btn {
+  width: 100%; padding: 13px; border-radius: 10px;
+  background: linear-gradient(135deg, #F97316, #EA580C);
+  color: #fff; font-family: 'DM Sans', sans-serif;
+  font-size: 14px; font-weight: 700; letter-spacing: .02em;
+  border: none; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(249,115,22,.3);
+  transition: transform .2s, box-shadow .2s;
+}
+.submit-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(249,115,22,.45) }
+.submit-btn:disabled { opacity: .45; cursor: not-allowed }
+.submit-btn.sent { background: linear-gradient(135deg, #0EA5E9, #38BDF8); box-shadow: 0 4px 16px rgba(14,165,233,.3) }
+.intake-fn { font-size: 10px; color: rgba(255,255,255,.2); text-align: center; letter-spacing: .04em }
+
+footer {
+  padding: 26px clamp(20px,5vw,80px); margin-top: 80px;
+  border-top: 1px solid rgba(0,0,0,.06);
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+}
+.f-logo { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 800; color: #9CA3AF }
+.f-logo em { color: #F97316; font-style: normal }
+.f-links { display: flex; gap: 20px }
+.f-links a { font-size: 12px; color: #9CA3AF; text-decoration: none; letter-spacing: .03em; transition: color .15s }
+.f-links a:hover { color: #111827 }
+.f-copy { font-size: 11px; color: #D1D5DB; letter-spacing: .03em }
+
+/* ─────────────────────────────────────────────
+   SCROLL REVEAL
+───────────────────────────────────────────── */
+.reveal { opacity: 0; transform: translateY(20px); transition: opacity .65s ease, transform .65s ease }
+.reveal.visible { opacity: 1; transform: none }
+.d1 { transition-delay: .1s }
+.d2 { transition-delay: .22s }
+.d3 { transition-delay: .34s }
+
+/* ─────────────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────────────── */
+@media (max-width: 860px) {
+  nav ul { display: none }
+  .how-head, .steps, .cards-grid, .plans, .cta-card, .fg { grid-template-columns: 1fr }
+  #hero { padding-top: 90px }
+  .cta-card { padding: 44px 24px }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important }
+  .reveal, .reveal.visible { transition: none; opacity: 1; transform: none }
 }
 </style>
 </head>
 <body>
 
-<!-- NAV -->
+<!-- ══ CANVAS WRAP ══════════════════════════════════════════════════ -->
+<div id="cw">
+  <canvas id="three-canvas"></canvas>
+  <div class="pip"></div>
+  <div class="badge-label">Live · JobMatch AI</div>
+</div>
+
+<!-- ══ NAV ══════════════════════════════════════════════════════════ -->
 <nav id="nav">
-  <div class="wrap">
-    <span class="nav-logo">Job<em>Match</em> AI</span>
-    <div class="nav-right">
-      <a href="#how" class="nav-lk">How it works</a>
-      <a href="#pricing" class="nav-lk">Pricing</a>
-      <a href="#" class="nav-btn">Upload Resume Free</a>
-    </div>
-  </div>
+  <a href="#" class="logo">Job<em>Match</em> AI</a>
+  <ul>
+    <li><a href="#how">How it works</a></li>
+    <li><a href="#cards">Matches</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+  </ul>
+  <button class="nav-cta" onclick="document.querySelector('.drop-input').click()">Upload Resume</button>
 </nav>
 
-<!-- HERO -->
-<div id="hero">
-  <canvas id="hero-canvas"></canvas>
-  <div class="hero-fade"></div>
-  <div class="wrap hero-inner">
-    <!-- Live active user counter — real-feeling fluctuation, no fake static number -->
+<!-- ══ HERO ══════════════════════════════════════════════════════════ -->
+<section id="hero">
+  <div class="hero-copy">
     <div class="live-badge">
       <div class="live-dot"></div>
-      <span class="live-num" id="live-count">—</span> professionals active now
-      <span class="live-sep">·</span>
-      <span class="live-num" id="live-matches">—</span> matches sent today
+      <strong id="lc">—</strong>&nbsp;active professionals &nbsp;·&nbsp; <strong id="lm">—</strong>&nbsp;matches today
     </div>
-    <h1 class="hero-title">Better matches.<br><span class="hi">Less searching.</span></h1>
-    <p class="hero-sub">Upload your resume once. Every morning we find the roles that truly fit you, filter out everything that doesn't, and deliver them to your inbox.</p>
-    <div class="hero-acts">
-      <a href="#" class="btn-p">
+
+    <!-- spec: Syne 800, generous letter spacing -->
+    <h1>
+      Your next role,
+      <span class="highlight">delivered daily.</span>
+    </h1>
+
+    <!-- spec: DM Sans 300, generous letter spacing -->
+    <p class="hero-sub">
+      Upload your resume once. Every morning our AI searches 6 platforms, scores every role against your profile, and delivers only what's worth your time.
+    </p>
+
+    <div class="hero-actions">
+      <button class="btn-primary" onclick="document.querySelector('.drop-input').click()">
         Upload Resume Free
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      </a>
-      <a href="#matches" class="btn-s">
+      </button>
+      <button class="btn-ghost" onclick="document.getElementById('cards').scrollIntoView({behavior:'smooth'})">
         See sample matches
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      </a>
+      </button>
     </div>
-    <div class="hero-trust">
-      <span>Free to start</span><span class="tdiv"></span>
-      <span>No credit card</span><span class="tdiv"></span>
+
+    <div class="trust">
+      <span>Free to start</span>
+      <span>No credit card</span>
       <span>Cancel anytime</span>
     </div>
   </div>
-  <div class="scroll-cue">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
-    Scroll
-  </div>
-</div>
+</section>
 
-<!-- HOW IT WORKS -->
-<section class="section-alt" id="how">
-  <div class="wrap">
-    <div class="how-hdr">
+<!-- ══ BELOW-HERO CONTENT ════════════════════════════════════════════ -->
+<div class="sections">
+
+  <!-- Marquee -->
+  <div class="marquee-band">
+    <div class="mq-inner">
+      <span class="mq-item"><span class="mq-dot"></span>LinkedIn</span>
+      <span class="mq-item"><span class="mq-dot"></span>Naukri</span>
+      <span class="mq-item"><span class="mq-dot"></span>Google Jobs</span>
+      <span class="mq-item"><span class="mq-dot"></span>Adzuna</span>
+      <span class="mq-item"><span class="mq-dot"></span>Indeed</span>
+      <span class="mq-item"><span class="mq-dot"></span>Glassdoor</span>
+      <span class="mq-item"><span class="mq-dot"></span>Instahyre</span>
+      <span class="mq-item"><span class="mq-dot"></span>Cutshort</span>
+      <span class="mq-item"><span class="mq-dot"></span>LinkedIn</span>
+      <span class="mq-item"><span class="mq-dot"></span>Naukri</span>
+      <span class="mq-item"><span class="mq-dot"></span>Google Jobs</span>
+      <span class="mq-item"><span class="mq-dot"></span>Adzuna</span>
+      <span class="mq-item"><span class="mq-dot"></span>Indeed</span>
+      <span class="mq-item"><span class="mq-dot"></span>Glassdoor</span>
+      <span class="mq-item"><span class="mq-dot"></span>Instahyre</span>
+      <span class="mq-item"><span class="mq-dot"></span>Cutshort</span>
+    </div>
+  </div>
+
+  <!-- How it works -->
+  <section id="how"><div class="w">
+    <div class="how-head">
       <div>
-        <div class="eyebrow">How it works</div>
-        <h2 class="s-title">Up and running<br>in three steps.</h2>
+        <p class="eye">How it works</p>
+        <h2 class="sh reveal">Three steps.<br>Then check your inbox.</h2>
       </div>
-      <p class="s-sub">You do it once. We handle everything after that — every single morning.</p>
+      <p class="sp reveal d1">You do it once. We handle the searching, scoring, and filtering — every single morning.</p>
     </div>
     <div class="steps">
-      <div class="step">
-        <div class="step-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></div>
-        <div class="step-n">Step 01</div>
-        <div class="step-t">Upload your resume</div>
-        <p class="step-d">Drop your resume and we read it instantly — role, experience, industry — and build your personal matching profile. No forms to fill in.</p>
+      <div class="step reveal">
+        <div class="step-icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></div>
+        <div class="step-num">Step 01</div>
+        <div class="step-title">Upload your resume</div>
+        <p class="step-desc">Drop your file and confirm industry and preferred city. We parse it the way a senior recruiter would — understanding your arc, not just keywords.</p>
       </div>
-      <div class="step">
-        <div class="step-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div>
-        <div class="step-n">Step 02</div>
-        <div class="step-t">AI finds and scores every role</div>
-        <p class="step-d">Every morning we surface relevant jobs and score each one on role fit, seniority, and industry. Irrelevant roles are filtered before they reach you.</p>
+      <div class="step reveal d1">
+        <div class="step-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div>
+        <div class="step-num">Step 02</div>
+        <div class="step-title">AI scores every role</div>
+        <p class="step-desc">Each morning we fetch from 6+ platforms and score every job on function fit, domain match, seniority, and location. Mismatches never reach you.</p>
       </div>
-      <div class="step">
-        <div class="step-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
-        <div class="step-n">Step 03</div>
-        <div class="step-t">Receive your daily digest</div>
-        <p class="step-d">Your matches arrive every morning with a clear score, a plain-English reason, and a direct apply link. No noise. No duplicates.</p>
+      <div class="step reveal d2">
+        <div class="step-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+        <div class="step-num">Step 03</div>
+        <div class="step-title">Inbox at 7AM daily</div>
+        <p class="step-desc">Your top 5 arrive with a score, a plain-English reason, and a direct apply link. No duplicates. No noise.</p>
       </div>
     </div>
-  </div>
-</section>
+  </div></section>
 
-<!-- MATCH CARDS -->
-<section id="matches">
-  <div class="wrap">
-    <div class="match-hdr">
-      <div class="eyebrow">Match quality</div>
-      <h2 class="s-title">You only see what's worth seeing.</h2>
-      <p class="s-sub">Every result comes with a score and a clear reason. Anything that doesn't fit is filtered before it ever reaches your inbox.</p>
+  <!-- Match cards -->
+  <section id="cards"><div class="w">
+    <div class="cards-head">
+      <p class="eye" style="text-align:center">Match quality</p>
+      <h2 class="sh reveal" style="text-align:center;max-width:480px;margin:0 auto 10px">You only see what's worth seeing.</h2>
+      <p class="reveal d1" style="font-size:15px;color:#6B7280;font-weight:300;text-align:center;max-width:420px;margin:0 auto;line-height:1.8;letter-spacing:.02em">Every result has a percentage score and progress bars for Function fit and Domain match. Mismatches are filtered before they reach your inbox.</p>
     </div>
-    <div class="cards">
-      <div class="mc"><div class="mc-stripe s"></div><div class="mc-body">
-        <div class="mc-top"><div class="mc-logo" style="background:linear-gradient(135deg,#1D4ED8,#3B82F6)">LF</div><div><div class="mc-score s">91%</div><div style="font-size:10px;color:var(--mute);text-align:right">match score</div></div></div>
-        <div class="mc-role">Head of Partnerships</div>
-        <div class="mc-meta">Series B Fintech &nbsp;<span class="msep">·</span>&nbsp; Bengaluru &nbsp;<span class="new-tag">New today</span></div>
-        <div class="mc-verdict sv">Your experience building fintech partnerships and managing commercial relationships aligns directly with this role. Location and seniority are both a strong fit.</div>
-        <div class="bar-row"><span class="bar-lbl">Role fit</span><div class="bar-track"><div class="bar-fill s" data-w="96"></div></div><span class="bar-pct">96%</span></div>
-        <div class="bar-row"><span class="bar-lbl">Seniority</span><div class="bar-track"><div class="bar-fill s" data-w="88"></div></div><span class="bar-pct">88%</span></div>
-        <div class="bar-row"><span class="bar-lbl">Industry</span><div class="bar-track"><div class="bar-fill s" data-w="92"></div></div><span class="bar-pct">92%</span></div>
-        <div class="mc-foot"><span class="rpill s">Strong Match</span><button class="mc-cta">Apply →</button></div>
-      </div></div>
-      <div class="mc"><div class="mc-stripe g"></div><div class="mc-body">
-        <div class="mc-top"><div class="mc-logo" style="background:linear-gradient(135deg,#6D28D9,#8B5CF6)">FS</div><div><div class="mc-score g">78%</div><div style="font-size:10px;color:var(--mute);text-align:right">match score</div></div></div>
-        <div class="mc-role">AVP Credit</div>
-        <div class="mc-meta">NBFC &nbsp;<span class="msep">·</span>&nbsp; Mumbai</div>
-        <div class="mc-verdict gv">Good alignment with your credit background. Mumbai is a slight stretch on location, but role and industry are well-matched for your experience level.</div>
-        <div class="bar-row"><span class="bar-lbl">Role fit</span><div class="bar-track"><div class="bar-fill g" data-w="80"></div></div><span class="bar-pct">80%</span></div>
-        <div class="bar-row"><span class="bar-lbl">Seniority</span><div class="bar-track"><div class="bar-fill g" data-w="75"></div></div><span class="bar-pct">75%</span></div>
-        <div class="bar-row"><span class="bar-lbl">Industry</span><div class="bar-track"><div class="bar-fill g" data-w="84"></div></div><span class="bar-pct">84%</span></div>
-        <div class="mc-foot"><span class="rpill g">Good Match</span><button class="mc-cta">Apply →</button></div>
-      </div></div>
-      <div class="mc"><div class="mc-stripe r"></div><div class="mc-body">
-        <div class="mc-top"><div class="mc-logo" style="background:#374151">ET</div><div><div class="mc-score r">18%</div><div style="font-size:10px;color:var(--mute);text-align:right">filtered out</div></div></div>
-        <div class="mc-role">Growth Marketing Manager</div>
-        <div class="mc-meta">EdTech startup &nbsp;<span class="msep">·</span>&nbsp; Bengaluru &nbsp;<span class="blk-tag">✕ Blocked</span></div>
-        <div class="mc-verdict rv">Your background is in partnerships, not digital marketing. This role requires SEO and paid media — a different skill set. It won't appear in your digest.</div>
-        <div class="bar-row"><span class="bar-lbl">Role fit</span><div class="bar-track"><div class="bar-fill r" data-w="12"></div></div><span class="bar-pct">12%</span></div>
-        <div class="bar-row"><span class="bar-lbl">Seniority</span><div class="bar-track"><div class="bar-fill r" data-w="30"></div></div><span class="bar-pct">30%</span></div>
-        <div class="bar-row"><span class="bar-lbl">Industry</span><div class="bar-track"><div class="bar-fill r" data-w="20"></div></div><span class="bar-pct">20%</span></div>
-        <div class="mc-foot"><span class="rpill r">✕ Filtered Out</span><button class="mc-cta na" disabled>Never shown to you</button></div>
-      </div></div>
+    <div class="cards-grid">
+      <!-- Strong -->
+      <div class="mc reveal">
+        <div class="mc-stripe" style="background:linear-gradient(90deg,#22C55E,#16A34A)"></div>
+        <div class="mc-body">
+          <div class="mc-hd">
+            <div class="mc-logo" style="background:linear-gradient(135deg,#1D4ED8,#3B82F6)">LF</div>
+            <div class="mc-pct" style="color:#16A34A">94%<small>Strong fit</small></div>
+          </div>
+          <div class="mc-role">Head of Partnerships</div>
+          <div class="mc-meta">Razorpay · Bengaluru · LinkedIn · ₹42L</div>
+          <div class="bar-row"><span class="bar-lbl">Function fit</span><div class="bar-track"><div class="bar-fill bar-or" style="width:96%"></div></div><span class="bar-pct" style="color:#F97316">96%</span></div>
+          <div class="bar-row"><span class="bar-lbl">Domain match</span><div class="bar-track"><div class="bar-fill bar-sk" style="width:91%"></div></div><span class="bar-pct" style="color:#0EA5E9">91%</span></div>
+          <div class="bar-row"><span class="bar-lbl">Seniority</span><div class="bar-track"><div class="bar-fill bar-grn" style="width:88%"></div></div><span class="bar-pct" style="color:#16A34A">88%</span></div>
+          <div class="mc-foot">
+            <span class="mc-tag" style="background:#DCFCE7;color:#166534">✓ Strong match</span>
+            <button class="mc-btn">Apply →</button>
+          </div>
+        </div>
+      </div>
+      <!-- Good -->
+      <div class="mc reveal d1">
+        <div class="mc-stripe" style="background:linear-gradient(90deg,#0EA5E9,#38BDF8)"></div>
+        <div class="mc-body">
+          <div class="mc-hd">
+            <div class="mc-logo" style="background:linear-gradient(135deg,#7C3AED,#A78BFA)">CR</div>
+            <div class="mc-pct" style="color:#0EA5E9">79%<small>Good fit</small></div>
+          </div>
+          <div class="mc-role">AVP Business Development</div>
+          <div class="mc-meta">CRED · Bengaluru · Naukri · ₹38L</div>
+          <div class="bar-row"><span class="bar-lbl">Function fit</span><div class="bar-track"><div class="bar-fill bar-or" style="width:82%"></div></div><span class="bar-pct" style="color:#F97316">82%</span></div>
+          <div class="bar-row"><span class="bar-lbl">Domain match</span><div class="bar-track"><div class="bar-fill bar-sk" style="width:73%"></div></div><span class="bar-pct" style="color:#0EA5E9">73%</span></div>
+          <div class="bar-row"><span class="bar-lbl">Seniority</span><div class="bar-track"><div class="bar-fill bar-grn" style="width:80%"></div></div><span class="bar-pct" style="color:#16A34A">80%</span></div>
+          <div class="mc-foot">
+            <span class="mc-tag" style="background:#E0F2FE;color:#0369A1">Good match</span>
+            <button class="mc-btn">Apply →</button>
+          </div>
+        </div>
+      </div>
+      <!-- Filtered -->
+      <div class="mc reveal d2" style="opacity:.42">
+        <div class="mc-stripe" style="background:#F3F4F6"></div>
+        <div class="mc-body">
+          <div class="mc-hd">
+            <div class="mc-logo" style="background:#E5E7EB;color:#9CA3AF">ET</div>
+            <div class="mc-pct" style="color:#9CA3AF">18%<small>Filtered</small></div>
+          </div>
+          <div class="mc-role" style="color:#9CA3AF;text-decoration:line-through">Growth Marketing Manager</div>
+          <div class="mc-meta">EdTech Startup · Delhi</div>
+          <div class="bar-row"><span class="bar-lbl">Function fit</span><div class="bar-track"><div class="bar-fill bar-gy" style="width:15%"></div></div><span class="bar-pct">15%</span></div>
+          <div class="bar-row"><span class="bar-lbl">Domain match</span><div class="bar-track"><div class="bar-fill bar-gy" style="width:22%"></div></div><span class="bar-pct">22%</span></div>
+          <div class="bar-row"><span class="bar-lbl">Seniority</span><div class="bar-track"><div class="bar-fill bar-gy" style="width:38%"></div></div><span class="bar-pct">38%</span></div>
+          <div class="mc-foot"><span class="mc-tag" style="background:#FEF2F2;color:#B91C1C">✕ Filtered out</span></div>
+        </div>
+      </div>
     </div>
-  </div>
-</section>
+  </div></section>
 
-<!-- BENEFITS -->
-<section class="section-alt">
-  <div class="wrap">
-    <div class="ben-hdr">
-      <div>
-        <div class="eyebrow">Why people love it</div>
-        <h2 class="s-title">Built for people<br>short on time.</h2>
-      </div>
-      <p class="s-sub">Job searching is exhausting. JobMatch AI removes the daily grind so you can focus on what matters.</p>
-    </div>
-    <div class="bens">
-      <div class="ben">
-        <div class="ben-ico" style="background:#EEF2FF;border:1px solid rgba(79,70,229,0.15)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-        <div class="ben-t">No more daily searching</div>
-        <p class="ben-d">Your job search runs automatically while you sleep. Open your inbox at 7AM and your best opportunities are already waiting, ranked and ready.</p>
-      </div>
-      <div class="ben">
-        <div class="ben-ico" style="background:#ECFDF5;border:1px solid rgba(5,150,105,0.15)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-        <div class="ben-t">Only relevant roles reach you</div>
-        <p class="ben-d">We filter out anything that doesn't match your role, level, or industry. The noise is gone before you ever see it.</p>
-      </div>
-      <div class="ben">
-        <div class="ben-ico" style="background:#FFF7ED;border:1px solid rgba(180,83,9,0.15)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#B45309" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
-        <div class="ben-t">Act faster on good roles</div>
-        <p class="ben-d">Good roles close fast. Your digest arrives fresh each morning so you're always among the first applicants — a real edge.</p>
-      </div>
-      <div class="ben">
-        <div class="ben-ico" style="background:#F5F3FF;border:1px solid rgba(109,40,217,0.12)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
-        <div class="ben-t">Understand why, not just what</div>
-        <p class="ben-d">Every match comes with a plain-English explanation — why it fits, or why it doesn't. Decide quickly, without guesswork.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- PRICING -->
-<section id="pricing">
-  <div class="wrap">
-    <div class="price-hdr">
-      <div class="eyebrow">Pricing</div>
-      <h2 class="s-title">Start free. Upgrade when it works.</h2>
-      <p class="s-sub">No credit card required. Most users find their first strong match within three days.</p>
+  <!-- Pricing -->
+  <section id="pricing"><div class="w">
+    <div style="text-align:center;margin-bottom:52px">
+      <p class="eye" style="text-align:center">Pricing</p>
+      <h2 class="sh reveal" style="text-align:center">Start free. Upgrade when it works.</h2>
+      <p class="reveal d1" style="font-size:16px;color:#6B7280;font-weight:300;margin-top:8px;max-width:400px;margin-left:auto;margin-right:auto;line-height:1.8;letter-spacing:.02em">No credit card required. Most find a strong match within 3 days.</p>
     </div>
     <div class="plans">
-      <div class="plan">
-        <div class="plan-name">Free</div>
-        <div class="plan-price"><span class="plan-sym">₹</span><span class="plan-num">0</span></div>
-        <div class="plan-mo">Forever free</div>
-        <div class="plan-note">No card needed · Start today</div>
-        <div class="pdiv"></div>
-        <ul class="feats">
-          <li><div class="fck on">✓</div>Daily digest every morning</li>
-          <li><div class="fck on">✓</div>Up to 5 matches per day</li>
-          <li><div class="fck on">✓</div>Match score + explanation</li>
-          <li><div class="fck on">✓</div>1 resume · 1 city</li>
-          <li><div class="fck off">–</div><span style="color:var(--mute)">Unlimited daily matches</span></li>
-          <li><div class="fck off">–</div><span style="color:var(--mute)">Referral outreach</span></li>
-          <li><div class="fck off">–</div><span style="color:var(--mute)">Match history dashboard</span></li>
+      <div class="plan reveal">
+        <div class="p-tier">Free</div>
+        <div class="p-price"><span class="p-sym">₹</span><span class="p-num">0</span></div>
+        <div class="p-per">Forever free · no card needed</div>
+        <div class="p-hr"></div>
+        <ul class="p-feats">
+          <li><div class="ck ck-y">✓</div>5 matches per day</li>
+          <li><div class="ck ck-y">✓</div>Match score + reason</li>
+          <li><div class="ck ck-y">✓</div>1 resume · 1 city</li>
+          <li><div class="ck ck-n">–</div><span style="color:#D1D5DB">Unlimited matches</span></li>
+          <li><div class="ck ck-n">–</div><span style="color:#D1D5DB">Referral paths</span></li>
         </ul>
-        <button class="plan-btn fb">Get started free</button>
+        <button class="p-btn pb-free">Get started free</button>
       </div>
-      <div class="plan pro">
-        <div class="plan-badge">✦ Recommended · Founding Rate</div>
-        <div class="plan-name pr">Pro</div>
-        <div class="plan-price"><span class="plan-sym pr">₹</span><span class="plan-num ac">299</span><span class="plan-og">₹599</span></div>
-        <div class="plan-mo pr">per month</div>
-        <div class="plan-note pr">50% off launch pricing</div>
-        <div class="pdiv pr"></div>
-        <ul class="feats pr">
-          <li><div class="fck onp">✓</div><strong style="color:#fff">Unlimited daily matches</strong></li>
-          <li><div class="fck onp">✓</div>Match score + explanation</li>
-          <li><div class="fck onp">✓</div><strong style="color:#fff">3 resumes · 3 cities</strong></li>
-          <li><div class="fck onp">✓</div><strong style="color:#fff">Referral outreach paths</strong></li>
-          <li><div class="fck onp">✓</div><strong style="color:#fff">Match history dashboard</strong></li>
-          <li><div class="fck onp">✓</div>Priority support</li>
-          <li><div class="fck onp">✓</div>Cancel anytime</li>
+
+      <!-- PRO — Founding Rate badge -->
+      <div class="plan pro reveal d1">
+        <div class="founding">✦ Founding Rate — 50% Off</div>
+        <div class="p-tier" style="margin-top:12px;color:rgba(249,115,22,.65)">Pro</div>
+        <div class="p-price"><span class="p-sym">₹</span><span class="p-num">299</span><span class="p-was">₹599</span></div>
+        <div class="p-per">per month · cancel anytime</div>
+        <div class="p-hr" style="background:rgba(249,115,22,.12)"></div>
+        <ul class="p-feats">
+          <li><div class="ck ck-y">✓</div><b>Unlimited daily matches</b></li>
+          <li><div class="ck ck-y">✓</div><b>3 resumes · 3 cities</b></li>
+          <li><div class="ck ck-y">✓</div><b>Referral outreach paths</b></li>
+          <li><div class="ck ck-y">✓</div><b>Match history dashboard</b></li>
+          <li><div class="ck ck-y">✓</div>Priority support</li>
         </ul>
-        <button class="plan-btn pb">Upgrade to Pro — ₹299/mo</button>
+        <button class="p-btn pb-pro">Upgrade to Pro — ₹299/mo</button>
       </div>
-      <div class="plan" style="background:var(--dark);border-color:transparent">
-        <div class="plan-name pr">Teams</div>
-        <div class="plan-price"><span class="plan-num pr" style="font-size:34px">Custom</span></div>
-        <div class="plan-mo pr">For placement firms & HR teams</div>
-        <div class="plan-note pr">Talk to us about your needs</div>
-        <div class="pdiv pr"></div>
-        <ul class="feats pr">
-          <li><div class="fck onp">✓</div>Unlimited candidate profiles</li>
-          <li><div class="fck onp">✓</div>Bulk resume processing</li>
-          <li><div class="fck onp">✓</div>Recruiter admin dashboard</li>
-          <li><div class="fck onp">✓</div>API access</li>
-          <li><div class="fck onp">✓</div>White-label option</li>
-          <li><div class="fck onp">✓</div>Dedicated account manager</li>
-          <li><div class="fck onp">✓</div>SLA guarantee</li>
+
+      <div class="plan reveal d2" style="background:#111827;border-color:rgba(255,255,255,.06)">
+        <div class="p-tier" style="color:rgba(255,255,255,.25)">Teams</div>
+        <div class="p-price"><span class="p-num" style="font-size:34px;color:#fff;letter-spacing:-1px">Custom</span></div>
+        <div class="p-per" style="color:rgba(255,255,255,.22)">Placement firms & HR teams</div>
+        <div class="p-hr" style="background:rgba(255,255,255,.07)"></div>
+        <ul class="p-feats">
+          <li><div class="ck" style="background:rgba(249,115,22,.15);color:#F97316">✓</div><span style="color:rgba(255,255,255,.45)">Unlimited profiles</span></li>
+          <li><div class="ck" style="background:rgba(249,115,22,.15);color:#F97316">✓</div><span style="color:rgba(255,255,255,.45)">Recruiter dashboard</span></li>
+          <li><div class="ck" style="background:rgba(249,115,22,.15);color:#F97316">✓</div><span style="color:rgba(255,255,255,.45)">API access</span></li>
+          <li><div class="ck" style="background:rgba(249,115,22,.15);color:#F97316">✓</div><span style="color:rgba(255,255,255,.45)">White-label option</span></li>
+          <li><div class="ck" style="background:rgba(249,115,22,.15);color:#F97316">✓</div><span style="color:rgba(255,255,255,.45)">SLA guarantee</span></li>
         </ul>
-        <button class="plan-btn tb">Contact us →</button>
+        <button class="p-btn pb-ent">Contact us →</button>
       </div>
     </div>
-  </div>
-</section>
+  </div></section>
 
-<!-- FINAL CTA -->
-<div class="wrap">
-  <div class="cta-block">
-    <h2 class="cta-title">Stop searching.<br>Start receiving.</h2>
-    <p class="cta-sub">Upload in 60 seconds. Your first digest arrives tomorrow morning at 7AM.</p>
-    <div class="cta-acts">
-      <a href="#" class="cta-btn">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-        Upload Resume Free
-      </a>
-      <span class="cta-note">No credit card &nbsp;·&nbsp; Free plan available forever</span>
-    </div>
-  </div>
-</div>
+  <!-- CTA + Intake -->
+  <section id="cta">
+    <div class="cta-card">
+      <div class="cta-copy">
+        <h2>Stop searching.<br>Start receiving.</h2>
+        <p>Upload in 60 seconds. First digest arrives tomorrow at 7AM.</p>
+      </div>
+      <div class="intake">
+        <!-- Drop zone -->
+        <div class="drop-zone" id="dz">
+          <div class="drop-icon" id="dz-icon">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          </div>
+          <div>
+            <div class="drop-title" id="dz-title">Drop your resume or click to browse</div>
+            <div class="drop-sub"  id="dz-sub">PDF · DOCX · DOC</div>
+          </div>
+          <input type="file" class="drop-input" id="file-input" accept=".pdf,.doc,.docx,.txt">
+        </div>
 
-<!-- FOOTER -->
-<footer>
-  <div class="wrap">
-    <div class="foot-inner">
-      <span class="foot-logo">Job<em>Match</em> AI</span>
-      <span class="foot-note">Made in India 🇮🇳 · © 2026 JobMatch AI</span>
-      <div class="foot-links">
-        <a href="#">Privacy</a><a href="#">Terms</a><a href="#">Contact</a>
+        <!-- Name + Email -->
+        <div class="fg">
+          <div class="f">
+            <label>Full name <em>*</em></label>
+            <input id="fn" type="text" placeholder="Priya Sharma" autocomplete="name">
+          </div>
+          <div class="f">
+            <label>Email <em>*</em></label>
+            <input id="fe" type="email" placeholder="you@email.com" autocomplete="email">
+          </div>
+        </div>
+
+        <!-- Industry -->
+        <div class="f">
+          <label>Industry / Domain <em>*</em></label>
+          <input id="fi" type="text" placeholder="Fintech, SaaS, HealthTech, FMCG…" list="ind-l" autocomplete="off">
+          <datalist id="ind-l">
+            <option value="Fintech / NBFC / Digital Lending">
+            <option value="SaaS / B2B Tech">
+            <option value="E-commerce / D2C">
+            <option value="HealthTech / MedTech">
+            <option value="EdTech">
+            <option value="FMCG / Consumer Goods">
+            <option value="Banking / Insurance / Wealth">
+            <option value="Consulting / Advisory">
+            <option value="Logistics / Supply Chain">
+            <option value="Manufacturing">
+            <option value="Media / Content">
+            <option value="Real Estate / PropTech">
+          </datalist>
+          <small>We search roles in this domain every morning</small>
+        </div>
+
+        <!-- Location -->
+        <div class="f">
+          <label>Preferred city <em>*</em></label>
+          <input id="fl" type="text" placeholder="Bengaluru, Mumbai, Remote…" list="loc-l" autocomplete="off">
+          <datalist id="loc-l">
+            <option value="Bengaluru">
+            <option value="Mumbai">
+            <option value="Delhi NCR">
+            <option value="Hyderabad">
+            <option value="Pune">
+            <option value="Chennai">
+            <option value="Remote">
+            <option value="Bengaluru / Remote">
+            <option value="Mumbai / Remote">
+            <option value="Pan India">
+          </datalist>
+          <small>Jobs are fetched from this city every morning</small>
+        </div>
+
+        <div class="form-err" id="ferr"></div>
+        <button class="submit-btn" id="submit-btn">Get my matches →</button>
+        <p class="intake-fn">Resume deleted in 30 days · Never sold or shared</p>
       </div>
     </div>
-  </div>
-</footer>
+  </section>
 
-<!-- THREE.JS -->
+  <footer>
+    <span class="f-logo">Job<em>Match</em> AI</span>
+    <div class="f-links">
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+      <a href="mailto:hello@jobmatchai.co.in">hello@jobmatchai.co.in</a>
+    </div>
+    <span class="f-copy">Built in Bengaluru 🇮🇳 · © 2026</span>
+  </footer>
+
+</div><!-- /.sections -->
+
+<!-- ══════════════════════════════════════════════════════════════════
+     SCRIPTS
+══════════════════════════════════════════════════════════════════ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script>
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   THREE.JS HERO ANIMATION
-   FIX: renderer always uses window.innerWidth × window.innerHeight
-   so the canvas fills the full 100vh hero regardless of
-   element layout timing issues.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-(function() {
-  const canvas = document.getElementById('hero-canvas');
+/* ══════════════════════════════════════════════════════════════════
+   THREE.JS  ─  Glass Torus Knot + Orbital Streaks
+══════════════════════════════════════════════════════════════════ */
+(function () {
+  const cw  = document.getElementById('cw');
+  const cvs = document.getElementById('three-canvas');
 
-  // Always use full viewport dimensions — never element.offsetHeight
-  let VW = window.innerWidth;
-  let VH = window.innerHeight;
-
-  const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x03040f, 0.038);
-
-  const cam = new THREE.PerspectiveCamera(50, VW / VH, 0.1, 120);
-  cam.position.set(0, 1.0, 8.0);
-  cam.lookAt(0, 0, 0);
-
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  /* ── Renderer ── */
+  const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.setSize(VW, VH);
-  renderer.setClearColor(0x03040f, 1);
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
+  renderer.setClearColor(0x000000, 0);
+  renderer.physicallyCorrectLights = true;
+  renderer.outputEncoding  = THREE.sRGBEncoding;
+  renderer.toneMapping     = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
 
-  // Lights
-  scene.add(new THREE.AmbientLight(0x080520, 2.5));
-  const cl = new THREE.PointLight(0x7c3aed, 5, 8, 1.5);
-  scene.add(cl);
-  const dl1 = new THREE.DirectionalLight(0x6d28d9, 2.0);
-  dl1.position.set(-5, 5, 3); scene.add(dl1);
-  const dl2 = new THREE.DirectionalLight(0x1e3a8a, 0.9);
-  dl2.position.set(4, -3, 4); scene.add(dl2);
+  /* ── Scene + Camera ── */
+  const scene  = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 100);
+  camera.position.set(0, 0, 5.6);
 
-  // Bokeh
-  const bc = document.createElement('canvas'); bc.width = bc.height = 64;
-  const bx = bc.getContext('2d');
-  const bg = bx.createRadialGradient(32,32,0,32,32,32);
-  bg.addColorStop(0,'rgba(255,255,255,1)'); bg.addColorStop(0.4,'rgba(255,255,255,0.4)'); bg.addColorStop(1,'rgba(255,255,255,0)');
-  bx.fillStyle=bg; bx.fillRect(0,0,64,64);
-  const btex = new THREE.CanvasTexture(bc);
-  const bokeh = new THREE.Group();
-  const bpal = [[0.25,0.10,0.65],[0.10,0.15,0.70],[0.40,0.15,0.75],[0.18,0.26,0.80],[0.48,0.18,0.82]];
-  for(let i=0;i<200;i++){
-    const p=bpal[i%bpal.length], sz=0.08+Math.random()*0.65;
-    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:btex,color:new THREE.Color(p[0]*1.5,p[1]*1.5,p[2]*1.5),transparent:true,opacity:0.04+Math.random()*0.09,blending:THREE.AdditiveBlending,depthWrite:false}));
-    sp.position.set((Math.random()-0.5)*26,(Math.random()-0.5)*16,-5-Math.random()*12);
-    sp.scale.set(sz,sz,1); bokeh.add(sp);
+  /* Size renderer to match #cw container */
+  function fitRenderer () {
+    const W = cw.clientWidth  || window.innerWidth;
+    const H = cw.clientHeight || window.innerHeight;
+    renderer.setSize(W, H, false); // false = don't set canvas style size (CSS handles it)
+    camera.aspect = W / H;
+    camera.updateProjectionMatrix();
   }
-  scene.add(bokeh);
+  fitRenderer();
 
-  // Glass sphere (7 layers)
-  const sg = new THREE.Group();
-  const addM=(r,mat,s=32)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(r,s,s),mat);sg.add(m);return m;};
-  const bm=(c,op,sd,bl)=>new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:op,side:sd||THREE.FrontSide,blending:bl||THREE.NormalBlending,depthWrite:false});
-  const pm=(c,e,op,sh,sd)=>new THREE.MeshPhongMaterial({color:c,emissive:e,transparent:true,opacity:op,shininess:sh,side:sd||THREE.FrontSide,depthWrite:false});
-  addM(2.0,bm(0x3b0764,0.04,THREE.BackSide,THREE.AdditiveBlending));
-  addM(1.52,bm(0x5b21b6,0.07,THREE.BackSide,THREE.AdditiveBlending));
-  addM(1.18,pm(0x1e1b4b,0x0d0b2a,0.30,60,THREE.BackSide));
-  const gf=addM(1.15,Object.assign(pm(0x4c1d95,0x2d1b69,0.08,600),{specular:new THREE.Color(0.95,0.9,1.0)}),64);
-  addM(1.08,bm(0x8b5cf6,0.13,THREE.BackSide,THREE.AdditiveBlending));
-  const mc2=addM(0.58,bm(0x6d28d9,0.38,undefined,THREE.AdditiveBlending));
-  const nuc=addM(0.20,bm(0xede9fe,1.0,undefined,THREE.AdditiveBlending));
-  const pw1=addM(1.15,bm(0x8b5cf6,0,undefined,THREE.AdditiveBlending));
-  const pw2=addM(1.15,bm(0xa78bfa,0,undefined,THREE.AdditiveBlending));
-  scene.add(sg);
+  /* ResizeObserver keeps renderer in sync whenever GSAP morphs #cw */
+  new ResizeObserver(fitRenderer).observe(cw);
+  window.addEventListener('resize', fitRenderer, { passive: true });
 
-  // Neural nodes (Fibonacci sphere)
-  const ng=new THREE.Group(); const N=26,NR=3.1,PHI=(1+Math.sqrt(5))/2; const npos=[];
-  for(let i=0;i<N;i++){const th=Math.acos(1-2*(i+0.5)/N),az=2*Math.PI*i/PHI;npos.push(new THREE.Vector3(NR*Math.sin(th)*Math.cos(az),NR*Math.sin(th)*Math.sin(az),NR*Math.cos(th)));}
-  const nc=[0x7c3aed,0x8b5cf6,0x6366f1,0xa78bfa,0x4f46e5,0xc084fc,0x818cf8,0x9333ea];
-  npos.forEach((p,i)=>{
-    const r=0.042+Math.random()*0.044,c=nc[i%nc.length];
-    const core=new THREE.Mesh(new THREE.SphereGeometry(r,12,12),new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:0.95,blending:THREE.AdditiveBlending,depthWrite:false}));
-    core.position.copy(p);ng.add(core);
-    const halo=new THREE.Mesh(new THREE.SphereGeometry(r*4,8,8),new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:0.10,blending:THREE.AdditiveBlending,depthWrite:false}));
-    halo.position.copy(p);ng.add(halo);
+  /* ── Lights ── */
+  scene.add(new THREE.AmbientLight(0xffffff, 1.4));
+
+  /* Orange key light */
+  const lOr = new THREE.PointLight(0xF97316, 10, 20, 1.5);
+  lOr.position.set(4, 3, 3);
+  scene.add(lOr);
+
+  /* Azure fill light */
+  const lSk = new THREE.PointLight(0x38BDF8, 7, 16, 1.5);
+  lSk.position.set(-4, -2, 2);
+  scene.add(lSk);
+
+  /* White rim */
+  const lRim = new THREE.PointLight(0xffffff, 4, 12);
+  lRim.position.set(0, 5, -2);
+  scene.add(lRim);
+
+  /* ── Glass Torus Knot ── */
+  /* spec: MeshPhysicalMaterial, high transmission, light refraction index */
+  const tkGeo = new THREE.TorusKnotGeometry(1.0, 0.30, 220, 32, 2, 3);
+  const tkMat = new THREE.MeshPhysicalMaterial({
+    color:              new THREE.Color(0.97, 0.97, 1.00),
+    transmission:       0.96,         // spec: high transmission
+    roughness:          0.03,
+    metalness:          0.00,
+    ior:                1.55,          // spec: light refraction index
+    thickness:          2.4,
+    clearcoat:          1.0,
+    clearcoatRoughness: 0.04,
+    transparent:        true,
+    opacity:            0.94,
+    side:               THREE.DoubleSide,
+    envMapIntensity:    1.1,
   });
+  const tk = new THREE.Mesh(tkGeo, tkMat);
+  scene.add(tk);
 
-  // Connections
-  const curves=[],used=new Set();
-  npos.forEach((pA,i)=>{
-    npos.map((pB,j)=>({j,d:pA.distanceTo(pB)})).sort((a,b)=>a.d-b.d).slice(1,4).forEach(({j})=>{
-      const k=`${Math.min(i,j)}-${Math.max(i,j)}`;
-      if(!used.has(k)){used.add(k);
-        const A=npos[i],B=npos[j];
-        const mid=A.clone().add(B).multiplyScalar(0.5);
-        mid.addScaledVector(mid.clone().normalize(),0.45+Math.random()*0.5);
-        const curve=new THREE.QuadraticBezierCurve3(A.clone(),mid,B.clone());
-        curves.push(curve);
-        const geo=new THREE.BufferGeometry().setFromPoints(curve.getPoints(52));
-        ng.add(new THREE.Line(geo,new THREE.LineBasicMaterial({color:0x4c1d95,transparent:true,opacity:0.28,blending:THREE.AdditiveBlending,depthWrite:false})));
-        ng.add(new THREE.Line(geo,new THREE.LineBasicMaterial({color:0x7c3aed,transparent:true,opacity:0.11,blending:THREE.AdditiveBlending,depthWrite:false})));
-      }
+  /* Thin wireframe shell for depth perception */
+  scene.add(new THREE.Mesh(
+    new THREE.TorusKnotGeometry(1.0, 0.30, 80, 12, 2, 3),
+    new THREE.MeshBasicMaterial({ color: 0x99b4ff, wireframe: true, transparent: true, opacity: 0.04 })
+  ));
+
+  /* ── Orbital Streaks ── */
+  /* spec: Electric Orange #F97316 + Soft Azure #38BDF8 revolving around the object */
+  function makeOrbit (orbitR, tubeR, hex, tiltX, tiltZ, phase) {
+    /* Glowing ring — the "streak" path */
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(orbitR, tubeR, 8, 140),
+      new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.75 })
+    );
+    ring.rotation.x = tiltX;
+    ring.rotation.z = tiltZ;
+    scene.add(ring);
+
+    /* Bright head sphere travelling the path */
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(tubeR * 4.0, 16, 16),
+      new THREE.MeshBasicMaterial({ color: hex })
+    );
+    scene.add(head);
+
+    /* Soft glow halo around head */
+    const halo = new THREE.Mesh(
+      new THREE.SphereGeometry(tubeR * 11, 10, 10),
+      new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.13 })
+    );
+    scene.add(halo);
+
+    /* PointLight that travels with the head — illuminates the glass knot */
+    const light = new THREE.PointLight(hex, 3.5, 4.5, 2.0);
+    scene.add(light);
+
+    return { ring, head, halo, light, orbitR, tiltX, tiltZ, angle: phase };
+  }
+
+  const oOrange = makeOrbit(2.00, 0.017, 0xF97316,  Math.PI / 3.4,  0.30, 0.0);
+  const oBlue   = makeOrbit(2.45, 0.013, 0x38BDF8, -Math.PI / 4.1, -0.38, Math.PI);
+
+  /* Precompute sin/cos of tilt angles for orbit position calculation */
+  function calcOrbitPos (o, angle) {
+    const lx = Math.cos(angle) * o.orbitR;
+    const lz = Math.sin(angle) * o.orbitR;
+    /* Rotate X then Z */
+    const sX = Math.sin(o.tiltX), cX = Math.cos(o.tiltX);
+    const sZ = Math.sin(o.tiltZ), cZ = Math.cos(o.tiltZ);
+    const y1 = -lz * sX, z1 =  lz * cX;
+    return {
+      x: lx * cZ - y1 * sZ,
+      y: lx * sZ + y1 * cZ,
+      z: z1
+    };
+  }
+
+  /* ── Animation Loop ── */
+  let t = 0;
+  let targetCamZ = 5.6;  // GSAP controls this
+
+  (function loop () {
+    requestAnimationFrame(loop);
+    t += 0.008;
+
+    /* Torus knot — slow, meditative spin */
+    tk.rotation.x += 0.003;
+    tk.rotation.y += 0.005;
+    tk.rotation.z += 0.001;
+
+    /* Gentle breathing */
+    const breathe = 1 + Math.sin(t * 0.55) * 0.016;
+    tk.scale.setScalar(breathe);
+
+    /* ── Orbit lights chase the torus knot's colour shifts ── */
+    const la = t * 0.4;
+    lOr.position.x =  Math.sin(la) * 4.5;
+    lOr.position.z =  Math.cos(la) * 4.5;
+    lSk.position.x = -Math.sin(la * 0.68) * 4.5;
+    lSk.position.z = -Math.cos(la * 0.68) * 4.5;
+
+    /* ── Orbital streak heads ── */
+    oOrange.angle  +=  0.022;
+    oBlue.angle    -= 0.016;
+
+    ;[oOrange, oBlue].forEach(o => {
+      const p = calcOrbitPos(o, o.angle);
+      o.head.position.set(p.x, p.y, p.z);
+      o.halo.position.set(p.x, p.y, p.z);
+      o.light.position.set(p.x, p.y, p.z);
+      /* Rings slowly precess */
+      o.ring.rotation.y += (o === oOrange) ? 0.002 : -0.0015;
     });
-  });
-  scene.add(ng);
 
-  // Particles
-  const parts=[];
-  curves.forEach(curve=>{
-    for(let p=0;p<2+Math.floor(Math.random()*3);p++){
-      const m=new THREE.Mesh(new THREE.SphereGeometry(0.022,8,8),new THREE.MeshBasicMaterial({color:0xede9fe,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
-      ng.add(m); parts.push({m,curve,t:Math.random(),sp:0.00055+Math.random()*0.00085,ph:Math.random()*Math.PI*2});
-    }
-  });
+    /* Camera gentle drift (full-screen hero mode only) */
+    camera.position.x += (Math.sin(t * 0.07) * 0.28 - camera.position.x) * 0.04;
+    camera.position.y += (Math.cos(t * 0.05) * 0.18 - camera.position.y) * 0.04;
+    camera.lookAt(0, 0, 0);
 
-  // Pulse state
-  let pt1=1,pt2=1,ptimer=0;
-  const eoc=t=>1-Math.pow(1-t,3),eoq=t=>1-Math.pow(1-t,4);
-  const _c=new THREE.Color();
-  const iCol=t=>{_c.setHSL(0.72+Math.sin(t*0.18)*0.08,0.75+Math.sin(t*0.11)*0.10,0.38+Math.sin(t*0.23)*0.06);return _c;};
-
-  // Animation loop
-  const clk=new THREE.Clock(); let el=0;
-  const heroEl=document.getElementById('hero');
-
-  (function tick(){
-    requestAnimationFrame(tick);
-    const dt=Math.min(clk.getDelta(),0.05); el+=dt;
-    if(heroEl.getBoundingClientRect().bottom<0) return;
-
-    cam.position.x=Math.sin(el*0.10)*0.50;
-    cam.position.y=1.0+Math.sin(el*0.07)*0.25;
-    cam.position.z=8.0+Math.sin(el*0.05)*0.35;
-    cam.lookAt(0,0,0);
-
-    ng.rotation.y+=0.00062; ng.rotation.x=Math.sin(el*0.044)*0.08;
-    sg.scale.setScalar(1+Math.sin(el*0.75)*0.016);
-    nuc.material.opacity=0.80+Math.sin(el*2.1)*0.18;
-    mc2.material.opacity=0.30+Math.sin(el*1.3)*0.11;
-    gf.material.emissive.copy(iCol(el)).multiplyScalar(0.45);
-    cl.intensity=cl.intensity>6?cl.intensity*0.87:4.0+Math.sin(el*0.9)*1.5;
-    cl.color.copy(iCol(el*1.3));
-
-    ptimer+=dt;
-    if(ptimer>2.0){ptimer=0;pt1=0;pt2=-0.35;cl.intensity=15;}
-    if(pt1<1){pt1=Math.min(pt1+dt*0.55,1);const e=eoq(pt1);pw1.scale.setScalar(1+e*1.4);pw1.material.opacity=(1-e)*0.27;}
-    else pw1.material.opacity=0;
-    if(pt2<0) pt2+=dt*0.55;
-    else if(pt2<1){pt2=Math.min(pt2+dt*0.44,1);const e=eoc(pt2);pw2.scale.setScalar(1+e*2.1);pw2.material.opacity=(1-e)*0.12;}
-    else pw2.material.opacity=0;
-
-    parts.forEach(p=>{
-      p.t+=p.sp; if(p.t>=1)p.t-=1;
-      p.m.position.copy(p.curve.getPoint(p.t));
-      const fade=Math.sin(p.t*Math.PI);
-      p.m.material.opacity=fade*(0.55+Math.sin(el*4.5+p.ph)*0.22);
-    });
-
-    bokeh.rotation.z+=0.00005;
-    renderer.render(scene,cam);
+    renderer.render(scene, camera);
   })();
 
-  // Resize — always window dimensions
-  window.addEventListener('resize',()=>{
-    VW=window.innerWidth; VH=window.innerHeight;
-    cam.aspect=VW/VH; cam.updateProjectionMatrix();
-    renderer.setSize(VW,VH);
-  },{passive:true});
-})();
+  /* ══════════════════════════════════════════════════════════════
+     GSAP SCROLLTRIGGER
+     spec: As the user scrolls, the 3D object should scale down and
+     move to the top-right corner to act as a 'Live Status' indicator.
+  ══════════════════════════════════════════════════════════════ */
+  gsap.registerPlugin(ScrollTrigger);
 
-/* ── Real stats from your Airtable via /api/stats ── */
-(function() {
-  const cEl = document.getElementById('live-count');
-  const mEl = document.getElementById('live-matches');
-  const fmt = n => (n||0).toLocaleString('en-IN');
+  const BADGE_SIZE = 52;   // px
+  const BADGE_TOP  = 16;   // px from top
+  const BADGE_RIGHT = 16;  // px from right
 
-  async function loadStats() {
-    try {
-      const res = await fetch('/api/stats');
-      if (!res.ok) throw new Error('api error');
-      const d = await res.json();
-      if (d.ok) {
-        cEl.style.opacity = mEl.style.opacity = '0.4';
-        requestAnimationFrame(() => {
-          cEl.textContent = fmt(d.activeUsers);
-          mEl.textContent = fmt(d.matchesToday);
-          cEl.style.opacity = mEl.style.opacity = '1';
-        });
-      }
-    } catch(e) {
-      // Fallback if API unreachable (e.g. local dev or server error)
-      const h = new Date().getHours();
-      const peak = (h >= 9 && h <= 19) ? 1.0 : 0.42;
-      if (cEl.textContent === '—') {
-        cEl.textContent = fmt(Math.round((680 + Math.random()*200) * peak));
-        mEl.textContent = fmt(Math.round(2400 + Math.random()*800 + h*100));
-      }
-    }
+  let isBadge = false;
+
+  function enterBadge () {
+    if (isBadge) return;
+    isBadge = true;
+
+    /* Animate canvas wrap to top-right badge */
+    gsap.to(cw, {
+      top:          BADGE_TOP,
+      left:         window.innerWidth - BADGE_SIZE - BADGE_RIGHT,
+      width:        BADGE_SIZE,
+      height:       BADGE_SIZE,
+      borderRadius: 14,
+      duration:     0.85,
+      ease:         'power3.inOut',
+      onStart () { cw.classList.add('is-badge') },
+    });
+
+    /* Pull camera closer so knot fills tiny badge */
+    gsap.to(camera.position, { z: 3.8, duration: 0.85, ease: 'power3.inOut' });
   }
 
-  // Load immediately, then refresh every 5 min (matches server cache TTL)
-  loadStats();
-  setInterval(loadStats, 5 * 60 * 1000);
-})();
+  function exitBadge () {
+    if (!isBadge) return;
+    isBadge = false;
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   NAV + SCROLL REVEALS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-const nav  = document.getElementById('nav');
-const hero = document.getElementById('hero');
+    gsap.to(cw, {
+      top:          0,
+      left:         0,
+      width:        window.innerWidth,
+      height:       window.innerHeight,
+      borderRadius: 0,
+      duration:     0.85,
+      ease:         'power3.inOut',
+      onComplete () { cw.classList.remove('is-badge') },
+    });
 
-new IntersectionObserver(
-  ([e]) => nav.classList.toggle('solid', !e.isIntersecting),
-  { rootMargin: '-60px 0px 0px 0px' }
-).observe(hero);
+    gsap.to(camera.position, { z: 5.6, duration: 0.85, ease: 'power3.inOut' });
+  }
 
-const revObs = new IntersectionObserver(entries => {
-  entries.forEach(e => {
-    if (!e.isIntersecting) return;
-    const el = e.target, d = parseFloat(el.dataset.d || 0);
-    setTimeout(() => {
-      el.classList.add('vis');
-      el.querySelectorAll('.bar-fill[data-w]').forEach(b => {
-        b.style.width='0%';
-        setTimeout(()=>{ b.style.width = b.dataset.w+'%'; }, 120);
-      });
-    }, d);
-    revObs.unobserve(el);
+  ScrollTrigger.create({
+    trigger:    '#hero',
+    start:      'bottom 72%',
+    onEnter:    enterBadge,
+    onLeaveBack:exitBadge,
   });
-}, { threshold: 0.12 });
 
-document.querySelectorAll('.mc').forEach((el,i)  => { el.dataset.d=i*90;  revObs.observe(el); });
-document.querySelectorAll('.plan').forEach((el,i) => { el.dataset.d=i*80;  revObs.observe(el); });
+  /* Re-anchor badge position on window resize */
+  window.addEventListener('resize', () => {
+    if (isBadge) {
+      gsap.set(cw, { left: window.innerWidth - BADGE_SIZE - BADGE_RIGHT });
+    }
+  }, { passive: true });
+
+})(); /* end Three.js IIFE */
+
+
+/* ══ NAV ══════════════════════════════════════════════════════════ */
+window.addEventListener('scroll', () =>
+  document.getElementById('nav').classList.toggle('scrolled', scrollY > 30),
+  { passive: true }
+);
+
+/* ══ LIVE STATS ═══════════════════════════════════════════════════ */
+async function fetchStats () {
+  try {
+    const ping = await fetch('/api/ping').catch(() => null);
+    if (!ping?.ok) return;
+    const res  = await fetch('/api/stats');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.ok) {
+      const fmt = n => (n || 0).toLocaleString('en-IN');
+      const lc  = document.getElementById('lc');
+      const lm  = document.getElementById('lm');
+      if (lc) lc.textContent = fmt(data.activeUsers);
+      if (lm) lm.textContent = fmt(data.matchesToday);
+    }
+  } catch (e) { console.warn('[stats]', e.message); }
+}
+fetchStats();
+setInterval(fetchStats, 5 * 60 * 1000);
+
+/* ══ RESUME INTAKE ════════════════════════════════════════════════ */
+const dz = document.getElementById('dz');
+const fi = document.getElementById('file-input');
+
+['dragenter','dragover'].forEach(ev =>
+  dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('over'); }));
+['dragleave','drop'].forEach(ev =>
+  dz.addEventListener(ev, e => {
+    e.preventDefault(); dz.classList.remove('over');
+    if (ev === 'drop' && e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+  }));
+fi.addEventListener('change', () => { if (fi.files[0]) processFile(fi.files[0]); });
+
+function extractHints (txt) {
+  const h = { name: '', email: '', industry: '', location: '' };
+  if (!txt) return h;
+  const em = txt.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/);
+  if (em) h.email = em[0];
+  for (const ln of txt.split(/\n+/).map(l => l.trim()).filter(Boolean).slice(0, 12))
+    if (/^[A-Z][a-zA-Z]+([ \-][A-Z][a-zA-Z]+){1,3}$/.test(ln) && !ln.includes('@')) { h.name = ln; break; }
+  [
+    [/fintech|nbfc|lending|payments|wallet/i,   'Fintech / NBFC / Digital Lending'],
+    [/saas|b2b\s*tech|software|cloud|api/i,     'SaaS / B2B Tech'],
+    [/ecommerce|e-commerce|d2c|retail/i,         'E-commerce / D2C'],
+    [/health|pharma|hospital|medtech|clinical/i, 'HealthTech / MedTech'],
+    [/edtech|education|learning/i,               'EdTech'],
+    [/fmcg|consumer goods|cpg/i,                 'FMCG / Consumer Goods'],
+    [/banking|insurance|wealth/i,                'Banking / Insurance / Wealth'],
+    [/logistics|supply chain/i,                  'Logistics / Supply Chain'],
+    [/consulting|advisory|strategy/i,            'Consulting / Advisory'],
+  ].some(([r, v]) => { if (r.test(txt)) { h.industry = v; return true; } });
+  [
+    [/bengaluru|bangalore/i, 'Bengaluru'],
+    [/mumbai|bombay/i,       'Mumbai'],
+    [/delhi|ncr|gurgaon|noida/i, 'Delhi NCR'],
+    [/hyderabad/i,           'Hyderabad'],
+    [/pune/i,                'Pune'],
+    [/chennai/i,             'Chennai'],
+  ].some(([r, v]) => { if (r.test(txt)) { h.location = v; return true; } });
+  return h;
+}
+
+async function readText (file) {
+  return new Promise(resolve => {
+    if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+      const r = new FileReader();
+      r.onload  = e => resolve(e.target.result || '');
+      r.onerror = () => resolve('');
+      r.readAsText(file);
+    } else {
+      const r = new FileReader();
+      r.onload  = e => { try { resolve(new TextDecoder().decode(e.target.result) || ''); } catch { resolve(''); } };
+      r.onerror = () => resolve('');
+      r.readAsArrayBuffer(file);
+    }
+  });
+}
+
+async function processFile (file) {
+  if (!file) return;
+
+  /* Update drop zone UI */
+  dz.classList.add('done');
+  document.getElementById('dz-icon').innerHTML =
+    '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#22C55E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  document.getElementById('dz-title').textContent = 'Resume read — ' + file.name;
+  document.getElementById('dz-sub').textContent   = 'Fields below were auto-filled from your resume';
+
+  /* Extract hints and prefill only empty fields */
+  const txt   = await readText(file);
+  const hints = extractHints(txt);
+  const flds  = [
+    [document.getElementById('fn'),  hints.name],
+    [document.getElementById('fe'),  hints.email],
+    [document.getElementById('fi'),  hints.industry],
+    [document.getElementById('fl'),  hints.location],
+  ];
+  flds.forEach(([el, val]) => { if (!el.value && val) el.value = val; });
+
+  /* Focus first still-empty required field */
+  const first = flds.find(([el]) => !el.value.trim());
+  if (first) setTimeout(() => {
+    first[0].focus();
+    first[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 350);
+}
+
+/* Submit */
+document.getElementById('submit-btn').addEventListener('click', () => {
+  const n   = document.getElementById('fn').value.trim();
+  const e   = document.getElementById('fe').value.trim();
+  const ind = document.getElementById('fi').value.trim();
+  const loc = document.getElementById('fl').value.trim();
+  const err = document.getElementById('ferr');
+
+  const missing = [];
+  if (!n)                                           missing.push('full name');
+  if (!e || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) missing.push('valid email');
+  if (!ind)                                         missing.push('industry');
+  if (!loc)                                         missing.push('city');
+
+  if (missing.length) {
+    err.textContent    = 'Please fill in: ' + missing.join(', ') + '.';
+    err.style.display  = 'block';
+    return;
+  }
+  err.style.display = 'none';
+
+  const btn = document.getElementById('submit-btn');
+  btn.textContent = 'Finding your matches…';
+  btn.disabled    = true;
+  btn.classList.add('sent');
+  window._intake  = { name: n, email: e, industry: ind, location: loc };
+
+  setTimeout(() =>
+    document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' }), 700);
+});
+
+/* ══ SCROLL REVEALS ═══════════════════════════════════════════════ */
+const revealObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('visible'); revealObs.unobserve(e.target); }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
+document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
 </script>
 </body>
 </html>
