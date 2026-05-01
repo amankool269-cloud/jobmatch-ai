@@ -254,12 +254,11 @@ app.post('/api/signup', async (req, res) => {
       'Location':     (location || 'Bengaluru').trim(),
       'Cities':       (location || 'Bengaluru').trim(),
       'Status':       'Active',
-      'Signup Date':  new Date().toISOString().slice(0, 10),
     };
 
     if (existing) {
       // Update existing record — re-activate if they signed up again
-      await patchUser(existing.id, { ...fields, 'Notes': 'Re-signup ' + fields['Signup Date'] });
+      await patchUser(existing.id, { ...fields, 'Notes': 'Re-signup ' + new Date().toISOString().slice(0,10) });
       console.log('[signup] updated existing user:', email);
     } else {
       // Create new record
