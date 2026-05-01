@@ -337,6 +337,32 @@ app.post('/api/signup', async (req, res) => {
   }
 });
 
+// ── GET /api/matches — poll for a user's latest matches ──────────────────────
+// Called by the website after signup to show results as they arrive
+app.get('/api/matches', async (req, res) => {
+  cors(res);
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ ok: false, error: 'email required' });
+
+  try {
+    const u = await findUser(email);
+    if (!u) return res.json({ ok: true, matches: [], ready: false, message: 'Profile not found' });
+
+    let matches = [];
+    try { matches = JSON.parse(u.fields?.LastMatches || '[]'); } catch {}
+
+    const today   = new Date().toISOString().slice(0, 10);
+    const lastRun = (u.fields?.LastRun || '').slice(0, 10);
+    const fresh   = lastRun === today;
+
+    console.log(`[matches] ${email} → ${matches.length} matches, fresh=${fresh}, lastRun=${lastRun}`);
+    res.json({ ok: true, matches, fresh, count: matches.length, lastRun });
+  } catch (e) {
+    console.error('[matches] error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ── GET /health ───────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ ok: true, uptime: Math.round(process.uptime()) }));
 
