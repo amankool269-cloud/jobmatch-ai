@@ -1,597 +1,270 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JobMatch AI</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --ink:    #0D0F14;
-  --ink2:   #374151;
-  --muted:  #6B7280;
-  --faint:  #9CA3AF;
-  --blue:   #2563FF;
-  --border: rgba(0,0,0,.08);
-}
-
-html { scroll-behavior: smooth; }
-body { font-family: 'Inter', sans-serif; background: #fff; color: var(--ink); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-
-/* ─── NAV ─── */
-nav {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 99;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 52px; height: 58px;
-  background: rgba(255,255,255,.85);
-  backdrop-filter: blur(18px);
-  border-bottom: 1px solid var(--border);
-}
-.logo {
-  font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 800;
-  color: var(--ink); text-decoration: none; letter-spacing: -.03em;
-  display: flex; align-items: center; gap: 7px;
-}
-.logo-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--blue);
-}
-.nav-r { display: flex; align-items: center; gap: 20px; }
-.nav-lnk { font-size: 13px; color: var(--muted); text-decoration: none; font-weight: 500; transition: color .15s; }
-.nav-lnk:hover { color: var(--ink); }
-.nav-btn {
-  padding: 8px 20px; border-radius: 8px; background: var(--ink);
-  color: #fff; font-size: 13px; font-weight: 600; text-decoration: none;
-  transition: opacity .15s;
-}
-.nav-btn:hover { opacity: .8; }
-
-/* ─── HERO ─── */
-.hero {
-  padding: 130px 52px 80px;
-  text-align: center; max-width: 860px; margin: 0 auto;
-  position: relative;
-}
-.hero-eye {
-  display: inline-flex; align-items: center; gap: 7px;
-  font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
-  color: var(--blue); background: #EEF3FF;
-  border: 1px solid rgba(37,99,255,.18);
-  padding: 5px 13px; border-radius: 999px; margin-bottom: 28px;
-}
-.live { width: 6px; height: 6px; border-radius: 50%; background: #10B981; box-shadow: 0 0 5px #10B981; animation: blink 2s ease-in-out infinite; }
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-
-h1 {
-  font-family: 'Syne', sans-serif;
-  font-size: clamp(48px, 6vw, 80px);
-  font-weight: 800; line-height: 1.03; letter-spacing: -.05em;
-  margin-bottom: 22px; color: var(--ink);
-}
-.em { color: var(--blue); }
-
-.hero-sub {
-  font-size: 18px; color: var(--muted); line-height: 1.72;
-  max-width: 520px; margin: 0 auto 36px;
-}
-
-.hero-actions { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 64px; }
-.btn-dark {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 14px 28px; border-radius: 10px;
-  background: var(--ink); color: #fff;
-  font-size: 15px; font-weight: 600; text-decoration: none;
-  transition: all .2s;
-  box-shadow: 0 4px 20px rgba(0,0,0,.18);
-}
-.btn-dark:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,.25); }
-.btn-outline {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 14px 20px; border-radius: 10px;
-  background: transparent; color: var(--muted);
-  font-size: 15px; font-weight: 500; text-decoration: none;
-  border: 1px solid var(--border);
-  transition: all .2s;
-}
-.btn-outline:hover { border-color: rgba(0,0,0,.2); color: var(--ink); }
-
-/* ─── EMAIL MOCK (hero) ─── */
-.mock-wrap {
-  max-width: 640px; margin: 0 auto;
-  background: #fff;
-  border: 1px solid rgba(0,0,0,.1);
-  border-radius: 22px; overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0,0,0,.04), 0 20px 60px rgba(0,0,0,.1), 0 40px 100px rgba(0,0,0,.07);
-}
-.mock-bar {
-  background: #F5F5F7; padding: 13px 18px;
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 10px;
-}
-.mock-dots { display: flex; gap: 5px; }
-.md { width: 11px; height: 11px; border-radius: 50%; }
-.md-r{background:#FF5F57;} .md-y{background:#FFBD2E;} .md-g{background:#28C840;}
-.mock-ttl { flex: 1; text-align: center; font-size: 12px; color: #999; }
-.mock-ttl b { color: #555; }
-.mock-from {
-  padding: 16px 22px; border-bottom: 1px solid var(--border);
-  display: flex; justify-content: space-between; align-items: center;
-}
-.from-n { font-size: 13px; font-weight: 600; }
-.from-a { font-size: 11px; color: var(--faint); margin-top: 2px; }
-.from-t { font-size: 11px; color: var(--faint); }
-.mock-greet { padding: 18px 22px 10px; }
-.mock-greet h3 { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
-.mock-greet p { font-size: 12px; color: var(--muted); }
-.mock-rule { height: 1px; background: var(--border); margin: 12px 22px; }
-.mock-jobs { padding: 0 14px 16px; display: flex; flex-direction: column; gap: 8px; }
-.jrow {
-  background: #F9FAFB; border: 1px solid var(--border); border-radius: 12px;
-  padding: 13px 15px; display: flex; align-items: center; gap: 13px;
-  transition: border-color .18s;
-}
-.jrow:hover { border-color: rgba(37,99,255,.22); }
-.jico {
-  width: 38px; height: 38px; border-radius: 9px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 800; color: #fff;
-}
-.ji-b{background:linear-gradient(135deg,#2563FF,#60A5FA);}
-.ji-g{background:linear-gradient(135deg,#059669,#34D399);}
-.ji-p{background:linear-gradient(135deg,#7C3AED,#A78BFA);}
-.jbody { flex: 1; min-width: 0; }
-.jt { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
-.jm { font-size: 11px; color: var(--faint); display: flex; gap: 5px; align-items: center; }
-.stag { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: rgba(0,0,0,.05); color: var(--muted); }
-.jright { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
-.mbadge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
-.mb-g { background: rgba(16,185,129,.1); color: #059669; border: 1px solid rgba(16,185,129,.2); }
-.mb-b { background: rgba(37,99,255,.08); color: #2563FF; border: 1px solid rgba(37,99,255,.18); }
-.sbar { width: 52px; height: 3px; border-radius: 2px; background: rgba(0,0,0,.07); overflow: hidden; }
-.sf { height: 100%; border-radius: 2px; }
-.s91{background:linear-gradient(90deg,#10B981,#34D399);width:91%;}
-.s78{background:linear-gradient(90deg,#2563FF,#818CF8);width:78%;}
-.s73{background:linear-gradient(90deg,#2563FF,#818CF8);width:73%;}
-.japply {
-  font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;
-  background: rgba(37,99,255,.07); color: #2563FF; text-decoration: none;
-  border: 1px solid rgba(37,99,255,.15);
-}
-.mock-ft {
-  padding: 12px 22px; border-top: 1px solid var(--border);
-  background: #F5F5F7;
-  display: flex; justify-content: space-between;
-}
-.mock-ft span { font-size: 10px; color: #C0C4CF; }
-
-/* ─── STATS STRIP ─── */
-.stats-strip {
-  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
-  padding: 28px 52px;
-  display: flex; align-items: center; justify-content: center; gap: 0;
-}
-.stat-cell { text-align: center; padding: 0 52px; }
-.stat-cell + .stat-cell { border-left: 1px solid var(--border); }
-.sn { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -.04em; color: var(--ink); }
-.sl { font-size: 12px; color: var(--faint); font-weight: 500; margin-top: 3px; }
-
-/* ─── GRADIENT SECTION (How it works) ─── */
-.gradient-section {
-  background: linear-gradient(155deg, #FFD6EC 0%, #EDE8FF 35%, #D6EEFF 70%, #D6F5F0 100%);
-  padding: 100px 52px;
-}
-.grad-inner { max-width: 1140px; margin: 0 auto; }
-.sec-eye { font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: rgba(0,0,0,.4); margin-bottom: 14px; }
-h2 {
-  font-family: 'Syne', sans-serif;
-  font-size: clamp(32px, 3.5vw, 48px);
-  font-weight: 800; letter-spacing: -.04em; line-height: 1.1;
-  color: var(--ink); margin-bottom: 14px;
-}
-.sec-sub { font-size: 16px; color: rgba(0,0,0,.5); line-height: 1.7; max-width: 440px; margin-bottom: 52px; }
-
-.steps-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
-.step-card {
-  background: rgba(255,255,255,.65);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,.9);
-  border-radius: 20px; padding: 32px 28px;
-  position: relative; overflow: hidden;
-  transition: background .2s, transform .2s;
-}
-.step-card:hover { background: rgba(255,255,255,.85); transform: translateY(-3px); }
-.step-card::after {
-  content: attr(data-n);
-  position: absolute; right: 20px; top: 16px;
-  font-family: 'Syne', sans-serif; font-size: 60px; font-weight: 800;
-  color: rgba(0,0,0,.04); line-height: 1; pointer-events: none;
-}
-.step-ico {
-  width: 46px; height: 46px; border-radius: 12px;
-  background: #fff; border: 1px solid rgba(0,0,0,.08);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 20px; margin-bottom: 18px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.07);
-}
-.step-ttl { font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 10px; letter-spacing: -.02em; }
-.step-dsc { font-size: 13px; color: rgba(0,0,0,.5); line-height: 1.7; }
-.step-pill {
-  display: inline-flex; margin-top: 18px;
-  font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;
-  background: rgba(0,0,0,.06); color: rgba(0,0,0,.45);
-  border: 1px solid rgba(0,0,0,.08);
-}
-
-/* ─── COLORFUL CARDS (Features) ─── */
-.cards-section { padding: 100px 52px; background: #fff; }
-.cards-inner { max-width: 1140px; margin: 0 auto; }
-.cards-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-top: 52px; }
-
-.cc {
-  border-radius: 20px; padding: 28px 24px 24px;
-  position: relative; overflow: hidden;
-  cursor: pointer; transition: transform .2s;
-  min-height: 220px; display: flex; flex-direction: column; justify-content: space-between;
-}
-.cc:hover { transform: translateY(-4px); }
-.cc-pink   { background: #FF5FA0; }
-.cc-cyan   { background: #06C8E0; }
-.cc-yellow { background: #F5C518; }
-.cc-navy   { background: #1E2A4A; }
-
-.cc-icon { font-size: 26px; margin-bottom: 14px; }
-.cc-ttl { font-size: 15px; font-weight: 700; margin-bottom: 8px; letter-spacing: -.02em; line-height: 1.3; }
-.cc-dsc { font-size: 12px; line-height: 1.65; opacity: .8; }
-.cc-arrow {
-  display: inline-flex; align-items: center;
-  font-size: 12px; font-weight: 700;
-  margin-top: 18px; gap: 4px;
-  opacity: .7; transition: opacity .15s;
-}
-.cc-arrow:hover { opacity: 1; }
-
-.cc-pink   .cc-ttl,
-.cc-pink   .cc-dsc,
-.cc-pink   .cc-arrow { color: #fff; }
-.cc-cyan   .cc-ttl,
-.cc-cyan   .cc-dsc,
-.cc-cyan   .cc-arrow { color: #fff; }
-.cc-yellow .cc-ttl,
-.cc-yellow .cc-dsc,
-.cc-yellow .cc-arrow { color: #1a1200; }
-.cc-navy   .cc-ttl,
-.cc-navy   .cc-dsc,
-.cc-navy   .cc-arrow { color: #fff; }
-
-.cc-deco {
-  position: absolute; right: -20px; bottom: -20px;
-  width: 100px; height: 100px; border-radius: 50%;
-  background: rgba(255,255,255,.1);
-  pointer-events: none;
-}
-.cc-deco2 {
-  position: absolute; right: 20px; bottom: 20px;
-  width: 50px; height: 50px; border-radius: 50%;
-  background: rgba(255,255,255,.08);
-  pointer-events: none;
-}
-
-/* ─── SPLIT CTA ─── */
-.split-section {
-  display: grid; grid-template-columns: 1fr 1fr;
-  min-height: 420px;
-}
-.split-dark {
-  background: #07080F;
-  display: flex; align-items: center; justify-content: center;
-  position: relative; overflow: hidden;
-}
-.split-dark::before {
-  content: '';
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
-  width: 320px; height: 320px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(99,102,241,.35) 0%, rgba(37,99,255,.15) 40%, transparent 70%);
-  pointer-events: none;
-}
-.split-dark::after {
-  content: '';
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
-  width: 160px; height: 160px; border-radius: 50%;
-  border: 1px solid rgba(99,102,241,.25);
-  box-shadow: 0 0 60px rgba(99,102,241,.2), inset 0 0 40px rgba(99,102,241,.1);
-  pointer-events: none;
-}
-.split-plus {
-  width: 64px; height: 64px; border-radius: 50%;
-  background: rgba(255,255,255,.08);
-  border: 1px solid rgba(255,255,255,.15);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 28px; color: #fff; font-weight: 300;
-  position: relative; z-index: 1;
-  box-shadow: 0 0 30px rgba(99,102,241,.3);
-}
-
-.split-blue {
-  background: #2563FF;
-  display: flex; align-items: center;
-  padding: 60px 56px;
-  position: relative; overflow: hidden;
-}
-.split-blue::before {
-  content: '';
-  position: absolute; top: -60px; right: -60px;
-  width: 280px; height: 280px; border-radius: 50%;
-  background: rgba(255,255,255,.08);
-  pointer-events: none;
-}
-.split-content { position: relative; z-index: 1; }
-.split-eye { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.6); margin-bottom: 16px; }
-.split-content h2 { color: #fff; margin-bottom: 16px; font-size: clamp(26px, 2.5vw, 36px); }
-.split-content p { font-size: 15px; color: rgba(255,255,255,.7); line-height: 1.7; margin-bottom: 28px; max-width: 360px; }
-.split-list { margin-bottom: 32px; display: flex; flex-direction: column; gap: 8px; }
-.split-item { font-size: 13px; color: rgba(255,255,255,.8); display: flex; align-items: center; gap: 8px; }
-.split-item::before { content: '→'; color: rgba(255,255,255,.5); font-size: 12px; }
-.btn-white {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 13px 26px; border-radius: 10px;
-  background: #fff; color: var(--blue);
-  font-size: 14px; font-weight: 700; text-decoration: none;
-  transition: all .2s;
-  box-shadow: 0 4px 16px rgba(0,0,0,.14);
-}
-.btn-white:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.18); }
-
-/* ─── FOOTER ─── */
-.footer-wrap { border-top: 1px solid var(--border); }
-.footer-top {
-  padding: 40px 52px 28px;
-  display: flex; align-items: flex-start; justify-content: space-between;
-}
-.ft-logo {
-  font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800;
-  color: var(--ink); text-decoration: none; letter-spacing: -.03em;
-  display: flex; align-items: center; gap: 7px;
-}
-.ft-links { display: flex; gap: 28px; }
-.ft-links a { font-size: 12px; color: var(--faint); text-decoration: none; font-weight: 500; transition: color .15s; }
-.ft-links a:hover { color: var(--ink2); }
-.ft-copy-row { padding: 0 52px 20px; display: flex; justify-content: space-between; align-items: center; }
-.ft-copy { font-size: 12px; color: #D1D5DB; }
-
-.footer-brand {
-  padding: 0 44px 0;
-  overflow: hidden;
-  line-height: 0.85;
-}
-.footer-brand-text {
-  font-family: 'Syne', sans-serif;
-  font-size: clamp(72px, 14vw, 180px);
-  font-weight: 800; letter-spacing: -.05em;
-  color: #F3F4F6;
-  display: block;
-  user-select: none;
-}
-
-/* ─── REVEAL ─── */
-.fade { opacity: 0; transform: translateY(20px); transition: opacity .6s ease, transform .6s ease; }
-.fade.in { opacity: 1; transform: none; }
-.fd1{transition-delay:.1s;} .fd2{transition-delay:.2s;} .fd3{transition-delay:.3s;} .fd4{transition-delay:.4s;}
-
-/* ─── RESPONSIVE ─── */
-@media (max-width: 960px) {
-  nav { padding: 0 20px; }
-  .hero { padding: 110px 20px 60px; }
-  .stats-strip { padding: 24px 20px; gap: 0; flex-wrap: wrap; }
-  .stat-cell { padding: 12px 28px; }
-  .gradient-section, .cards-section { padding: 72px 20px; }
-  .steps-row { grid-template-columns: 1fr; }
-  .cards-grid { grid-template-columns: repeat(2,1fr); }
-  .split-section { grid-template-columns: 1fr; }
-  .split-dark { min-height: 200px; }
-  .split-blue { padding: 44px 28px; }
-  .footer-top, .ft-copy-row { padding-left: 20px; padding-right: 20px; flex-direction: column; gap: 16px; }
-  .footer-brand { padding: 0 16px; }
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JobMatch AI — Get matched every morning</title>
+  <meta name="description" content="Upload your resume once. AI-scored job matches from LinkedIn, Naukri, Adzuna and more — delivered to your inbox every morning.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #EBEBEB; }
+    .card-shadow { box-shadow: 0 2px 4px rgba(0,0,0,.04), 0 12px 40px rgba(0,0,0,.08); }
+    .btn-glow { box-shadow: 0 4px 20px rgba(79,70,229,.28); }
+    .btn-glow:hover { box-shadow: 0 6px 28px rgba(79,70,229,.4); }
+    input:focus { outline: none; }
+    .fade-in { animation: fadeUp .5s ease both; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+    .delay-1 { animation-delay: .08s; }
+    .delay-2 { animation-delay: .16s; }
+    .delay-3 { animation-delay: .24s; }
+    .delay-4 { animation-delay: .32s; }
+  </style>
 </head>
-<body>
+<body class="min-h-screen text-[#111827] antialiased flex flex-col">
 
-<!-- NAV -->
-<nav>
-  <a href="#" class="logo">
-    <div class="logo-dot"></div>
-    JobMatch AI
-  </a>
-  <div class="nav-r">
-    <a href="#how" class="nav-lnk">How it works</a>
-    <a href="https://jobmatch-ai-z19k.onrender.com" class="nav-btn">Get started free →</a>
-  </div>
-</nav>
-
-<!-- HERO -->
-<section class="hero">
-  <div class="hero-eye fade"><span class="live"></span>Live beta · Free · India</div>
-  <h1 class="fade fd1">Stop hunting.<br>Get matched<br><span class="em">every morning.</span></h1>
-  <p class="hero-sub fade fd2">Upload your resume once. AI picks your best matches every morning and sends them straight to your inbox.</p>
-  <div class="hero-actions fade fd3">
-    <a href="https://jobmatch-ai-z19k.onrender.com" class="btn-dark">Upload resume — it's free →</a>
-    <a href="#how" class="btn-outline">How it works ↓</a>
-  </div>
-
-  <div class="mock-wrap fade fd4">
-    <div class="mock-bar">
-      <div class="mock-dots"><div class="md md-r"></div><div class="md md-y"></div><div class="md md-g"></div></div>
-      <div class="mock-ttl"><b>3 fresh matches for you · 16 May</b></div>
-    </div>
-    <div class="mock-from">
-      <div><div class="from-n">JobMatch AI</div><div class="from-a">hello@jobmatchai.co.in</div></div>
-      <div class="from-t">Today, 8:01 AM</div>
-    </div>
-    <div class="mock-greet">
-      <h3>Good morning, Priya 👋</h3>
-      <p>3 new matches today. None you've seen before.</p>
-    </div>
-    <div class="mock-rule"></div>
-    <div class="mock-jobs">
-      <div class="jrow">
-        <div class="jico ji-b">R</div>
-        <div class="jbody"><div class="jt">Head of Partnerships</div><div class="jm">Razorpay · Bengaluru <span class="stag">LinkedIn</span></div></div>
-        <div class="jright"><div class="mbadge mb-g">91% match</div><div class="sbar"><div class="sf s91"></div></div><a href="#" class="japply">Apply →</a></div>
-      </div>
-      <div class="jrow">
-        <div class="jico ji-g">C</div>
-        <div class="jbody"><div class="jt">Credit Manager CA</div><div class="jm">CRED NBFC · Mumbai <span class="stag">Naukri</span></div></div>
-        <div class="jright"><div class="mbadge mb-b">78% match</div><div class="sbar"><div class="sf s78"></div></div><a href="#" class="japply">Apply →</a></div>
-      </div>
-      <div class="jrow">
-        <div class="jico ji-p">Z</div>
-        <div class="jbody"><div class="jt">AVP Business Development</div><div class="jm">Zepto · Bengaluru <span class="stag">JSearch</span></div></div>
-        <div class="jright"><div class="mbadge mb-b">73% match</div><div class="sbar"><div class="sf s73"></div></div><a href="#" class="japply">Apply →</a></div>
-      </div>
-    </div>
-    <div class="mock-ft">
-      <span style="text-decoration:underline;cursor:pointer">Unsubscribe</span>
-      <span>JobMatch AI · jobmatchai.co.in</span>
-    </div>
-  </div>
-</section>
-
-<!-- STATS STRIP -->
-<div class="stats-strip fade">
-  <div class="stat-cell"><div class="sn">6+</div><div class="sl">Job boards</div></div>
-  <div class="stat-cell"><div class="sn">8 AM</div><div class="sl">Daily delivery</div></div>
-  <div class="stat-cell"><div class="sn">7</div><div class="sl">Match signals</div></div>
-  <div class="stat-cell"><div class="sn">55+</div><div class="sl">Min. score cutoff</div></div>
-</div>
-
-<!-- GRADIENT SECTION — HOW IT WORKS -->
-<section class="gradient-section" id="how">
-  <div class="grad-inner">
-    <div class="fade"><div class="sec-eye">· How it works</div></div>
-    <h2 class="fade fd1">Three steps.<br>Zero effort.</h2>
-    <p class="sec-sub fade fd2">No daily searching, no missed openings. AI handles the hunt — you just open your email.</p>
-    <div class="steps-row">
-      <div class="step-card fade" data-n="01">
-        <div class="step-ico">📄</div>
-        <div class="step-ttl">Upload your resume</div>
-        <div class="step-dsc">Drop your PDF. Claude AI extracts your role, seniority, domain, skills and preferred cities — no form filling needed.</div>
-        <div class="step-pill">One-time setup</div>
-      </div>
-      <div class="step-card fade fd1" data-n="02">
-        <div class="step-ico">🎯</div>
-        <div class="step-ttl">AI scores every match</div>
-        <div class="step-dsc">Jobs from 6 platforms scored across 7 signals — function fit, skills, seniority, domain, location. Below 55? Filtered out.</div>
-        <div class="step-pill">Runs automatically</div>
-      </div>
-      <div class="step-card fade fd2" data-n="03">
-        <div class="step-ico">📬</div>
-        <div class="step-ttl">Wake up to your matches</div>
-        <div class="step-dsc">Fresh, deduped, scored jobs in your inbox every morning. Referral paths and hiring contacts included.</div>
-        <div class="step-pill">Every morning</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- COLORFUL CARDS — FEATURES -->
-<section class="cards-section">
-  <div class="cards-inner">
-    <div class="fade"><div class="sec-eye">· Why it works</div></div>
-    <h2 class="fade fd1">Built different.</h2>
-    <div class="cards-grid">
-
-      <div class="cc cc-pink fade">
-        <div>
-          <div class="cc-icon">🧠</div>
-          <div class="cc-ttl">Claude AI resume parsing</div>
-          <div class="cc-dsc">Maps your actual function, level and domain — not just keywords.</div>
-        </div>
-        <div class="cc-arrow">Learn more →</div>
-        <div class="cc-deco"></div><div class="cc-deco2"></div>
-      </div>
-
-      <div class="cc cc-cyan fade fd1">
-        <div>
-          <div class="cc-icon">🔄</div>
-          <div class="cc-ttl">Zero duplicates, guaranteed</div>
-          <div class="cc-dsc">Same role on LinkedIn and Naukri? You see it once.</div>
-        </div>
-        <div class="cc-arrow">Learn more →</div>
-        <div class="cc-deco"></div><div class="cc-deco2"></div>
-      </div>
-
-      <div class="cc cc-yellow fade fd2">
-        <div>
-          <div class="cc-icon">📊</div>
-          <div class="cc-ttl">7-signal match score</div>
-          <div class="cc-dsc">Function, skills, seniority, domain, location, stage and salary — all scored.</div>
-        </div>
-        <div class="cc-arrow">Learn more →</div>
-        <div class="cc-deco"></div><div class="cc-deco2"></div>
-      </div>
-
-      <div class="cc cc-navy fade fd3">
-        <div>
-          <div class="cc-icon">🤝</div>
-          <div class="cc-ttl">Referral paths included</div>
-          <div class="cc-dsc">Not just apply links — hiring contacts and warm intro paths too.</div>
-        </div>
-        <div class="cc-arrow">Learn more →</div>
-        <div class="cc-deco"></div><div class="cc-deco2"></div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<!-- SPLIT CTA -->
-<div class="split-section fade">
-  <div class="split-dark">
-    <div class="split-plus">+</div>
-  </div>
-  <div class="split-blue">
-    <div class="split-content">
-      <div class="split-eye">· JobMatch AI</div>
-      <h2>Get matched<br>every morning.</h2>
-      <div class="split-list">
-        <div class="split-item">Free for job seekers across India</div>
-        <div class="split-item">Takes 2 minutes to set up</div>
-        <div class="split-item">No credit card, no spam</div>
-      </div>
-      <a href="https://jobmatch-ai-z19k.onrender.com" class="btn-white">Start free →</a>
-    </div>
-  </div>
-</div>
-
-<!-- FOOTER -->
-<div class="footer-wrap">
-  <div class="footer-top">
-    <a href="#" class="ft-logo">
-      <div class="logo-dot"></div>
+  <!-- NAV -->
+  <nav class="max-w-5xl w-full mx-auto px-6 py-5 flex justify-between items-center">
+    <a href="#" class="flex items-center gap-2 font-bold text-lg tracking-tight text-neutral-800 no-underline">
+      <span class="w-2 h-2 rounded-full bg-indigo-500 inline-block"></span>
       JobMatch AI
     </a>
-    <div class="ft-links">
-      <a href="https://jobmatch-ai-z19k.onrender.com">Dashboard</a>
-      <a href="mailto:hello@jobmatchai.co.in">Contact</a>
-      <a href="#">Privacy</a>
+    <div class="hidden md:flex gap-8 text-sm font-medium text-neutral-400">
+      <a href="#" class="hover:text-neutral-700 transition">How it works</a>
+      <a href="#" class="hover:text-neutral-700 transition">Pricing</a>
     </div>
-  </div>
-  <div class="ft-copy-row">
-    <div class="ft-copy">© 2026 · Made in India 🇮🇳</div>
-    <div class="ft-copy">hello@jobmatchai.co.in</div>
-  </div>
-  <div class="footer-brand">
-    <span class="footer-brand-text">JobMatch AI</span>
-  </div>
-</div>
+    <a href="mailto:hello@jobmatchai.co.in" class="text-sm font-medium text-neutral-500 hover:text-neutral-800 transition">
+      hello@jobmatchai.co.in
+    </a>
+  </nav>
 
-<script>
-var io = new IntersectionObserver(function(entries) {
-  entries.forEach(function(e) { if (e.isIntersecting) e.target.classList.add('in'); });
-}, { threshold: 0.07 });
-document.querySelectorAll('.fade').forEach(function(el) { io.observe(el); });
-</script>
+  <!-- MAIN -->
+  <main class="flex-grow flex flex-col items-center justify-center px-4 py-10">
+
+    <!-- Hero text -->
+    <div class="text-center max-w-2xl mb-10 fade-in">
+      <p class="text-xs font-semibold tracking-widest uppercase text-indigo-500 mb-4">Live Beta · Free · India</p>
+      <h1 class="text-4xl md:text-[56px] font-extrabold tracking-tight leading-[1.06] text-neutral-900 mb-5">
+        Stop hunting.<br>
+        <span class="text-neutral-400 font-semibold">Get matched every morning.</span>
+      </h1>
+      <p class="text-base md:text-lg text-neutral-500 font-normal leading-relaxed max-w-md mx-auto">
+        Upload your resume once. AI picks your best matches and sends them straight to your inbox.
+      </p>
+    </div>
+
+    <!-- Form card -->
+    <div class="w-full max-w-xl bg-white rounded-3xl p-8 card-shadow fade-in delay-1">
+
+      <!-- Card header -->
+      <div class="flex items-center gap-2.5 mb-7">
+        <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+        <h2 class="text-base font-semibold text-neutral-800">Set up your morning matches</h2>
+      </div>
+
+      <!-- Success state (hidden by default) -->
+      <div id="successMsg" class="hidden bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center mb-6">
+        <div class="text-2xl mb-2">🎉</div>
+        <p class="font-semibold text-emerald-800 mb-1">You're all set!</p>
+        <p class="text-sm text-emerald-600">Your first digest will arrive tomorrow at 8 AM.</p>
+      </div>
+
+      <form id="signupForm" class="space-y-4" novalidate>
+
+        <!-- Name row -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-1.5">First Name</label>
+            <input type="text" name="firstName" required autocomplete="given-name" placeholder="Aman"
+              class="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-800 placeholder-neutral-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-1.5">Last Name</label>
+            <input type="text" name="lastName" required autocomplete="family-name" placeholder="Khandelwal"
+              class="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-800 placeholder-neutral-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition">
+          </div>
+        </div>
+
+        <!-- Email — critical field -->
+        <div>
+          <label class="block text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-1.5">Email Address</label>
+          <input type="email" name="email" required autocomplete="email" placeholder="aman@gmail.com"
+            class="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-800 placeholder-neutral-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition">
+          <p class="text-[11px] text-neutral-400 mt-1.5 ml-1">Matches are delivered here every morning</p>
+        </div>
+
+        <!-- Phone + Location -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-1.5">Phone</label>
+            <input type="tel" name="phone" autocomplete="tel" placeholder="+91 98765 43210"
+              class="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-800 placeholder-neutral-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-1.5">Preferred City</label>
+            <input type="text" name="location" required placeholder="Bangalore, Remote"
+              class="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-800 placeholder-neutral-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition">
+          </div>
+        </div>
+
+        <!-- Industry -->
+        <div>
+          <label class="block text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-1.5">Industry / Target Domain</label>
+          <input type="text" name="industry" required placeholder="e.g. Fintech, Product Management, SaaS"
+            class="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-800 placeholder-neutral-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition">
+        </div>
+
+        <!-- Resume upload -->
+        <div>
+          <label class="block text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-1.5">Resume</label>
+          <div id="dropzone"
+            class="relative group border-2 border-dashed border-neutral-200 hover:border-indigo-400 bg-neutral-50/60 rounded-xl p-5 transition cursor-pointer flex flex-col items-center justify-center gap-1.5">
+            <input type="file" id="resumeFile" name="resume" accept=".pdf,.docx"
+              class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+              class="w-5 h-5 text-neutral-300 group-hover:text-indigo-400 transition">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z"/>
+            </svg>
+            <p id="uploadLabel" class="text-sm text-neutral-500 font-medium">
+              Drop PDF here or <span class="text-indigo-500">browse</span>
+            </p>
+            <p class="text-xs text-neutral-400">PDF or DOCX · max 5 MB</p>
+          </div>
+        </div>
+
+        <!-- Error message -->
+        <p id="errorMsg" class="hidden text-sm text-red-500 text-center font-medium"></p>
+
+        <!-- Submit -->
+        <button type="submit" id="submitBtn"
+          class="w-full mt-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 rounded-xl btn-glow transition-all flex items-center justify-center gap-2 text-sm">
+          <span id="btnLabel">Activate My Morning Matches</span>
+          <svg id="btnArrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/>
+          </svg>
+          <svg id="btnSpinner" class="hidden animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+          </svg>
+        </button>
+
+        <p class="text-center text-xs text-neutral-400 pt-1">No credit card &nbsp;·&nbsp; No spam &nbsp;·&nbsp; Unsubscribe anytime</p>
+
+      </form>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-16 mt-14 pt-8 border-t border-neutral-300/50 w-full max-w-xl text-center fade-in delay-2">
+      <div>
+        <p class="text-2xl font-bold text-neutral-800">6+</p>
+        <p class="text-[11px] text-neutral-400 uppercase tracking-widest font-medium mt-0.5">Job Boards</p>
+      </div>
+      <div>
+        <p class="text-2xl font-bold text-neutral-800">8 AM</p>
+        <p class="text-[11px] text-neutral-400 uppercase tracking-widest font-medium mt-0.5">Daily Delivery</p>
+      </div>
+      <div>
+        <p class="text-2xl font-bold text-neutral-800">7</p>
+        <p class="text-[11px] text-neutral-400 uppercase tracking-widest font-medium mt-0.5">Match Signals</p>
+      </div>
+      <div>
+        <p class="text-2xl font-bold text-neutral-800">55+</p>
+        <p class="text-[11px] text-neutral-400 uppercase tracking-widest font-medium mt-0.5">Score Cutoff</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="text-center py-6 text-xs text-neutral-400 border-t border-neutral-300/30 fade-in delay-3">
+    © 2026 JobMatch AI &nbsp;·&nbsp; Made in India 🇮🇳 &nbsp;·&nbsp;
+    <a href="mailto:hello@jobmatchai.co.in" class="hover:text-neutral-600 transition">hello@jobmatchai.co.in</a>
+  </footer>
+
+  <script>
+    // ─── File upload UI ───────────────────────────────────────────────────────
+    const fileInput   = document.getElementById('resumeFile');
+    const uploadLabel = document.getElementById('uploadLabel');
+    const dropzone    = document.getElementById('dropzone');
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length > 0) {
+        uploadLabel.innerHTML = `<span class="text-emerald-600 font-semibold">✓ ${fileInput.files[0].name}</span>`;
+        dropzone.classList.replace('border-neutral-200', 'border-emerald-400');
+        dropzone.classList.add('bg-emerald-50/20');
+      }
+    });
+
+    // ─── Form submission ─────────────────────────────────────────────────────
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const form      = e.target;
+      const btn       = document.getElementById('submitBtn');
+      const btnLabel  = document.getElementById('btnLabel');
+      const btnArrow  = document.getElementById('btnArrow');
+      const btnSpin   = document.getElementById('btnSpinner');
+      const errorMsg  = document.getElementById('errorMsg');
+      const successMsg = document.getElementById('successMsg');
+
+      // Collect values
+      const firstName = form.firstName.value.trim();
+      const lastName  = form.lastName.value.trim();
+      const email     = form.email.value.trim();
+      const location  = form.location.value.trim();
+      const industry  = form.industry.value.trim();
+
+      // Basic validation
+      if (!firstName || !lastName || !email || !location || !industry) {
+        errorMsg.textContent = 'Please fill in all required fields.';
+        errorMsg.classList.remove('hidden');
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errorMsg.textContent = 'Please enter a valid email address.';
+        errorMsg.classList.remove('hidden');
+        return;
+      }
+      errorMsg.classList.add('hidden');
+
+      // Loading state
+      btn.disabled   = true;
+      btnLabel.textContent = 'Activating…';
+      btnArrow.classList.add('hidden');
+      btnSpin.classList.remove('hidden');
+
+      // Build payload matching /api/signup expectations
+      const payload = {
+        name:     `${firstName} ${lastName}`,
+        email:    email,
+        industry: industry,
+        location: location,
+      };
+
+      try {
+        const res = await fetch('https://jobmatch-ai-z19k.onrender.com/api/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok && data.ok) {
+          form.classList.add('hidden');
+          successMsg.classList.remove('hidden');
+        } else {
+          throw new Error(data.error || 'Something went wrong. Please try again.');
+        }
+      } catch (err) {
+        errorMsg.textContent = err.message || 'Connection issue. Please try again.';
+        errorMsg.classList.remove('hidden');
+        btn.disabled = false;
+        btnLabel.textContent = 'Activate My Morning Matches';
+        btnArrow.classList.remove('hidden');
+        btnSpin.classList.add('hidden');
+      }
+    });
+  </script>
 </body>
 </html>
