@@ -3,268 +3,501 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JobMatch AI — Get matched every morning</title>
-  <meta name="description" content="Upload your resume once. AI-scored job matches from LinkedIn, Naukri, Adzuna and more — delivered to your inbox every morning.">
+  <title>JobMatch AI · Stop Hunting</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #EBEBEB; }
-    .card-shadow { box-shadow: 0 2px 4px rgba(0,0,0,.04), 0 12px 40px rgba(0,0,0,.08); }
-    .btn-glow { box-shadow: 0 4px 20px rgba(79,70,229,.28); }
-    .btn-glow:hover { box-shadow: 0 6px 28px rgba(79,70,229,.4); }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #EFEFEF; }
+    .glass {
+      background: rgba(255,255,255,0.78);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+    .plan-card { transition: all .18s ease; cursor: pointer; }
+    .plan-card.selected { border-color: #4f46e5 !important; background: rgba(79,70,229,.04); box-shadow: 0 0 0 3px rgba(79,70,229,.12); }
+    .fade-in { animation: fadeUp .45s ease both; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+    .spin { animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     input:focus { outline: none; }
-    .fade-in { animation: fadeUp .5s ease both; }
-    @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
-    .delay-1 { animation-delay: .08s; }
-    .delay-2 { animation-delay: .16s; }
-    .delay-3 { animation-delay: .24s; }
-    .delay-4 { animation-delay: .32s; }
+    input:disabled { opacity: .5; cursor: not-allowed; }
   </style>
 </head>
-<body class="min-h-screen text-[#111827] antialiased flex flex-col">
+<body class="min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
 
   <!-- NAV -->
-  <nav class="max-w-5xl w-full mx-auto px-6 py-5 flex justify-between items-center">
-    <a href="#" class="flex items-center gap-2 font-bold text-lg tracking-tight text-neutral-800 no-underline">
-      <span class="w-2 h-2 rounded-full bg-indigo-500 inline-block"></span>
-      JobMatch AI
-    </a>
-    <div class="hidden md:flex gap-8 text-sm font-medium text-neutral-400">
-      <a href="#" class="hover:text-neutral-700 transition">How it works</a>
-      <a href="#" class="hover:text-neutral-700 transition">Pricing</a>
+  <nav class="max-w-7xl w-full mx-auto px-8 py-5 flex justify-between items-center">
+    <div class="flex items-center space-x-1.5 font-bold text-lg tracking-tight text-neutral-900">
+      <span class="text-indigo-600 font-medium text-xl">‹</span><span>JobMatch AI</span>
     </div>
-    <a href="mailto:hello@jobmatchai.co.in" class="text-sm font-medium text-neutral-500 hover:text-neutral-800 transition">
-      hello@jobmatchai.co.in
+    <div class="hidden md:flex items-center space-x-8 text-[13px] font-medium text-neutral-500">
+      <a href="#how" class="hover:text-neutral-900 transition">How it works</a>
+      <a href="#plans" class="hover:text-neutral-900 transition">Plans</a>
+      <a href="#contact" class="hover:text-neutral-900 transition">Contact</a>
+    </div>
+    <a href="#plans" class="bg-white border border-neutral-200/80 text-[13px] font-medium px-4 py-1.5 rounded-full shadow-sm hover:bg-neutral-50 transition active:scale-95">
+      View plans
     </a>
   </nav>
 
-  <!-- MAIN -->
-  <main class="flex-grow flex flex-col items-center justify-center px-4 py-10">
-
-    <!-- Hero text -->
-    <div class="text-center max-w-2xl mb-10 fade-in">
-      <p class="text-xs font-semibold tracking-widest uppercase text-indigo-500 mb-4">Live Beta · Free · India</p>
-      <h1 class="text-4xl md:text-[56px] font-extrabold tracking-tight leading-[1.06] text-neutral-900 mb-5">
-        Stop hunting.<br>
-        <span class="text-neutral-400 font-semibold">Get matched every morning.</span>
+  <!-- HERO -->
+  <main class="flex-grow flex flex-col items-center px-6 py-8 w-full">
+    <div class="text-center max-w-3xl mb-10 fade-in">
+      <!-- Live user count badge -->
+      <div class="inline-flex items-center gap-2 bg-white border border-neutral-200 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm mb-6 text-neutral-600">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="liveCount">— active users</span> getting matched every morning
+      </div>
+      <h1 class="text-5xl md:text-[68px] font-bold tracking-tight text-neutral-900 leading-[1.04] mb-4">
+        The Morning Stream<br>
+        <span class="text-neutral-400 font-medium tracking-tighter">For Tech &amp; Product Roles</span>
       </h1>
-      <p class="text-base md:text-lg text-neutral-500 font-normal leading-relaxed max-w-md mx-auto">
-        Upload your resume once. AI picks your best matches and sends them straight to your inbox.
+      <p class="text-sm md:text-base text-neutral-500 max-w-md mx-auto tracking-wide leading-relaxed">
+        Upload your resume. Our scrapers run at midnight, score across 7 signals, and deliver your best matches every morning.
       </p>
     </div>
 
-    <!-- Form card -->
-    <div class="w-full max-w-xl bg-white rounded-3xl p-8 card-shadow fade-in delay-1">
+    <!-- MAIN CARD -->
+    <div class="w-full max-w-2xl glass rounded-[28px] border border-white/80 shadow-[0_24px_60px_rgba(0,0,0,0.06)] overflow-hidden fade-in" style="animation-delay:.1s">
 
       <!-- Card header -->
-      <div class="flex items-center gap-2.5 mb-7">
-        <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
-        <h2 class="text-base font-semibold text-neutral-800">Set up your morning matches</h2>
+      <div class="flex items-center justify-between px-8 py-5 border-b border-neutral-200/50">
+        <div class="flex items-center space-x-2">
+          <div class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></div>
+          <span class="text-xs font-bold uppercase tracking-widest text-neutral-400">Profile Activation</span>
+        </div>
+        <span class="text-xs text-neutral-400 bg-neutral-200/50 px-2.5 py-1 rounded-md font-medium">Free Live Beta</span>
       </div>
 
-      <!-- Success state (hidden by default) -->
-      <div id="successMsg" class="hidden bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center mb-6">
-        <div class="text-2xl mb-2">🎉</div>
-        <p class="font-semibold text-emerald-800 mb-1">You're all set!</p>
-        <p class="text-sm text-emerald-600">Your first digest will arrive tomorrow at 8 AM.</p>
-      </div>
+      <div class="px-8 py-7">
 
-      <form id="signupForm" class="space-y-4" novalidate>
+        <!-- ── STEP 1: Resume upload ── -->
+        <div id="step1">
+          <p class="text-sm font-semibold text-neutral-700 mb-1">Start by uploading your resume</p>
+          <p class="text-xs text-neutral-400 mb-4">We'll extract your details automatically — just review and confirm.</p>
 
-        <!-- Name row -->
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-1.5">First Name</label>
-            <input type="text" name="firstName" required autocomplete="given-name" placeholder="Aman"
-              class="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-800 placeholder-neutral-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition">
-          </div>
-          <div>
-            <label class="block text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-1.5">Last Name</label>
-            <input type="text" name="lastName" required autocomplete="family-name" placeholder="Khandelwal"
-              class="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-800 placeholder-neutral-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition">
-          </div>
-        </div>
-
-        <!-- Email — critical field -->
-        <div>
-          <label class="block text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-1.5">Email Address</label>
-          <input type="email" name="email" required autocomplete="email" placeholder="aman@gmail.com"
-            class="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-800 placeholder-neutral-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition">
-          <p class="text-[11px] text-neutral-400 mt-1.5 ml-1">Matches are delivered here every morning</p>
-        </div>
-
-        <!-- Phone + Location -->
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-1.5">Phone</label>
-            <input type="tel" name="phone" autocomplete="tel" placeholder="+91 98765 43210"
-              class="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-800 placeholder-neutral-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition">
-          </div>
-          <div>
-            <label class="block text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-1.5">Preferred City</label>
-            <input type="text" name="location" required placeholder="Bangalore, Remote"
-              class="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-800 placeholder-neutral-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition">
-          </div>
-        </div>
-
-        <!-- Industry -->
-        <div>
-          <label class="block text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-1.5">Industry / Target Domain</label>
-          <input type="text" name="industry" required placeholder="e.g. Fintech, Product Management, SaaS"
-            class="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-800 placeholder-neutral-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition">
-        </div>
-
-        <!-- Resume upload -->
-        <div>
-          <label class="block text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-1.5">Resume</label>
           <div id="dropzone"
-            class="relative group border-2 border-dashed border-neutral-200 hover:border-indigo-400 bg-neutral-50/60 rounded-xl p-5 transition cursor-pointer flex flex-col items-center justify-center gap-1.5">
-            <input type="file" id="resumeFile" name="resume" accept=".pdf,.docx"
-              class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
-              class="w-5 h-5 text-neutral-300 group-hover:text-indigo-400 transition">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z"/>
-            </svg>
-            <p id="uploadLabel" class="text-sm text-neutral-500 font-medium">
-              Drop PDF here or <span class="text-indigo-500">browse</span>
-            </p>
-            <p class="text-xs text-neutral-400">PDF or DOCX · max 5 MB</p>
+            class="relative group border-2 border-dashed border-neutral-300 hover:border-indigo-400 bg-white/50 hover:bg-white/80 rounded-2xl p-8 transition-all duration-200 flex flex-col items-center justify-center gap-3 cursor-pointer text-center">
+            <input type="file" id="resumeFile" accept=".pdf,.docx" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+
+            <!-- Idle state -->
+            <div id="uploadIdle">
+              <div class="w-12 h-12 bg-white rounded-xl border border-neutral-200 flex items-center justify-center mx-auto mb-3 group-hover:border-indigo-300 transition shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-neutral-400 group-hover:text-indigo-500 transition">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+                </svg>
+              </div>
+              <p class="text-sm font-semibold text-neutral-700">Drop your resume here</p>
+              <p class="text-xs text-neutral-400">or <span class="text-indigo-600 font-semibold">browse files</span> — PDF or DOCX, max 5 MB</p>
+            </div>
+
+            <!-- Parsing state -->
+            <div id="uploadParsing" class="hidden flex-col items-center gap-2">
+              <svg class="w-6 h-6 text-indigo-500 spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+              <p class="text-sm font-semibold text-neutral-600">Analysing resume…</p>
+              <p class="text-xs text-neutral-400">Extracting your details</p>
+            </div>
+
+            <!-- Done state -->
+            <div id="uploadDone" class="hidden flex-col items-center gap-1">
+              <div class="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-1 border border-emerald-200">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 text-emerald-500">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-12.5"/>
+                </svg>
+              </div>
+              <p class="text-sm font-semibold text-neutral-700" id="uploadFileName">resume.pdf</p>
+              <p class="text-xs text-indigo-500 font-medium">Uploaded · <span id="uploadNote">details extracted</span></p>
+            </div>
           </div>
         </div>
 
-        <!-- Error message -->
-        <p id="errorMsg" class="hidden text-sm text-red-500 text-center font-medium"></p>
+        <!-- ── STEP 2: Details form (shown after upload) ── -->
+        <div id="step2" class="hidden mt-6 space-y-5 fade-in">
 
-        <!-- Submit -->
-        <button type="submit" id="submitBtn"
-          class="w-full mt-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 rounded-xl btn-glow transition-all flex items-center justify-center gap-2 text-sm">
-          <span id="btnLabel">Activate My Morning Matches</span>
-          <svg id="btnArrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/>
-          </svg>
-          <svg id="btnSpinner" class="hidden animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-          </svg>
-        </button>
+          <div class="flex items-center gap-2 mb-1">
+            <div class="h-px flex-1 bg-neutral-200/60"></div>
+            <span class="text-[11px] font-bold uppercase tracking-widest text-neutral-400">Your Details</span>
+            <div class="h-px flex-1 bg-neutral-200/60"></div>
+          </div>
 
-        <p class="text-center text-xs text-neutral-400 pt-1">No credit card &nbsp;·&nbsp; No spam &nbsp;·&nbsp; Unsubscribe anytime</p>
+          <!-- Name -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">First Name</label>
+              <input type="text" id="firstName" name="firstName" placeholder="Aman"
+                class="w-full px-4 py-3 bg-white border border-neutral-200/70 rounded-xl text-sm font-medium text-neutral-800 placeholder-neutral-300 focus:border-indigo-400 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Last Name</label>
+              <input type="text" id="lastName" name="lastName" placeholder="Khandelwal"
+                class="w-full px-4 py-3 bg-white border border-neutral-200/70 rounded-xl text-sm font-medium text-neutral-800 placeholder-neutral-300 focus:border-indigo-400 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            </div>
+          </div>
 
-      </form>
+          <!-- Email -->
+          <div>
+            <label class="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Email Address <span class="text-indigo-400">*</span></label>
+            <input type="email" id="email" name="email" placeholder="aman@gmail.com"
+              class="w-full px-4 py-3 bg-white border border-neutral-200/70 rounded-xl text-sm font-medium text-neutral-800 placeholder-neutral-300 focus:border-indigo-400 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            <p class="text-[11px] text-neutral-400 mt-1 ml-0.5">Matches are delivered here every morning</p>
+          </div>
+
+          <!-- Phone + Location -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Phone Number</label>
+              <input type="tel" id="phone" name="phone" placeholder="+91 98765 43210"
+                class="w-full px-4 py-3 bg-white border border-neutral-200/70 rounded-xl text-sm font-medium text-neutral-800 placeholder-neutral-300 focus:border-indigo-400 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Preferred Location <span class="text-indigo-400">*</span></label>
+              <input type="text" id="location" name="location" placeholder="Bangalore, Remote"
+                class="w-full px-4 py-3 bg-white border border-neutral-200/70 rounded-xl text-sm font-medium text-neutral-800 placeholder-neutral-300 focus:border-indigo-400 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            </div>
+          </div>
+
+          <!-- Industry -->
+          <div>
+            <label class="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Industry / Target Domain <span class="text-indigo-400">*</span></label>
+            <input type="text" id="industry" name="industry" placeholder="e.g. Fintech, Product Management, SaaS"
+              class="w-full px-4 py-3 bg-white border border-neutral-200/70 rounded-xl text-sm font-medium text-neutral-800 placeholder-neutral-300 focus:border-indigo-400 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+          </div>
+
+          <!-- ── STEP 3: Plans ── -->
+          <div id="plans" class="pt-2">
+            <div class="flex items-center gap-2 mb-4">
+              <div class="h-px flex-1 bg-neutral-200/60"></div>
+              <span class="text-[11px] font-bold uppercase tracking-widest text-neutral-400">Choose Your Plan</span>
+              <div class="h-px flex-1 bg-neutral-200/60"></div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3" id="planGrid">
+
+              <!-- Basic -->
+              <div class="plan-card border-2 border-neutral-200 rounded-2xl p-4 text-left" data-plan="basic" onclick="selectPlan(this)">
+                <div class="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-3">Basic</div>
+                <div class="text-2xl font-extrabold text-neutral-900 mb-0.5">Free</div>
+                <div class="text-[11px] text-neutral-400 mb-4">Forever</div>
+                <ul class="space-y-1.5 text-[12px] text-neutral-600">
+                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 5 matches / day</li>
+                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> Email digest</li>
+                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 6 job boards</li>
+                  <li class="flex items-center gap-1.5 text-neutral-300"><span>✗</span> WhatsApp alerts</li>
+                  <li class="flex items-center gap-1.5 text-neutral-300"><span>✗</span> Priority scoring</li>
+                </ul>
+              </div>
+
+              <!-- Starter -->
+              <div class="plan-card border-2 border-neutral-200 rounded-2xl p-4 text-left relative" data-plan="starter" onclick="selectPlan(this)">
+                <div class="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">Popular</div>
+                <div class="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-3">Starter</div>
+                <div class="text-2xl font-extrabold text-neutral-900 mb-0.5">₹199<span class="text-sm font-medium text-neutral-400">/mo</span></div>
+                <div class="text-[11px] text-neutral-400 mb-4">Billed monthly</div>
+                <ul class="space-y-1.5 text-[12px] text-neutral-600">
+                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 15 matches / day</li>
+                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> Email digest</li>
+                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 6 job boards</li>
+                  <li class="flex items-center gap-1.5 text-neutral-300"><span>✗</span> WhatsApp alerts</li>
+                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> Priority scoring</li>
+                </ul>
+              </div>
+
+              <!-- Pro -->
+              <div class="plan-card border-2 border-neutral-200 rounded-2xl p-4 text-left" data-plan="pro" onclick="selectPlan(this)">
+                <div class="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-3">Pro</div>
+                <div class="text-2xl font-extrabold text-neutral-900 mb-0.5">₹499<span class="text-sm font-medium text-neutral-400">/mo</span></div>
+                <div class="text-[11px] text-neutral-400 mb-4">Billed monthly</div>
+                <ul class="space-y-1.5 text-[12px] text-neutral-600">
+                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> Unlimited matches</li>
+                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> Email digest</li>
+                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 6 job boards</li>
+                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> WhatsApp alerts</li>
+                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> Priority scoring</li>
+                </ul>
+              </div>
+
+            </div>
+            <p id="planError" class="hidden text-xs text-red-500 font-medium mt-2 text-center">Please select a plan to continue.</p>
+          </div>
+
+          <!-- ── Consent ── -->
+          <div class="bg-neutral-100/60 border border-neutral-200/60 rounded-xl p-4">
+            <label class="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" id="consentBox" class="mt-0.5 w-4 h-4 rounded border-neutral-300 accent-indigo-600 cursor-pointer flex-shrink-0">
+              <span class="text-xs text-neutral-500 leading-relaxed">
+                I agree to the <a href="#" class="text-indigo-600 font-semibold hover:underline">Terms of Service</a> and
+                <a href="#" class="text-indigo-600 font-semibold hover:underline">Privacy Policy</a>.
+                I consent to receiving job match emails every morning and understand I can unsubscribe at any time.
+                For Pro plan users, I consent to receiving WhatsApp notifications on the number provided.
+              </span>
+            </label>
+          </div>
+          <p id="consentError" class="hidden text-xs text-red-500 font-medium -mt-3 ml-1">Please accept the terms to continue.</p>
+
+          <!-- Error message -->
+          <p id="errorMsg" class="hidden text-sm text-red-500 font-medium text-center"></p>
+
+          <!-- Success state -->
+          <div id="successMsg" class="hidden bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center">
+            <div class="text-2xl mb-2">🎉</div>
+            <p class="font-semibold text-emerald-800 mb-1">Stream activated.</p>
+            <p class="text-sm text-emerald-600">Your first digest arrives every morning. Check your inbox.</p>
+          </div>
+
+          <!-- Submit button -->
+          <button type="button" id="submitBtn" onclick="submitForm()"
+            class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-sm py-4 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-all flex items-center justify-center gap-2 active:scale-[0.99]">
+            <span id="btnLabel">Begin Morning Match Streaming</span>
+            <svg id="btnArrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75"/>
+            </svg>
+            <svg id="btnSpinner" class="hidden w-4 h-4 spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+            </svg>
+          </button>
+
+          <p class="text-center text-[11px] text-neutral-400">No spam &nbsp;·&nbsp; Unsubscribe anytime &nbsp;·&nbsp; Your data is never sold</p>
+        </div>
+
+      </div>
     </div>
 
-    <!-- Stats -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-16 mt-14 pt-8 border-t border-neutral-300/50 w-full max-w-xl text-center fade-in delay-2">
-      <div>
-        <p class="text-2xl font-bold text-neutral-800">6+</p>
-        <p class="text-[11px] text-neutral-400 uppercase tracking-widest font-medium mt-0.5">Job Boards</p>
+    <!-- STATS ROW -->
+    <div class="flex flex-wrap items-center justify-center gap-x-10 gap-y-3 mt-12 text-neutral-500 text-xs font-semibold tracking-wider uppercase fade-in" style="animation-delay:.2s">
+      <div class="flex items-center gap-2">
+        <span class="text-neutral-900 font-bold text-sm" id="statUsers">—</span><span>Active Users</span>
       </div>
-      <div>
-        <p class="text-2xl font-bold text-neutral-800">8 AM</p>
-        <p class="text-[11px] text-neutral-400 uppercase tracking-widest font-medium mt-0.5">Daily Delivery</p>
+      <div class="w-1.5 h-1.5 rounded-full bg-neutral-300 hidden md:block"></div>
+      <div class="flex items-center gap-2">
+        <span class="text-neutral-900 font-bold text-sm">6+</span><span>Job Boards</span>
       </div>
-      <div>
-        <p class="text-2xl font-bold text-neutral-800">7</p>
-        <p class="text-[11px] text-neutral-400 uppercase tracking-widest font-medium mt-0.5">Match Signals</p>
+      <div class="w-1.5 h-1.5 rounded-full bg-neutral-300 hidden md:block"></div>
+      <div class="flex items-center gap-2">
+        <span class="text-neutral-900 font-bold text-sm">Every Morning</span><span>Delivery</span>
       </div>
-      <div>
-        <p class="text-2xl font-bold text-neutral-800">55+</p>
-        <p class="text-[11px] text-neutral-400 uppercase tracking-widest font-medium mt-0.5">Score Cutoff</p>
+      <div class="w-1.5 h-1.5 rounded-full bg-neutral-300 hidden md:block"></div>
+      <div class="flex items-center gap-2">
+        <span class="text-neutral-900 font-bold text-sm">7-Signal</span><span>Scoring</span>
+      </div>
+      <div class="w-1.5 h-1.5 rounded-full bg-neutral-300 hidden md:block"></div>
+      <div class="flex items-center gap-2">
+        <span class="text-neutral-900 font-bold text-sm">55+</span><span>Quality Cutoff</span>
       </div>
     </div>
 
   </main>
 
+  <!-- CONTACT SECTION -->
+  <section id="contact" class="max-w-2xl w-full mx-auto px-6 py-12 fade-in" style="animation-delay:.3s">
+    <div class="glass rounded-[24px] border border-white/80 shadow-[0_8px_30px_rgba(0,0,0,0.05)] p-8">
+      <div class="flex items-center gap-2 mb-6">
+        <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
+        <span class="text-xs font-bold uppercase tracking-widest text-neutral-400">Get in Touch</span>
+      </div>
+      <h2 class="text-2xl font-bold text-neutral-900 tracking-tight mb-2">Questions? We're here.</h2>
+      <p class="text-sm text-neutral-500 mb-7 leading-relaxed">Reach out anytime — we typically respond within a few hours.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <a href="mailto:hello@jobmatchai.co.in"
+          class="flex items-center gap-3 bg-white border border-neutral-200 rounded-2xl px-5 py-4 hover:border-indigo-300 transition group shadow-sm">
+          <div class="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-100 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4.5 h-4.5 text-indigo-600 w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-[11px] font-bold uppercase tracking-widest text-neutral-400 mb-0.5">Email</p>
+            <p class="text-sm font-semibold text-neutral-800">hello@jobmatchai.co.in</p>
+          </div>
+        </a>
+        <a href="https://wa.me/917503061534"
+          class="flex items-center gap-3 bg-white border border-neutral-200 rounded-2xl px-5 py-4 hover:border-emerald-300 transition group shadow-sm">
+          <div class="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-100 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-emerald-600">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-[11px] font-bold uppercase tracking-widest text-neutral-400 mb-0.5">WhatsApp</p>
+            <p class="text-sm font-semibold text-neutral-800">+91 75030 61534</p>
+          </div>
+        </a>
+      </div>
+    </div>
+  </section>
+
   <!-- FOOTER -->
-  <footer class="text-center py-6 text-xs text-neutral-400 border-t border-neutral-300/30 fade-in delay-3">
-    © 2026 JobMatch AI &nbsp;·&nbsp; Made in India 🇮🇳 &nbsp;·&nbsp;
-    <a href="mailto:hello@jobmatchai.co.in" class="hover:text-neutral-600 transition">hello@jobmatchai.co.in</a>
+  <footer class="max-w-7xl w-full mx-auto px-8 py-5 flex flex-col sm:flex-row justify-between items-center text-[11px] font-medium tracking-wider text-neutral-400 uppercase gap-2 border-t border-neutral-300/30">
+    <div>© 2026 JobMatch AI Engine · Made in India 🇮🇳</div>
+    <div class="flex gap-4">
+      <a href="#" class="hover:text-neutral-600 transition">Privacy</a>
+      <span>·</span>
+      <a href="#" class="hover:text-neutral-600 transition">Terms</a>
+    </div>
   </footer>
 
   <script>
-    // ─── File upload UI ───────────────────────────────────────────────────────
-    const fileInput   = document.getElementById('resumeFile');
-    const uploadLabel = document.getElementById('uploadLabel');
-    const dropzone    = document.getElementById('dropzone');
+    let selectedPlan = null;
 
-    fileInput.addEventListener('change', () => {
-      if (fileInput.files.length > 0) {
-        uploadLabel.innerHTML = `<span class="text-emerald-600 font-semibold">✓ ${fileInput.files[0].name}</span>`;
-        dropzone.classList.replace('border-neutral-200', 'border-emerald-400');
-        dropzone.classList.add('bg-emerald-50/20');
-      }
+    // ── Live user count from Airtable via /api/stats ──────────────────────────
+    async function fetchStats() {
+      try {
+        const res  = await fetch('https://jobmatch-ai-z19k.onrender.com/api/stats');
+        const data = await res.json();
+        if (data.ok && data.activeUsers != null) {
+          const n = data.activeUsers.toLocaleString('en-IN');
+          document.getElementById('liveCount').textContent = `${n} active users`;
+          document.getElementById('statUsers').textContent  = n;
+        }
+      } catch (_) { /* fail silently — shows "—" */ }
+    }
+    fetchStats();
+
+    // ── Plan selection ────────────────────────────────────────────────────────
+    function selectPlan(card) {
+      document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedPlan = card.dataset.plan;
+      document.getElementById('planError').classList.add('hidden');
+    }
+
+    // ── Resume upload + parsing ───────────────────────────────────────────────
+    document.getElementById('resumeFile').addEventListener('change', async function () {
+      const file = this.files[0];
+      if (!file) return;
+
+      // Show parsing state
+      document.getElementById('uploadIdle').classList.add('hidden');
+      document.getElementById('uploadParsing').classList.remove('hidden');
+      document.getElementById('uploadParsing').classList.add('flex');
+      document.getElementById('dropzone').classList.remove('border-dashed', 'border-neutral-300');
+      document.getElementById('dropzone').classList.add('border-solid', 'border-indigo-300', 'bg-white/80');
+
+      let parsed = {};
+      try {
+        const fd = new FormData();
+        fd.append('resume', file);
+        const res = await fetch('https://jobmatch-ai-z19k.onrender.com/api/parse-resume', {
+          method: 'POST', body: fd
+        });
+        if (res.ok) parsed = await res.json();
+      } catch (_) { /* fallback to manual entry */ }
+
+      // Show done state
+      document.getElementById('uploadParsing').classList.add('hidden');
+      document.getElementById('uploadParsing').classList.remove('flex');
+      document.getElementById('uploadDone').classList.remove('hidden');
+      document.getElementById('uploadDone').classList.add('flex');
+      document.getElementById('uploadFileName').textContent = file.name;
+      document.getElementById('uploadNote').textContent = Object.keys(parsed).length
+        ? 'details extracted — please review'
+        : 'please fill in your details below';
+
+      // Pre-populate if we got data
+      if (parsed.firstName) document.getElementById('firstName').value = parsed.firstName;
+      if (parsed.lastName)  document.getElementById('lastName').value  = parsed.lastName;
+      if (parsed.email)     document.getElementById('email').value     = parsed.email;
+      if (parsed.phone)     document.getElementById('phone').value     = parsed.phone;
+
+      // Reveal step 2
+      document.getElementById('step2').classList.remove('hidden');
+      document.getElementById('step2').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
 
-    // ─── Form submission ─────────────────────────────────────────────────────
-    document.getElementById('signupForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const form      = e.target;
+    // ── Submit ────────────────────────────────────────────────────────────────
+    async function submitForm() {
+      const errorMsg  = document.getElementById('errorMsg');
+      const successMsg = document.getElementById('successMsg');
+      const planErr   = document.getElementById('planError');
+      const consentErr = document.getElementById('consentError');
       const btn       = document.getElementById('submitBtn');
       const btnLabel  = document.getElementById('btnLabel');
       const btnArrow  = document.getElementById('btnArrow');
       const btnSpin   = document.getElementById('btnSpinner');
-      const errorMsg  = document.getElementById('errorMsg');
-      const successMsg = document.getElementById('successMsg');
 
-      // Collect values
-      const firstName = form.firstName.value.trim();
-      const lastName  = form.lastName.value.trim();
-      const email     = form.email.value.trim();
-      const location  = form.location.value.trim();
-      const industry  = form.industry.value.trim();
+      errorMsg.classList.add('hidden');
+      planErr.classList.add('hidden');
+      consentErr.classList.add('hidden');
 
-      // Basic validation
-      if (!firstName || !lastName || !email || !location || !industry) {
-        errorMsg.textContent = 'Please fill in all required fields.';
+      const firstName = document.getElementById('firstName').value.trim();
+      const lastName  = document.getElementById('lastName').value.trim();
+      const email     = document.getElementById('email').value.trim();
+      const location  = document.getElementById('location').value.trim();
+      const industry  = document.getElementById('industry').value.trim();
+      const consent   = document.getElementById('consentBox').checked;
+
+      // Validate
+      let valid = true;
+      if (!email || !location || !industry) {
+        errorMsg.textContent = 'Please fill in all required fields (marked with *).';
         errorMsg.classList.remove('hidden');
-        return;
+        valid = false;
       }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         errorMsg.textContent = 'Please enter a valid email address.';
         errorMsg.classList.remove('hidden');
-        return;
+        valid = false;
       }
-      errorMsg.classList.add('hidden');
+      if (!selectedPlan) {
+        planErr.classList.remove('hidden');
+        valid = false;
+      }
+      if (!consent) {
+        consentErr.classList.remove('hidden');
+        valid = false;
+      }
+      if (!valid) return;
 
-      // Loading state
-      btn.disabled   = true;
+      // Loading
+      btn.disabled = true;
       btnLabel.textContent = 'Activating…';
       btnArrow.classList.add('hidden');
       btnSpin.classList.remove('hidden');
-
-      // Build payload matching /api/signup expectations
-      const payload = {
-        name:     `${firstName} ${lastName}`,
-        email:    email,
-        industry: industry,
-        location: location,
-      };
 
       try {
         const res = await fetch('https://jobmatch-ai-z19k.onrender.com/api/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            name:     `${firstName} ${lastName}`.trim() || email.split('@')[0],
+            email,
+            industry,
+            location,
+            plan: selectedPlan,
+          }),
         });
-
         const data = await res.json().catch(() => ({}));
 
         if (res.ok && data.ok) {
-          form.classList.add('hidden');
+          document.getElementById('step2').querySelector('div.space-y-5, form')?.classList?.add('hidden');
+          // Hide form fields, show success
+          document.getElementById('firstName').closest('.grid').classList.add('hidden');
+          document.getElementById('email').closest('div').classList.add('hidden');
+          document.getElementById('phone').closest('.grid').classList.add('hidden');
+          document.getElementById('industry').closest('div').classList.add('hidden');
+          document.getElementById('planGrid').closest('div').classList.add('hidden');
+          document.querySelector('#step2 .bg-neutral-100\\/60').classList.add('hidden');
+          errorMsg.classList.add('hidden');
+          document.getElementById('consentError').classList.add('hidden');
+          btn.classList.add('hidden');
+          document.querySelector('#step2 .text-\\[11px\\].text-neutral-400').classList.add('hidden');
           successMsg.classList.remove('hidden');
+          fetchStats(); // refresh user count
         } else {
           throw new Error(data.error || 'Something went wrong. Please try again.');
         }
       } catch (err) {
-        errorMsg.textContent = err.message || 'Connection issue. Please try again.';
+        errorMsg.textContent = err.message;
         errorMsg.classList.remove('hidden');
         btn.disabled = false;
-        btnLabel.textContent = 'Activate My Morning Matches';
+        btnLabel.textContent = 'Begin Morning Match Streaming';
         btnArrow.classList.remove('hidden');
         btnSpin.classList.add('hidden');
       }
-    });
+    }
   </script>
 </body>
 </html>
