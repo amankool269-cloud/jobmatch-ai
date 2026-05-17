@@ -19,6 +19,8 @@ import express   from 'express';
 import path      from 'path';
 import fs        from 'fs';
 import { fileURLToPath } from 'url';
+import multer    from 'multer';
+import pdfParse  from 'pdf-parse/lib/pdf-parse.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -58,6 +60,9 @@ async function patchUser(id, fields) {
   await fetch(`${AT_API}/${id}`, { method: 'PATCH', headers: atH(), body: JSON.stringify({ fields: clean }) });
 }
 
+// ── Multer (memory storage, 5 MB cap) ────────────────────────────────────────
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
 // ── Serve static assets from same folder as server.js ────────────────────────
 // index.html lives in the repo root alongside server.js — no public/ needed
 app.use(express.static(__dirname));
@@ -85,7 +90,7 @@ app.get('/api/stats', async (_req, res) => {
     const now = Date.now();
     if (!_cache || now - _cacheAt > 5 * 60 * 1000) {
       const [ur, mr] = await Promise.all([
-        fetch(`${AT_API}?filterByFormula=${encodeURIComponent('{Status}="Active"')}&fields[]=Email&maxRecords=1000`, { headers: atH() }),
+        fetch(`${AT_API}?fields[]=Email&maxRecords=1000`, { headers: atH() }),
         fetch(`${AT_API}?filterByFormula=${encodeURIComponent('AND({Status}="Active",NOT({LastRun}=""))')}&fields[]=LastRun&fields[]=LastMatches&maxRecords=1000`, { headers: atH() }),
       ]);
       const [ud, md] = await Promise.all([ur.json(), mr.json()]);
@@ -103,6 +108,57 @@ app.get('/api/stats', async (_req, res) => {
   } catch (e) {
     console.error('[stats] error:', e.message);
     res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── POST /api/parse-resume ────────────────────────────────────────────────────
+app.post('/api/parse-resume', upload.single('resume'), async (req, res) => {
+  cors(res);
+  if (!req.file) return res.status(400).json({ ok: false, error: 'No file received' });
+
+  try {
+    let text = '';
+
+    if (req.file.mimetype === 'application/pdf') {
+      const data = await pdfParse(req.file.buffer);
+      text = data.text || '';
+    } else {
+      // DOCX: grab readable characters
+      text = req.file.buffer.toString('utf8').replace(/[^\x20-\x7E\n]/g, ' ');
+    }
+
+    // ── Extract email ──────────────────────────────────────────────────────
+    const emailMatch = text.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,6}/);
+    const email = emailMatch ? emailMatch[0].toLowerCase() : '';
+
+    // ── Extract Indian phone (10 digits, optional +91 / 0 prefix) ─────────
+    const phoneMatch = text.match(/(?:\+91[\s\-]?|0)?[6-9]\d{9}/);
+    const phone = phoneMatch ? phoneMatch[0].replace(/\s/g, '') : '';
+
+    // ── Extract name (first plausible name line near top of document) ─────
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    let firstName = '', lastName = '';
+    for (const line of lines.slice(0, 15)) {
+      // Skip lines with digits, URLs, emails, or very long lines
+      if (/\d/.test(line))       continue;
+      if (line.includes('@'))    continue;
+      if (line.includes('http')) continue;
+      if (line.length < 3 || line.length > 50) continue;
+      // Must look like words (letters + spaces only)
+      if (!/^[A-Za-z\s.\-]+$/.test(line)) continue;
+      const parts = line.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        firstName = parts[0];
+        lastName  = parts.slice(1).join(' ');
+        break;
+      }
+    }
+
+    console.log(`[parse-resume] name="${firstName} ${lastName}" email=${email} phone=${phone}`);
+    res.json({ ok: true, firstName, lastName, email, phone });
+  } catch (err) {
+    console.error('[parse-resume] error:', err.message);
+    res.status(500).json({ ok: false, error: 'Could not parse resume' });
   }
 });
 

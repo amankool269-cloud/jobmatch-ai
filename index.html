@@ -50,10 +50,10 @@
       </div>
       <h1 class="text-5xl md:text-[68px] font-bold tracking-tight text-neutral-900 leading-[1.04] mb-4">
         The Morning Stream<br>
-        <span class="text-neutral-400 font-medium tracking-tighter">For Tech &amp; Product Roles</span>
+        <span class="text-neutral-400 font-medium tracking-tighter">For Every Job Seeker in India</span>
       </h1>
       <p class="text-sm md:text-base text-neutral-500 max-w-md mx-auto tracking-wide leading-relaxed">
-        Upload your resume. Our scrapers run at midnight, score across 7 signals, and deliver your best matches every morning.
+        Upload your resume. Our scrapers run at midnight, score across 10 signals, and deliver your best matches every morning.
       </p>
     </div>
 
@@ -154,16 +154,48 @@
             </div>
             <div>
               <label class="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Preferred Location <span class="text-indigo-400">*</span></label>
-              <input type="text" id="location" name="location" placeholder="Bangalore, Remote"
-                class="w-full px-4 py-3 bg-white border border-neutral-200/70 rounded-xl text-sm font-medium text-neutral-800 placeholder-neutral-300 focus:border-indigo-400 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+              <select id="location" name="location"
+                class="w-full px-4 py-3 bg-white border border-neutral-200/70 rounded-xl text-sm font-medium text-neutral-800 focus:border-indigo-400 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)] appearance-none cursor-pointer">
+                <option value="" disabled selected>Select city…</option>
+                <option>Bengaluru</option>
+                <option>Mumbai</option>
+                <option>Delhi NCR</option>
+                <option>Hyderabad</option>
+                <option>Chennai</option>
+                <option>Pune</option>
+                <option>Kolkata</option>
+                <option>Gurugram</option>
+                <option>Noida</option>
+                <option>Ahmedabad</option>
+                <option>Jaipur</option>
+                <option>Remote</option>
+                <option>Open to All</option>
+              </select>
             </div>
           </div>
 
           <!-- Industry -->
           <div>
             <label class="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Industry / Target Domain <span class="text-indigo-400">*</span></label>
-            <input type="text" id="industry" name="industry" placeholder="e.g. Fintech, Product Management, SaaS"
-              class="w-full px-4 py-3 bg-white border border-neutral-200/70 rounded-xl text-sm font-medium text-neutral-800 placeholder-neutral-300 focus:border-indigo-400 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            <select id="industry" name="industry"
+              class="w-full px-4 py-3 bg-white border border-neutral-200/70 rounded-xl text-sm font-medium text-neutral-800 focus:border-indigo-400 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)] appearance-none cursor-pointer">
+              <option value="" disabled selected>Select industry…</option>
+              <option>Fintech</option>
+              <option>Product Management</option>
+              <option>SaaS / B2B</option>
+              <option>E-commerce</option>
+              <option>EdTech</option>
+              <option>HealthTech</option>
+              <option>Data & Analytics</option>
+              <option>Software Engineering</option>
+              <option>Marketing & Growth</option>
+              <option>Operations & Supply Chain</option>
+              <option>HR & Talent</option>
+              <option>Banking & Finance</option>
+              <option>Consulting</option>
+              <option>Sales & Business Development</option>
+              <option>Other</option>
+            </select>
           </div>
 
           <!-- ── STEP 3: Plans ── -->
@@ -182,7 +214,7 @@
                 <div class="text-2xl font-extrabold text-neutral-900 mb-0.5">Free</div>
                 <div class="text-[11px] text-neutral-400 mb-4">Forever</div>
                 <ul class="space-y-1.5 text-[12px] text-neutral-600">
-                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 5 matches / day</li>
+                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 2 matches / day</li>
                   <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> Email digest</li>
                   <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 6 job boards</li>
                   <li class="flex items-center gap-1.5 text-neutral-300"><span>✗</span> WhatsApp alerts</li>
@@ -194,10 +226,10 @@
               <div class="plan-card border-2 border-neutral-200 rounded-2xl p-4 text-left relative" data-plan="starter" onclick="selectPlan(this)">
                 <div class="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">Popular</div>
                 <div class="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-3">Starter</div>
-                <div class="text-2xl font-extrabold text-neutral-900 mb-0.5">₹199<span class="text-sm font-medium text-neutral-400">/mo</span></div>
+                <div class="text-2xl font-extrabold text-neutral-900 mb-0.5">₹49<span class="text-sm font-medium text-neutral-400">/mo</span></div>
                 <div class="text-[11px] text-neutral-400 mb-4">Billed monthly</div>
                 <ul class="space-y-1.5 text-[12px] text-neutral-600">
-                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 15 matches / day</li>
+                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 5 matches / day</li>
                   <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> Email digest</li>
                   <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 6 job boards</li>
                   <li class="flex items-center gap-1.5 text-neutral-300"><span>✗</span> WhatsApp alerts</li>
@@ -208,10 +240,10 @@
               <!-- Pro -->
               <div class="plan-card border-2 border-neutral-200 rounded-2xl p-4 text-left" data-plan="pro" onclick="selectPlan(this)">
                 <div class="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-3">Pro</div>
-                <div class="text-2xl font-extrabold text-neutral-900 mb-0.5">₹499<span class="text-sm font-medium text-neutral-400">/mo</span></div>
+                <div class="text-2xl font-extrabold text-neutral-900 mb-0.5">₹99<span class="text-sm font-medium text-neutral-400">/mo</span></div>
                 <div class="text-[11px] text-neutral-400 mb-4">Billed monthly</div>
                 <ul class="space-y-1.5 text-[12px] text-neutral-600">
-                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> Unlimited matches</li>
+                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 8 matches / day</li>
                   <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> Email digest</li>
                   <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 6 job boards</li>
                   <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> WhatsApp alerts</li>
@@ -281,7 +313,7 @@
       </div>
       <div class="w-1.5 h-1.5 rounded-full bg-neutral-300 hidden md:block"></div>
       <div class="flex items-center gap-2">
-        <span class="text-neutral-900 font-bold text-sm">7-Signal</span><span>Scoring</span>
+        <span class="text-neutral-900 font-bold text-sm">10-Signal</span><span>Scoring</span>
       </div>
       <div class="w-1.5 h-1.5 rounded-full bg-neutral-300 hidden md:block"></div>
       <div class="flex items-center gap-2">
