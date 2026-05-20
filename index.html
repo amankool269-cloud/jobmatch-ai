@@ -3,533 +3,1103 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JobMatch AI · Stop Hunting</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <title>JobMatch AI — Your personal AI job scout for India</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #EFEFEF; }
-    .glass {
-      background: rgba(255,255,255,0.78);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #F4F0E8;
+      --card:     #FFFFFF;
+      --ink:      #0D0C0A;
+      --ink2:     #5A5651;
+      --ink3:     #A09C96;
+      --orange:   #FF4A1C;
+      --blue:     #1240FF;
+      --green:    #00B87A;
+      --border:   rgba(0,0,0,0.08);
+      --shadow:   0 4px 32px rgba(0,0,0,0.07);
+      --shadow-lg:0 12px 60px rgba(0,0,0,0.11);
+      --radius:   20px;
+      --font:     'Plus Jakarta Sans', sans-serif;
     }
-    .plan-card { transition: all .18s ease; cursor: pointer; }
-    .plan-card.selected { border-color: #4f46e5 !important; background: rgba(79,70,229,.04); box-shadow: 0 0 0 3px rgba(79,70,229,.12); }
-    .fade-in { animation: fadeUp .45s ease both; }
-    @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
-    .spin { animation: spin .8s linear infinite; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ─── NAV ──────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 48px; height: 64px;
+      background: rgba(244,240,232,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      font-weight: 800; font-size: 17px; letter-spacing: -0.03em; color: var(--ink);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .nav-logo .dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--orange);
+      animation: pulse-dot 2s ease infinite;
+    }
+    @keyframes pulse-dot { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.7; } }
+    .nav-links { display: flex; gap: 32px; }
+    .nav-links a { font-size: 13px; font-weight: 500; color: var(--ink2); text-decoration: none; transition: color .15s; }
+    .nav-links a:hover { color: var(--ink); }
+    .nav-cta {
+      font-size: 13px; font-weight: 700; color: #fff; background: var(--ink);
+      padding: 9px 20px; border-radius: 99px; text-decoration: none;
+      transition: all .15s; letter-spacing: -0.01em;
+    }
+    .nav-cta:hover { background: var(--orange); transform: translateY(-1px); }
+
+    /* ─── HERO ─────────────────────────────────── */
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      min-height: calc(100vh - 64px);
+      align-items: center;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 80px 48px 60px;
+    }
+    .hero-left { padding-right: 64px; }
+
+    .live-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--card); border: 1px solid var(--border);
+      padding: 6px 14px; border-radius: 99px;
+      font-size: 12px; font-weight: 600; color: var(--ink2);
+      margin-bottom: 32px; box-shadow: var(--shadow);
+    }
+    .live-badge .pip {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+      animation: pip 1.8s ease infinite;
+    }
+    @keyframes pip { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.6;transform:scale(1.3)} }
+
+    h1 {
+      font-size: clamp(42px, 5.5vw, 72px);
+      font-weight: 800; line-height: 1.02;
+      letter-spacing: -0.04em; color: var(--ink);
+      margin-bottom: 24px;
+    }
+    h1 em { font-style: normal; color: var(--orange); }
+    h1 .muted { color: var(--ink3); font-weight: 400; }
+
+    .hero-sub {
+      font-size: 16px; line-height: 1.7; color: var(--ink2);
+      margin-bottom: 40px; max-width: 420px;
+    }
+
+    .hero-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 15px; font-weight: 700; color: #fff;
+      background: var(--ink); padding: 14px 28px; border-radius: 99px;
+      text-decoration: none; transition: all .2s; letter-spacing: -0.02em;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .btn-primary:hover { background: var(--orange); transform: translateY(-2px); box-shadow: 0 8px 28px rgba(255,74,28,0.3); }
+    .btn-primary svg { transition: transform .2s; }
+    .btn-primary:hover svg { transform: translateX(3px); }
+    .hero-note { font-size: 12px; color: var(--ink3); font-weight: 500; }
+
+    /* ─── HERO RIGHT: 3D FLOATING CARDS ─────────── */
+    .hero-right {
+      position: relative;
+      height: 580px;
+      perspective: 1100px;
+      perspective-origin: 40% 50%;
+    }
+
+    .digest-stack {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      transform-style: preserve-3d;
+    }
+
+    /* Base card */
+    .digest-card {
+      position: absolute;
+      background: var(--card);
+      border-radius: 18px;
+      border: 1px solid rgba(0,0,0,0.07);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.06);
+      padding: 18px 20px;
+      opacity: 0;
+      will-change: transform, opacity;
+      transform-origin: center center;
+      backface-visibility: hidden;
+    }
+
+    /* Card 1 — fade in then float with 3D tilt */
+    .dc1 {
+      width: 340px; top: 10px; left: 0px;
+      animation:
+        cardReveal 0.7s 0.3s cubic-bezier(.16,1,.3,1) both,
+        float3d1    7s  1.0s ease-in-out infinite;
+    }
+    /* Card 2 */
+    .dc2 {
+      width: 330px; top: 168px; left: 48px;
+      animation:
+        cardReveal 0.7s 0.6s cubic-bezier(.16,1,.3,1) both,
+        float3d2    8s  1.3s ease-in-out infinite;
+    }
+    /* Card 3 */
+    .dc3 {
+      width: 300px; top: 326px; left: 16px;
+      animation:
+        cardReveal 0.7s 0.9s cubic-bezier(.16,1,.3,1) both,
+        float3d3    6s  1.6s ease-in-out infinite;
+    }
+
+    @keyframes cardReveal {
+      from { opacity: 0; transform: translateY(28px) scale(0.96); }
+      to   { opacity: 1; transform: translateY(0)    scale(1);    }
+    }
+    @keyframes float3d1 {
+      0%,100% { transform: translateY(0px)   rotateX(4deg) rotateY(-12deg); }
+      50%     { transform: translateY(-18px) rotateX(1deg) rotateY(-6deg);  }
+    }
+    @keyframes float3d2 {
+      0%,100% { transform: translateY(0px)   rotateX(5deg) rotateY(-14deg); }
+      50%     { transform: translateY(-14px) rotateX(7deg) rotateY(-9deg);  }
+    }
+    @keyframes float3d3 {
+      0%,100% { transform: translateY(0px)   rotateX(3deg) rotateY(-10deg); }
+      50%     { transform: translateY(-10px) rotateX(5deg) rotateY(-16deg); }
+    }
+
+    /* Card internals */
+    .dc-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--ink3);
+      margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+    }
+    .digest-card-inner { display: flex; gap: 12px; align-items: flex-start; }
+    .dc-info  { flex: 1; min-width: 0; }
+    .dc-title { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 2px; line-height: 1.3; }
+    .dc-company { font-size: 12px; color: var(--ink2); margin-bottom: 7px; }
+    .dc-reason  { font-size: 11px; color: var(--ink2); line-height: 1.55; }
+    .dc-apply {
+      display: inline-flex; align-items: center; gap: 4px;
+      margin-top: 10px; font-size: 11px; font-weight: 700;
+      color: var(--ink); background: var(--bg); padding: 5px 12px;
+      border-radius: 8px; text-decoration: none; border: 1px solid var(--border);
+      transition: all .15s;
+    }
+    .dc-apply:hover { background: var(--ink); color: #fff; }
+
+    /* Floating source pills */
+    .source-pill {
+      position: absolute; background: var(--card);
+      border: 1px solid var(--border); box-shadow: var(--shadow);
+      border-radius: 12px; padding: 7px 13px;
+      font-size: 11px; font-weight: 700; color: var(--ink2);
+      opacity: 0;
+      animation: cardReveal 0.5s ease both;
+    }
+    .sp1 { top: 70px;  right: 0px;  animation-delay: 1.1s; }
+    .sp2 { top: 235px; right: 20px; animation-delay: 1.4s; }
+    .sp3 { top: 390px; right: 5px;  animation-delay: 1.7s; }
+
+    /* ─── MARQUEE ─────────────────────────────── */
+    .marquee-wrap {
+      background: var(--ink); padding: 14px 0; overflow: hidden;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .marquee-track {
+      display: flex; gap: 0; width: max-content;
+      animation: marquee 22s linear infinite;
+    }
+    @keyframes marquee { to { transform: translateX(-50%); } }
+    .marquee-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 32px; font-size: 13px; font-weight: 600;
+      color: rgba(255,255,255,0.5); white-space: nowrap;
+      border-right: 1px solid rgba(255,255,255,0.1);
+    }
+    .marquee-item .mi-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--orange); flex-shrink: 0; }
+
+    /* ─── HOW IT WORKS ────────────────────────── */
+    .how { max-width: 1200px; margin: 100px auto; padding: 0 48px; }
+    .section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--orange); margin-bottom: 16px;
+    }
+    .how h2 {
+      font-size: clamp(32px, 4vw, 52px); font-weight: 800;
+      letter-spacing: -0.04em; color: var(--ink); margin-bottom: 60px; max-width: 500px;
+      line-height: 1.1;
+    }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+    .step {
+      background: var(--card); padding: 36px 32px;
+      border: 1px solid var(--border); position: relative;
+      transition: all .2s;
+    }
+    .step:first-child { border-radius: 20px 0 0 20px; }
+    .step:last-child  { border-radius: 0 20px 20px 0; }
+    .step:hover { background: var(--ink); color: #fff; z-index: 1; border-color: var(--ink); transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+    .step:hover .step-num { color: var(--orange); }
+    .step:hover .step-title { color: #fff; }
+    .step:hover .step-desc  { color: rgba(255,255,255,0.6); }
+    .step:hover .step-icon  { background: rgba(255,255,255,0.1); color: #fff; }
+
+    .step-num {
+      font-size: 12px; font-weight: 800; color: var(--ink3);
+      letter-spacing: 0.05em; margin-bottom: 20px;
+    }
+    .step-icon {
+      width: 48px; height: 48px; border-radius: 14px;
+      background: var(--bg); display: flex; align-items: center; justify-content: center;
+      font-size: 22px; margin-bottom: 20px; transition: all .2s;
+    }
+    .step-title { font-size: 18px; font-weight: 700; margin-bottom: 10px; color: var(--ink); transition: color .2s; }
+    .step-desc  { font-size: 14px; line-height: 1.65; color: var(--ink2); transition: color .2s; }
+
+    /* ─── SCORE EXPLAINER ─────────────────────── */
+    .score-section {
+      max-width: 1200px; margin: 0 auto 100px; padding: 0 48px;
+    }
+    .score-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 28px; padding: 56px; box-shadow: var(--shadow);
+      display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;
+    }
+    .score-left h3 {
+      font-size: clamp(28px,3vw,42px); font-weight: 800; letter-spacing: -0.04em;
+      line-height: 1.1; margin-bottom: 16px;
+    }
+    .score-left p { font-size: 15px; color: var(--ink2); line-height: 1.7; margin-bottom: 28px; }
+    .score-sources {
+      display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .src-chip {
+      font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 99px;
+      background: var(--bg); border: 1px solid var(--border); color: var(--ink2);
+    }
+    .score-bars { display: flex; flex-direction: column; gap: 16px; }
+    .score-bar-item {}
+    .sb-header { display: flex; justify-content: space-between; margin-bottom: 7px; }
+    .sb-label { font-size: 13px; font-weight: 600; color: var(--ink); }
+    .sb-pct   { font-size: 13px; font-weight: 700; color: var(--ink2); }
+    .sb-track { height: 7px; background: var(--bg); border-radius: 99px; overflow: hidden; }
+    .sb-fill  { height: 100%; border-radius: 99px; width: 0; transition: width 1.2s cubic-bezier(.16,1,.3,1); }
+    .sb-fill.orange { background: var(--orange); }
+    .sb-fill.blue   { background: var(--blue); }
+    .sb-fill.green  { background: var(--green); }
+    .sb-fill.amber  { background: #F5A623; }
+    .sb-fill.teal   { background: #00B8A9; }
+
+    /* ─── SIGNUP FORM ─────────────────────────── */
+    .form-section { max-width: 680px; margin: 0 auto 100px; padding: 0 24px; }
+    .form-section > .section-label { text-align: center; }
+    .form-section > h2 {
+      font-size: clamp(30px, 4vw, 46px); font-weight: 800;
+      letter-spacing: -0.04em; text-align: center; margin-bottom: 8px;
+    }
+    .form-section > .form-sub {
+      text-align: center; font-size: 15px; color: var(--ink2); margin-bottom: 40px; line-height: 1.6;
+    }
+
+    .form-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 28px; overflow: hidden; box-shadow: var(--shadow-lg);
+    }
+    .form-topbar {
+      background: var(--ink); padding: 18px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .form-topbar-title { font-size: 14px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+    .form-topbar-badge {
+      font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 99px;
+      background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.7);
+    }
+
+    .form-body { padding: 36px 36px 32px; }
+
+    /* Steps indicator */
+    .step-dots {
+      display: flex; gap: 6px; margin-bottom: 28px; align-items: center;
+    }
+    .step-dot {
+      height: 4px; border-radius: 99px; background: var(--bg);
+      transition: all .3s;
+    }
+    .step-dot.active { background: var(--orange); width: 24px; }
+    .step-dot.done   { background: var(--green); width: 16px; }
+    .step-dot.idle   { width: 16px; }
+
+    /* ── Step 1: Upload ── */
+    #s1 { }
+    #s2, #s3 { display: none; }
+
+    .upload-zone {
+      border: 2px dashed #D8D4CC; border-radius: 16px;
+      padding: 40px 24px; text-align: center; cursor: pointer;
+      transition: all .2s; background: var(--bg); position: relative;
+    }
+    .upload-zone:hover, .upload-zone.drag { border-color: var(--orange); background: rgba(255,74,28,0.03); }
+    .upload-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .upload-icon {
+      width: 52px; height: 52px; border-radius: 14px;
+      background: var(--card); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px; font-size: 22px; box-shadow: var(--shadow);
+    }
+    .upload-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .upload-sub   { font-size: 13px; color: var(--ink3); }
+    .upload-sub strong { color: var(--orange); }
+
+    .parsing-state { display: none; text-align: center; padding: 24px 0; }
+    .parsing-spinner {
+      width: 36px; height: 36px; border: 3px solid var(--bg);
+      border-top-color: var(--orange); border-radius: 50%;
+      animation: spin .7s linear infinite; margin: 0 auto 14px;
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
-    input:focus { outline: none; }
-    input:disabled { opacity: .5; cursor: not-allowed; }
+    .parsing-text { font-size: 14px; font-weight: 600; color: var(--ink2); }
+
+    /* ── Step 2: Profile ── */
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .form-row.single { grid-template-columns: 1fr; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--ink3);
+    }
+    .field input, .field select {
+      font-family: var(--font); font-size: 14px; font-weight: 500;
+      padding: 12px 16px; border: 1.5px solid #E8E4DC;
+      border-radius: 12px; background: var(--bg); color: var(--ink);
+      transition: all .15s; outline: none; appearance: none;
+      -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--orange); background: #fff; }
+    .field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23A09C96' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+
+    .plan-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 20px; }
+    .plan-opt {
+      border: 1.5px solid #E8E4DC; border-radius: 14px; padding: 16px 14px;
+      cursor: pointer; transition: all .15s; position: relative; background: var(--bg);
+    }
+    .plan-opt.selected { border-color: var(--orange); background: rgba(255,74,28,0.04); }
+    .plan-opt input[type=radio] { position: absolute; opacity: 0; pointer-events: none; }
+    .plan-opt-name { font-size: 12px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
+    .plan-opt-price { font-size: 20px; font-weight: 800; color: var(--ink); line-height: 1; margin-bottom: 6px; }
+    .plan-opt-price span { font-size: 12px; font-weight: 500; color: var(--ink3); }
+    .plan-opt-feat { font-size: 11px; color: var(--ink2); line-height: 1.5; }
+    .plan-badge {
+      display: inline-block; font-size: 9px; font-weight: 800; letter-spacing: 0.05em;
+      text-transform: uppercase; padding: 2px 8px; border-radius: 99px; margin-bottom: 6px;
+    }
+    .plan-badge.pop { background: rgba(255,74,28,0.12); color: var(--orange); }
+    .plan-badge.free { background: rgba(0,184,122,0.12); color: var(--green); }
+
+    .consent-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 12px; color: var(--ink2); line-height: 1.5; margin-bottom: 24px;
+    }
+    .consent-row input[type=checkbox] {
+      width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px;
+      accent-color: var(--orange); cursor: pointer;
+    }
+
+    .btn-submit {
+      width: 100%; padding: 15px; font-family: var(--font);
+      font-size: 15px; font-weight: 800; letter-spacing: -0.02em;
+      color: #fff; background: var(--ink); border: none;
+      border-radius: 14px; cursor: pointer; transition: all .2s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-submit:hover:not(:disabled) { background: var(--orange); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,74,28,0.25); }
+    .btn-submit:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .form-err {
+      display: none; font-size: 13px; color: #DC2626;
+      background: rgba(220,38,38,0.06); padding: 10px 14px;
+      border-radius: 10px; margin-bottom: 16px; border: 1px solid rgba(220,38,38,0.15);
+    }
+
+    /* ── Step 3: Success ── */
+    #s3 { text-align: center; padding: 20px 0; }
+    .success-icon {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: rgba(0,184,122,0.1); border: 1px solid rgba(0,184,122,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px; margin: 0 auto 24px;
+      animation: popIn .4s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    #s3 h3 { font-size: 26px; font-weight: 800; margin-bottom: 10px; letter-spacing: -0.03em; }
+    #s3 p  { font-size: 14px; color: var(--ink2); line-height: 1.7; }
+
+    /* ─── PLANS ───────────────────────────────── */
+    .plans-section { max-width: 1200px; margin: 0 auto 100px; padding: 0 48px; }
+    .plans-section .section-label { text-align: center; margin-bottom: 12px; }
+    .plans-section > h2 {
+      font-size: clamp(30px,4vw,48px); font-weight: 800;
+      letter-spacing: -0.04em; text-align: center; margin-bottom: 8px;
+    }
+    .plans-section > .plans-sub { text-align: center; color: var(--ink2); font-size: 15px; margin-bottom: 48px; }
+    .plans-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+    .plan-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 24px; padding: 32px; transition: all .2s;
+      position: relative;
+    }
+    .plan-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+    .plan-card.featured {
+      background: var(--ink); border-color: var(--ink);
+      color: #fff;
+    }
+    .plan-card.featured .plan-name { color: rgba(255,255,255,0.6); }
+    .plan-card.featured .plan-price { color: #fff; }
+    .plan-card.featured .plan-period { color: rgba(255,255,255,0.4); }
+    .plan-card.featured .plan-feature { color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.1); }
+    .plan-card.featured .plan-feature::before { color: var(--orange); }
+    .plan-card-pop {
+      position: absolute; top: 20px; right: 20px;
+      font-size: 10px; font-weight: 800; letter-spacing: 0.05em;
+      text-transform: uppercase; padding: 4px 12px; border-radius: 99px;
+      background: var(--orange); color: #fff;
+    }
+    .plan-name { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink3); margin-bottom: 16px; }
+    .plan-price { font-size: 40px; font-weight: 800; letter-spacing: -0.04em; color: var(--ink); line-height: 1; }
+    .plan-period { font-size: 14px; font-weight: 500; color: var(--ink3); margin-bottom: 24px; display: block; margin-top: 4px; }
+    .plan-divider { height: 1px; background: var(--border); margin-bottom: 24px; }
+    .plan-features { display: flex; flex-direction: column; gap: 0; list-style: none; margin-bottom: 28px; }
+    .plan-feature {
+      font-size: 13px; padding: 10px 0; color: var(--ink2);
+      border-bottom: 1px solid var(--border);
+    }
+    .plan-feature::before { content: '✓ '; font-weight: 800; color: var(--green); }
+    .plan-feature:last-child { border-bottom: none; }
+    .plan-btn {
+      display: block; text-align: center; padding: 13px;
+      font-family: var(--font); font-size: 14px; font-weight: 700;
+      border-radius: 12px; text-decoration: none; transition: all .2s;
+      border: 1.5px solid var(--border); color: var(--ink); background: var(--bg);
+      cursor: pointer;
+    }
+    .plan-card.featured .plan-btn {
+      background: var(--orange); border-color: var(--orange); color: #fff;
+    }
+    .plan-btn:hover { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .plan-card.featured .plan-btn:hover { background: #e03010; border-color: #e03010; }
+
+    /* ─── CONTACT ─────────────────────────────── */
+    .contact { max-width: 1200px; margin: 0 auto 80px; padding: 0 48px; }
+    .contact-card {
+      background: var(--ink); border-radius: 28px; padding: 48px 56px;
+      display: flex; align-items: center; justify-content: space-between; gap: 40px;
+      flex-wrap: wrap;
+    }
+    .contact-left h3 {
+      font-size: clamp(24px,3vw,36px); font-weight: 800;
+      color: #fff; letter-spacing: -0.04em; margin-bottom: 10px; line-height: 1.1;
+    }
+    .contact-left p { font-size: 15px; color: rgba(255,255,255,0.55); line-height: 1.6; }
+    .contact-links { display: flex; flex-direction: column; gap: 12px; }
+    .contact-link {
+      display: flex; align-items: center; gap: 12px; text-decoration: none;
+      padding: 14px 20px; border-radius: 14px;
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+      transition: all .2s;
+    }
+    .contact-link:hover { background: rgba(255,255,255,0.12); transform: translateX(4px); }
+    .contact-link-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; font-size: 18px;
+    }
+    .contact-link-text { }
+    .cl-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+    .cl-value { font-size: 14px; font-weight: 600; color: #fff; }
+
+    /* ─── FOOTER ─────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border); padding: 28px 48px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+    }
+    footer .f-logo { font-weight: 800; font-size: 15px; letter-spacing: -0.03em; }
+    footer p { font-size: 12px; color: var(--ink3); }
+
+    /* ─── SCROLL REVEAL ──────────────────────── */
+    .reveal {
+      transition: opacity .7s ease, transform .7s ease;
+    }
+    .reveal.hidden {
+      opacity: 0; transform: translateY(28px);
+    }
+
+    /* ─── RESPONSIVE ─────────────────────────── */
+    @media (max-width: 900px) {
+      nav { padding: 0 20px; }
+      .nav-links { display: none; }
+      .hero { grid-template-columns: 1fr; padding: 48px 24px 40px; min-height: auto; gap: 60px; }
+      .hero-left { padding-right: 0; }
+      .hero-right { height: 420px; }
+      .dc1, .dc2, .dc3 { width: calc(100% - 40px); }
+      .dc2 { left: 40px; }
+      .how { padding: 0 24px; }
+      .steps { grid-template-columns: 1fr; gap: 2px; }
+      .step:first-child { border-radius: 20px 20px 0 0; }
+      .step:last-child  { border-radius: 0 0 20px 20px; }
+      .score-card { grid-template-columns: 1fr; gap: 40px; padding: 36px 28px; }
+      .score-section, .plans-section, .contact { padding: 0 24px; }
+      .plans-grid { grid-template-columns: 1fr; }
+      .contact-card { padding: 36px 28px; }
+      .form-row { grid-template-columns: 1fr; }
+      .plan-grid { grid-template-columns: 1fr; }
+      footer { padding: 24px; }
+    }
   </style>
 </head>
-<body class="min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+<body>
 
-  <!-- NAV -->
-  <nav class="max-w-7xl w-full mx-auto px-8 py-5 flex justify-between items-center">
-    <div class="flex items-center space-x-1.5 font-bold text-lg tracking-tight text-neutral-900">
-      <span class="text-indigo-600 font-medium text-xl">‹</span><span>JobMatch AI</span>
+<!-- ═══════════════ NAV ═══════════════ -->
+<nav>
+  <div class="nav-logo">
+    <div class="dot"></div>
+    JobMatch AI
+  </div>
+  <div class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#plans">Plans</a>
+    <a href="#contact">Contact</a>
+  </div>
+  <a href="#signup" class="nav-cta">Get started free →</a>
+</nav>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="live-badge">
+      <div class="pip"></div>
+      <span id="liveCount">Loading…</span>
+      &nbsp;job seekers already onboard
     </div>
-    <div class="hidden md:flex items-center space-x-8 text-[13px] font-medium text-neutral-500">
-      <a href="#how" class="hover:text-neutral-900 transition">How it works</a>
-      <a href="#plans" class="hover:text-neutral-900 transition">Plans</a>
-      <a href="#contact" class="hover:text-neutral-900 transition">Contact</a>
+    <h1>
+      Stop hunting.<br>
+      <em>Let AI find</em><br>
+      <span class="muted">your next role.</span>
+    </h1>
+    <p class="hero-sub">
+      Upload your resume once. Our AI searches 6 job platforms daily, filters every role for fit, and delivers only the ones genuinely worth your time — straight to your inbox.
+    </p>
+    <div class="hero-actions">
+      <a href="#signup" class="btn-primary">
+        Start for free
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <span class="hero-note">No card required · Cancels anytime</span>
     </div>
-    <a href="#plans" class="bg-white border border-neutral-200/80 text-[13px] font-medium px-4 py-1.5 rounded-full shadow-sm hover:bg-neutral-50 transition active:scale-95">
-      View plans
-    </a>
-  </nav>
+  </div>
 
-  <!-- HERO -->
-  <main class="flex-grow flex flex-col items-center px-6 py-8 w-full">
-    <div class="text-center max-w-3xl mb-10 fade-in">
-      <!-- Live user count badge -->
-      <div class="inline-flex items-center gap-2 bg-white border border-neutral-200 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm mb-6 text-neutral-600">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span id="liveCount">— active users</span> getting matched every morning
-      </div>
-      <h1 class="text-5xl md:text-[68px] font-bold tracking-tight text-neutral-900 leading-[1.04] mb-4">
-        The Morning Stream<br>
-        <span class="text-neutral-400 font-medium tracking-tighter">For Every Job Seeker in India</span>
-      </h1>
-      <p class="text-sm md:text-base text-neutral-500 max-w-md mx-auto tracking-wide leading-relaxed">
-        Upload your resume. Our scrapers run at midnight, score across 10 signals, and deliver your best matches every morning.
-      </p>
-    </div>
+  <div class="hero-right">
+    <div class="digest-stack">
 
-    <!-- MAIN CARD -->
-    <div class="w-full max-w-2xl glass rounded-[28px] border border-white/80 shadow-[0_24px_60px_rgba(0,0,0,0.06)] overflow-hidden fade-in" style="animation-delay:.1s">
-
-      <!-- Card header -->
-      <div class="flex items-center justify-between px-8 py-5 border-b border-neutral-200/50">
-        <div class="flex items-center space-x-2">
-          <div class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></div>
-          <span class="text-xs font-bold uppercase tracking-widest text-neutral-400">Profile Activation</span>
+      <!-- Card 1 -->
+      <div class="digest-card dc1">
+        <div class="dc-label" style="color: var(--ink3);">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          New · via LinkedIn
         </div>
-        <span class="text-xs text-neutral-400 bg-neutral-200/50 px-2.5 py-1 rounded-md font-medium">Free Live Beta</span>
-      </div>
-
-      <div class="px-8 py-7">
-
-        <!-- ── STEP 1: Resume upload ── -->
-        <div id="step1">
-          <p class="text-sm font-semibold text-neutral-700 mb-1">Start by uploading your resume</p>
-          <p class="text-xs text-neutral-400 mb-4">We'll extract your details automatically — just review and confirm.</p>
-
-          <div id="dropzone"
-            class="relative group border-2 border-dashed border-neutral-300 hover:border-indigo-400 bg-white/50 hover:bg-white/80 rounded-2xl p-8 transition-all duration-200 flex flex-col items-center justify-center gap-3 cursor-pointer text-center">
-            <input type="file" id="resumeFile" accept=".pdf,.docx" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
-
-            <!-- Idle state -->
-            <div id="uploadIdle">
-              <div class="w-12 h-12 bg-white rounded-xl border border-neutral-200 flex items-center justify-center mx-auto mb-3 group-hover:border-indigo-300 transition shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-neutral-400 group-hover:text-indigo-500 transition">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
-                </svg>
-              </div>
-              <p class="text-sm font-semibold text-neutral-700">Drop your resume here</p>
-              <p class="text-xs text-neutral-400">or <span class="text-indigo-600 font-semibold">browse files</span> — PDF or DOCX, max 5 MB</p>
-            </div>
-
-            <!-- Parsing state -->
-            <div id="uploadParsing" class="hidden flex-col items-center gap-2">
-              <svg class="w-6 h-6 text-indigo-500 spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-              </svg>
-              <p class="text-sm font-semibold text-neutral-600">Analysing resume…</p>
-              <p class="text-xs text-neutral-400">Extracting your details</p>
-            </div>
-
-            <!-- Done state -->
-            <div id="uploadDone" class="hidden flex-col items-center gap-1">
-              <div class="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-1 border border-emerald-200">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 text-emerald-500">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-12.5"/>
-                </svg>
-              </div>
-              <p class="text-sm font-semibold text-neutral-700" id="uploadFileName">resume.pdf</p>
-              <p class="text-xs text-indigo-500 font-medium">Uploaded · <span id="uploadNote">details extracted</span></p>
-            </div>
+        <div class="digest-card-inner">
+          <div class="dc-source-icon" style="width:44px;height:44px;border-radius:12px;background:rgba(18,64,255,0.08);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">💼</div>
+          <div class="dc-info">
+            <div class="dc-title">Senior Product Manager</div>
+            <div class="dc-company">Razorpay · Bengaluru</div>
+            <div class="dc-reason" style="margin-top:6px;">Fintech payments role — matches your product + BFSI background.</div>
+            <a href="#" class="dc-apply">View job →</a>
           </div>
         </div>
+      </div>
 
-        <!-- ── STEP 2: Details form (shown after upload) ── -->
-        <div id="step2" class="hidden mt-6 space-y-5 fade-in">
-
-          <div class="flex items-center gap-2 mb-1">
-            <div class="h-px flex-1 bg-neutral-200/60"></div>
-            <span class="text-[11px] font-bold uppercase tracking-widest text-neutral-400">Your Details</span>
-            <div class="h-px flex-1 bg-neutral-200/60"></div>
+      <!-- Card 2 -->
+      <div class="digest-card dc2">
+        <div class="dc-label" style="color: var(--ink3);">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          New · via Naukri
+        </div>
+        <div class="digest-card-inner">
+          <div class="dc-source-icon" style="width:44px;height:44px;border-radius:12px;background:rgba(255,74,28,0.08);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🚀</div>
+          <div class="dc-info">
+            <div class="dc-title">Head of Product — Growth</div>
+            <div class="dc-company">CRED · Bengaluru</div>
+            <div class="dc-reason" style="margin-top:6px;">Consumer fintech, growth-focused — strong domain and skill overlap.</div>
+            <a href="#" class="dc-apply">View job →</a>
           </div>
+        </div>
+      </div>
 
-          <!-- Name -->
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">First Name</label>
-              <input type="text" id="firstName" name="firstName" placeholder="Aman"
-                class="w-full px-4 py-3 bg-white border border-neutral-200/70 rounded-xl text-sm font-medium text-neutral-800 placeholder-neutral-300 focus:border-indigo-400 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            </div>
-            <div>
-              <label class="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Last Name</label>
-              <input type="text" id="lastName" name="lastName" placeholder="Khandelwal"
-                class="w-full px-4 py-3 bg-white border border-neutral-200/70 rounded-xl text-sm font-medium text-neutral-800 placeholder-neutral-300 focus:border-indigo-400 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            </div>
+      <!-- Card 3 -->
+      <div class="digest-card dc3">
+        <div class="dc-label" style="color: var(--ink3);">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          New · via iimjobs
+        </div>
+        <div class="digest-card-inner">
+          <div class="dc-source-icon" style="width:44px;height:44px;border-radius:12px;background:rgba(0,184,122,0.08);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">📊</div>
+          <div class="dc-info">
+            <div class="dc-title">AVP — Product Strategy</div>
+            <div class="dc-company">PhonePe · Bengaluru</div>
+            <div class="dc-reason" style="margin-top:6px;">Strategy role in digital payments — aligns with your experience level.</div>
           </div>
+        </div>
+      </div>
 
-          <!-- Email -->
+      <!-- Source pills -->
+      <div class="source-pill sp1">📌 LinkedIn</div>
+      <div class="source-pill sp2">🔍 Naukri</div>
+      <div class="source-pill sp3">🚀 Wellfound</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ HOW IT WORKS ═══════════════ -->
+<section class="how reveal" id="how">
+  <div class="section-label">How it works</div>
+  <h2>Set up once.<br>Jobs come to you.</h2>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-icon">📄</div>
+      <div class="step-title">Upload your resume</div>
+      <div class="step-desc">Drop your PDF or DOCX. We extract your role, skills, experience, domain and location automatically. Done in seconds — no manual forms.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-icon">🤖</div>
+      <div class="step-title">AI searches for you</div>
+      <div class="step-desc">We scan LinkedIn, Naukri, iimjobs, Wellfound, Adzuna and Google Jobs daily. Every role is filtered against your profile by AI — no junk, no irrelevant listings.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-icon">📬</div>
+      <div class="step-title">Relevant jobs, in your inbox</div>
+      <div class="step-desc">You receive only the roles that genuinely fit — with a plain-English reason for each match and a personalised pitch you can send straight to the recruiter.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ SIGNUP FORM ═══════════════ -->
+<section class="form-section reveal" id="signup">
+  <div class="section-label">Get started</div>
+  <h2>Your personal job scout<br>starts here.</h2>
+  <p class="form-sub">Upload your resume. We handle the searching — you just review and apply.</p>
+
+  <div class="form-card">
+    <div class="form-topbar">
+      <span class="form-topbar-title">Profile Activation</span>
+      <span class="form-topbar-badge">Free Beta</span>
+    </div>
+    <div class="form-body">
+
+      <!-- Progress dots -->
+      <div class="step-dots" id="stepDots">
+        <div class="step-dot active" id="dot1"></div>
+        <div class="step-dot idle"   id="dot2"></div>
+        <div class="step-dot idle"   id="dot3"></div>
+      </div>
+
+      <!-- ── Step 1: Upload ── -->
+      <div id="s1">
+        <p style="font-size:15px;font-weight:700;margin-bottom:4px;">Upload your resume</p>
+        <p style="font-size:13px;color:var(--ink3);margin-bottom:20px;">PDF or DOCX · We extract your details automatically</p>
+
+        <div class="upload-zone" id="dropzone">
+          <input type="file" id="resumeFile" accept=".pdf,.doc,.docx" />
+          <div class="upload-icon">📎</div>
+          <div class="upload-title">Drop your resume here</div>
+          <div class="upload-sub">or <strong>click to browse</strong> · PDF or DOCX, max 5MB</div>
+        </div>
+
+        <div class="parsing-state" id="parsingState">
+          <div class="parsing-spinner"></div>
+          <div class="parsing-text">Reading your resume…</div>
+        </div>
+      </div>
+
+      <!-- ── Step 2: Profile ── -->
+      <div id="s2">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+          <div style="width:32px;height:32px;border-radius:10px;background:rgba(0,184,122,0.1);display:flex;align-items:center;justify-content:center;font-size:16px;">✓</div>
           <div>
-            <label class="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Email Address <span class="text-indigo-400">*</span></label>
-            <input type="email" id="email" name="email" placeholder="aman@gmail.com"
-              class="w-full px-4 py-3 bg-white border border-neutral-200/70 rounded-xl text-sm font-medium text-neutral-800 placeholder-neutral-300 focus:border-indigo-400 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            <p class="text-[11px] text-neutral-400 mt-1 ml-0.5">Matches are delivered here every morning</p>
+            <div style="font-size:13px;font-weight:700;color:var(--green);">Resume parsed</div>
+            <div style="font-size:11px;color:var(--ink3);" id="resumeFilename">Review and confirm your details</div>
           </div>
+        </div>
 
-          <!-- Phone + Location -->
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Phone Number</label>
-              <input type="tel" id="phone" name="phone" placeholder="+91 98765 43210"
-                class="w-full px-4 py-3 bg-white border border-neutral-200/70 rounded-xl text-sm font-medium text-neutral-800 placeholder-neutral-300 focus:border-indigo-400 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            </div>
-            <div>
-              <label class="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Preferred Location <span class="text-indigo-400">*</span></label>
-              <select id="location" name="location"
-                class="w-full px-4 py-3 bg-white border border-neutral-200/70 rounded-xl text-sm font-medium text-neutral-800 focus:border-indigo-400 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)] appearance-none cursor-pointer">
-                <option value="" disabled selected>Select city…</option>
-                <option>Bengaluru</option>
-                <option>Mumbai</option>
-                <option>Delhi NCR</option>
-                <option>Hyderabad</option>
-                <option>Chennai</option>
-                <option>Pune</option>
-                <option>Kolkata</option>
-                <option>Gurugram</option>
-                <option>Noida</option>
-                <option>Ahmedabad</option>
-                <option>Jaipur</option>
-                <option>Remote</option>
-                <option>Open to All</option>
-              </select>
-            </div>
+        <div class="form-row">
+          <div class="field">
+            <label>First name</label>
+            <input type="text" id="firstName" placeholder="Priya" />
           </div>
-
-          <!-- Industry -->
-          <div>
-            <label class="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Industry / Target Domain <span class="text-indigo-400">*</span></label>
-            <select id="industry" name="industry"
-              class="w-full px-4 py-3 bg-white border border-neutral-200/70 rounded-xl text-sm font-medium text-neutral-800 focus:border-indigo-400 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)] appearance-none cursor-pointer">
-              <option value="" disabled selected>Select industry…</option>
+          <div class="field">
+            <label>Last name</label>
+            <input type="text" id="lastName" placeholder="Sharma" />
+          </div>
+        </div>
+        <div class="form-row single">
+          <div class="field">
+            <label>Email address</label>
+            <input type="email" id="email" placeholder="priya@example.com" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>Industry / Domain</label>
+            <select id="industry">
+              <option value="">Select your domain</option>
               <option>Fintech</option>
               <option>Product Management</option>
               <option>SaaS / B2B</option>
               <option>E-commerce</option>
               <option>EdTech</option>
               <option>HealthTech</option>
-              <option>Data & Analytics</option>
+              <option>Data &amp; Analytics</option>
               <option>Software Engineering</option>
-              <option>Marketing & Growth</option>
-              <option>Operations & Supply Chain</option>
-              <option>HR & Talent</option>
-              <option>Banking & Finance</option>
+              <option>Marketing &amp; Growth</option>
+              <option>Operations &amp; Supply Chain</option>
+              <option>HR &amp; Talent</option>
+              <option>Banking &amp; Finance</option>
               <option>Consulting</option>
-              <option>Sales & Business Development</option>
+              <option>Sales &amp; Business Development</option>
               <option>Other</option>
             </select>
           </div>
-
-          <!-- ── STEP 3: Plans ── -->
-          <div id="plans" class="pt-2">
-            <div class="flex items-center gap-2 mb-4">
-              <div class="h-px flex-1 bg-neutral-200/60"></div>
-              <span class="text-[11px] font-bold uppercase tracking-widest text-neutral-400">Choose Your Plan</span>
-              <div class="h-px flex-1 bg-neutral-200/60"></div>
-            </div>
-
-            <div class="grid grid-cols-3 gap-3" id="planGrid">
-
-              <!-- Basic -->
-              <div class="plan-card border-2 border-neutral-200 rounded-2xl p-4 text-left" data-plan="basic" onclick="selectPlan(this)">
-                <div class="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-3">Basic</div>
-                <div class="text-2xl font-extrabold text-neutral-900 mb-0.5">Free</div>
-                <div class="text-[11px] text-neutral-400 mb-4">Forever</div>
-                <ul class="space-y-1.5 text-[12px] text-neutral-600">
-                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 2 matches / day</li>
-                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> Email digest</li>
-                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 6 job boards</li>
-                  <li class="flex items-center gap-1.5 text-neutral-300"><span>✗</span> WhatsApp alerts</li>
-                  <li class="flex items-center gap-1.5 text-neutral-300"><span>✗</span> Priority scoring</li>
-                </ul>
-              </div>
-
-              <!-- Starter -->
-              <div class="plan-card border-2 border-neutral-200 rounded-2xl p-4 text-left relative" data-plan="starter" onclick="selectPlan(this)">
-                <div class="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">Popular</div>
-                <div class="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-3">Starter</div>
-                <div class="text-2xl font-extrabold text-neutral-900 mb-0.5">₹49<span class="text-sm font-medium text-neutral-400">/mo</span></div>
-                <div class="text-[11px] text-neutral-400 mb-4">Billed monthly</div>
-                <ul class="space-y-1.5 text-[12px] text-neutral-600">
-                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 5 matches / day</li>
-                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> Email digest</li>
-                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 6 job boards</li>
-                  <li class="flex items-center gap-1.5 text-neutral-300"><span>✗</span> WhatsApp alerts</li>
-                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> Priority scoring</li>
-                </ul>
-              </div>
-
-              <!-- Pro -->
-              <div class="plan-card border-2 border-neutral-200 rounded-2xl p-4 text-left" data-plan="pro" onclick="selectPlan(this)">
-                <div class="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-3">Pro</div>
-                <div class="text-2xl font-extrabold text-neutral-900 mb-0.5">₹99<span class="text-sm font-medium text-neutral-400">/mo</span></div>
-                <div class="text-[11px] text-neutral-400 mb-4">Billed monthly</div>
-                <ul class="space-y-1.5 text-[12px] text-neutral-600">
-                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 8 matches / day</li>
-                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> Email digest</li>
-                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> 6 job boards</li>
-                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> WhatsApp alerts</li>
-                  <li class="flex items-center gap-1.5"><span class="text-emerald-500">✓</span> Priority scoring</li>
-                </ul>
-              </div>
-
-            </div>
-            <p id="planError" class="hidden text-xs text-red-500 font-medium mt-2 text-center">Please select a plan to continue.</p>
+          <div class="field">
+            <label>Preferred city</label>
+            <select id="location">
+              <option value="">Select city</option>
+              <option>Bengaluru</option>
+              <option>Mumbai</option>
+              <option>Delhi NCR</option>
+              <option>Hyderabad</option>
+              <option>Chennai</option>
+              <option>Pune</option>
+              <option>Kolkata</option>
+              <option>Gurugram</option>
+              <option>Noida</option>
+              <option>Ahmedabad</option>
+              <option>Jaipur</option>
+              <option>Remote</option>
+              <option>Open to All</option>
+            </select>
           </div>
-
-          <!-- ── Consent ── -->
-          <div class="bg-neutral-100/60 border border-neutral-200/60 rounded-xl p-4">
-            <label class="flex items-start gap-3 cursor-pointer">
-              <input type="checkbox" id="consentBox" class="mt-0.5 w-4 h-4 rounded border-neutral-300 accent-indigo-600 cursor-pointer flex-shrink-0">
-              <span class="text-xs text-neutral-500 leading-relaxed">
-                I agree to the <a href="#" class="text-indigo-600 font-semibold hover:underline">Terms of Service</a> and
-                <a href="#" class="text-indigo-600 font-semibold hover:underline">Privacy Policy</a>.
-                I consent to receiving job match emails every morning and understand I can unsubscribe at any time.
-                For Pro plan users, I consent to receiving WhatsApp notifications on the number provided.
-              </span>
-            </label>
-          </div>
-          <p id="consentError" class="hidden text-xs text-red-500 font-medium -mt-3 ml-1">Please accept the terms to continue.</p>
-
-          <!-- Error message -->
-          <p id="errorMsg" class="hidden text-sm text-red-500 font-medium text-center"></p>
-
-          <!-- Success state -->
-          <div id="successMsg" class="hidden bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center">
-            <div class="text-2xl mb-2">🎉</div>
-            <p class="font-semibold text-emerald-800 mb-1">Stream activated.</p>
-            <p class="text-sm text-emerald-600">Your first digest arrives every morning. Check your inbox.</p>
-          </div>
-
-          <!-- Submit button -->
-          <button type="button" id="submitBtn" onclick="submitForm()"
-            class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-sm py-4 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-all flex items-center justify-center gap-2 active:scale-[0.99]">
-            <span id="btnLabel">Begin Morning Match Streaming</span>
-            <svg id="btnArrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75"/>
-            </svg>
-            <svg id="btnSpinner" class="hidden w-4 h-4 spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-            </svg>
-          </button>
-
-          <p class="text-center text-[11px] text-neutral-400">No spam &nbsp;·&nbsp; Unsubscribe anytime &nbsp;·&nbsp; Your data is never sold</p>
         </div>
 
+        <!-- Plan selector -->
+        <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink3);margin-bottom:12px;">Choose your plan</p>
+        <div class="plan-grid" id="planGrid">
+          <div class="plan-opt selected" data-plan="Basic" onclick="selectPlan(this)">
+            <input type="radio" name="plan" value="Basic" checked />
+            <div class="plan-badge free">Free</div>
+            <div class="plan-opt-name">Basic</div>
+            <div class="plan-opt-price">₹0 <span>/ mo</span></div>
+            <div class="plan-opt-feat">2 matches/day<br>Email digest</div>
+          </div>
+          <div class="plan-opt" data-plan="Starter" onclick="selectPlan(this)">
+            <input type="radio" name="plan" value="Starter" />
+            <div class="plan-opt-name">Starter</div>
+            <div class="plan-opt-price">₹49 <span>/ mo</span></div>
+            <div class="plan-opt-feat">5 matches/day<br>Priority scoring</div>
+          </div>
+          <div class="plan-opt" data-plan="Pro" onclick="selectPlan(this)">
+            <input type="radio" name="plan" value="Pro" />
+            <div class="plan-badge pop">Popular</div>
+            <div class="plan-opt-name">Pro</div>
+            <div class="plan-opt-price">₹99 <span>/ mo</span></div>
+            <div class="plan-opt-feat">8 matches/day<br>Email + WhatsApp</div>
+          </div>
+        </div>
+
+        <div class="consent-row">
+          <input type="checkbox" id="consent" />
+          <label for="consent">I agree to receive daily job digest emails from JobMatch AI. I can unsubscribe at any time from any email.</label>
+        </div>
+
+        <div class="form-err" id="formErr"></div>
+
+        <button class="btn-submit" id="submitBtn" onclick="submitForm()">
+          <span id="submitLabel">Activate my digest →</span>
+        </button>
       </div>
+
+      <!-- ── Step 3: Success ── -->
+      <div id="s3">
+        <div class="success-icon">🎉</div>
+        <h3>You're all set!</h3>
+        <p id="successMsg">Your profile is live. Matched jobs are on their way.<br>Check your inbox — a welcome email is heading your way now.</p>
+        <p style="font-size:12px;color:var(--ink3);margin-top:16px;">Sit back — your AI job scout is already on the case. 🎯</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ PLANS ═══════════════ -->
+<section class="plans-section reveal" id="plans">
+  <div class="section-label">Pricing</div>
+  <h2>Start free. Scale when ready.</h2>
+  <p class="plans-sub">No credit card needed for Basic. Cancel anytime.</p>
+  <div class="plans-grid">
+
+    <div class="plan-card">
+      <div class="plan-name">Basic</div>
+      <div class="plan-price">₹0</div>
+      <span class="plan-period">forever free</span>
+      <div class="plan-divider"></div>
+      <ul class="plan-features">
+        <li class="plan-feature">2 AI-matched jobs per day</li>
+        <li class="plan-feature">Daily email digest</li>
+        <li class="plan-feature">All 6 job platforms</li>
+        <li class="plan-feature">Zero duplicate listings</li>
+      </ul>
+      <a href="#signup" class="plan-btn">Get started free</a>
     </div>
 
-    <!-- STATS ROW -->
-    <div class="flex flex-wrap items-center justify-center gap-x-10 gap-y-3 mt-12 text-neutral-500 text-xs font-semibold tracking-wider uppercase fade-in" style="animation-delay:.2s">
-      <div class="flex items-center gap-2">
-        <span class="text-neutral-900 font-bold text-sm" id="statUsers">—</span><span>Active Users</span>
-      </div>
-      <div class="w-1.5 h-1.5 rounded-full bg-neutral-300 hidden md:block"></div>
-      <div class="flex items-center gap-2">
-        <span class="text-neutral-900 font-bold text-sm">6+</span><span>Job Boards</span>
-      </div>
-      <div class="w-1.5 h-1.5 rounded-full bg-neutral-300 hidden md:block"></div>
-      <div class="flex items-center gap-2">
-        <span class="text-neutral-900 font-bold text-sm">Every Morning</span><span>Delivery</span>
-      </div>
-      <div class="w-1.5 h-1.5 rounded-full bg-neutral-300 hidden md:block"></div>
-      <div class="flex items-center gap-2">
-        <span class="text-neutral-900 font-bold text-sm">10-Signal</span><span>Scoring</span>
-      </div>
-      <div class="w-1.5 h-1.5 rounded-full bg-neutral-300 hidden md:block"></div>
-      <div class="flex items-center gap-2">
-        <span class="text-neutral-900 font-bold text-sm">55+</span><span>Quality Cutoff</span>
-      </div>
+    <div class="plan-card featured">
+      <div class="plan-card-pop">Most popular</div>
+      <div class="plan-name">Pro</div>
+      <div class="plan-price">₹99</div>
+      <span class="plan-period">per month</span>
+      <div class="plan-divider" style="background:rgba(255,255,255,0.1)"></div>
+      <ul class="plan-features">
+        <li class="plan-feature">8 AI-matched jobs per day</li>
+        <li class="plan-feature">Email + WhatsApp alerts</li>
+        <li class="plan-feature">Priority processing</li>
+        <li class="plan-feature">All 6 job platforms</li>
+        <li class="plan-feature">Zero duplicate listings</li>
+      </ul>
+      <a href="#signup" class="plan-btn">Start with Pro</a>
     </div>
 
-  </main>
-
-  <!-- CONTACT SECTION -->
-  <section id="contact" class="max-w-2xl w-full mx-auto px-6 py-12 fade-in" style="animation-delay:.3s">
-    <div class="glass rounded-[24px] border border-white/80 shadow-[0_8px_30px_rgba(0,0,0,0.05)] p-8">
-      <div class="flex items-center gap-2 mb-6">
-        <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
-        <span class="text-xs font-bold uppercase tracking-widest text-neutral-400">Get in Touch</span>
-      </div>
-      <h2 class="text-2xl font-bold text-neutral-900 tracking-tight mb-2">Questions? We're here.</h2>
-      <p class="text-sm text-neutral-500 mb-7 leading-relaxed">Reach out anytime — we typically respond within a few hours.</p>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <a href="mailto:hello@jobmatchai.co.in"
-          class="flex items-center gap-3 bg-white border border-neutral-200 rounded-2xl px-5 py-4 hover:border-indigo-300 transition group shadow-sm">
-          <div class="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-100 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4.5 h-4.5 text-indigo-600 w-5 h-5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/>
-            </svg>
-          </div>
-          <div>
-            <p class="text-[11px] font-bold uppercase tracking-widest text-neutral-400 mb-0.5">Email</p>
-            <p class="text-sm font-semibold text-neutral-800">hello@jobmatchai.co.in</p>
-          </div>
-        </a>
-        <a href="https://wa.me/917503061534"
-          class="flex items-center gap-3 bg-white border border-neutral-200 rounded-2xl px-5 py-4 hover:border-emerald-300 transition group shadow-sm">
-          <div class="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-100 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-emerald-600">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-            </svg>
-          </div>
-          <div>
-            <p class="text-[11px] font-bold uppercase tracking-widest text-neutral-400 mb-0.5">WhatsApp</p>
-            <p class="text-sm font-semibold text-neutral-800">+91 75030 61534</p>
-          </div>
-        </a>
-      </div>
+    <div class="plan-card">
+      <div class="plan-name">Starter</div>
+      <div class="plan-price">₹49</div>
+      <span class="plan-period">per month</span>
+      <div class="plan-divider"></div>
+      <ul class="plan-features">
+        <li class="plan-feature">5 AI-matched jobs per day</li>
+        <li class="plan-feature">Daily email digest</li>
+        <li class="plan-feature">Priority processing</li>
+        <li class="plan-feature">All 6 job platforms</li>
+        <li class="plan-feature">Zero duplicate listings</li>
+      </ul>
+      <a href="#signup" class="plan-btn">Start with Starter</a>
     </div>
-  </section>
 
-  <!-- FOOTER -->
-  <footer class="max-w-7xl w-full mx-auto px-8 py-5 flex flex-col sm:flex-row justify-between items-center text-[11px] font-medium tracking-wider text-neutral-400 uppercase gap-2 border-t border-neutral-300/30">
-    <div>© 2026 JobMatch AI Engine · Made in India 🇮🇳</div>
-    <div class="flex gap-4">
-      <a href="#" class="hover:text-neutral-600 transition">Privacy</a>
-      <span>·</span>
-      <a href="#" class="hover:text-neutral-600 transition">Terms</a>
+  </div>
+</section>
+
+<!-- ═══════════════ CONTACT ═══════════════ -->
+<section class="contact reveal" id="contact">
+  <div class="contact-card">
+    <div class="contact-left">
+      <h3>Have questions?<br>We'd love to help.</h3>
+      <p>Drop us a message anytime — we usually reply within a few hours.</p>
     </div>
-  </footer>
+    <div class="contact-links">
+      <a href="mailto:hello@jobmatchai.co.in" class="contact-link">
+        <div class="contact-link-icon" style="background:rgba(255,74,28,0.15)">✉️</div>
+        <div class="contact-link-text">
+          <div class="cl-label">Email</div>
+          <div class="cl-value">hello@jobmatchai.co.in</div>
+        </div>
+      </a>
+      <a href="https://wa.me/917503061534" target="_blank" class="contact-link">
+        <div class="contact-link-icon" style="background:rgba(0,184,122,0.15)">💬</div>
+        <div class="contact-link-text">
+          <div class="cl-label">WhatsApp</div>
+          <div class="cl-value">+91 75030 61534</div>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
 
-  <script>
-    let selectedPlan = null;
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer>
+  <div class="f-logo">JobMatch AI</div>
+  <p>© 2026 JobMatch AI · Built for every job seeker in India</p>
+  <p>hello@jobmatchai.co.in</p>
+</footer>
 
-    // ── Live user count from Airtable via /api/stats ──────────────────────────
-    async function fetchStats() {
-      try {
-        const res  = await fetch('https://jobmatch-ai-z19k.onrender.com/api/stats');
-        const data = await res.json();
-        if (data.ok && data.activeUsers != null) {
-          const n = data.activeUsers.toLocaleString('en-IN');
-          document.getElementById('liveCount').textContent = `${n} active users`;
-          document.getElementById('statUsers').textContent  = n;
-        }
-      } catch (_) { /* fail silently — shows "—" */ }
+<!-- ═══════════════ SCRIPTS ═══════════════ -->
+<script>
+const API = 'https://jobmatch-ai-z19k.onrender.com';
+
+/* ── Live user count ── */
+async function loadStats() {
+  try {
+    const r = await fetch(`${API}/api/stats`);
+    if (!r.ok) throw new Error();
+    const d = await r.json();
+    const n = d.activeUsers || 0;
+    document.getElementById('liveCount').textContent = n.toLocaleString('en-IN') + ' job seekers';
+  } catch {
+    document.getElementById('liveCount').textContent = '100+ job seekers';
+  }
+}
+loadStats();
+
+/* ── Marquee ── */
+const sources = ['LinkedIn', 'Naukri', 'iimjobs', 'Wellfound', 'Adzuna', 'Google Jobs', 'Zero duplicates ever', 'AI-powered matching', 'Fresh jobs daily', 'All of India covered'];
+const track = document.getElementById('marqueeTrack');
+const items = [...sources, ...sources].map(s => `<div class="marquee-item"><div class="mi-dot"></div>${s}</div>`).join('');
+track.innerHTML = items + items; // double for seamless loop
+
+/* ── Scroll reveals ── */
+document.querySelectorAll('.reveal').forEach(el => el.classList.add('hidden'));
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.remove('hidden');
+      observer.unobserve(e.target);
     }
-    fetchStats();
+  });
+}, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
-    // ── Plan selection ────────────────────────────────────────────────────────
-    function selectPlan(card) {
-      document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
-      selectedPlan = card.dataset.plan;
-      document.getElementById('planError').classList.add('hidden');
-    }
+/* ── Plan selector ── */
+let selectedPlan = 'Basic';
+function selectPlan(el) {
+  document.querySelectorAll('.plan-opt').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedPlan = el.dataset.plan;
+  el.querySelector('input[type=radio]').checked = true;
+}
 
-    // ── Resume upload + parsing ───────────────────────────────────────────────
-    document.getElementById('resumeFile').addEventListener('change', async function () {
-      const file = this.files[0];
-      if (!file) return;
+/* ── Form state ── */
+let parsed = null;
 
-      // Show parsing state
-      document.getElementById('uploadIdle').classList.add('hidden');
-      document.getElementById('uploadParsing').classList.remove('hidden');
-      document.getElementById('uploadParsing').classList.add('flex');
-      document.getElementById('dropzone').classList.remove('border-dashed', 'border-neutral-300');
-      document.getElementById('dropzone').classList.add('border-solid', 'border-indigo-300', 'bg-white/80');
+function showStep(n) {
+  ['s1','s2','s3'].forEach((id, i) => {
+    document.getElementById(id).style.display = i === n - 1 ? 'block' : 'none';
+  });
+  ['dot1','dot2','dot3'].forEach((id, i) => {
+    const dot = document.getElementById(id);
+    dot.className = 'step-dot ' + (i < n - 1 ? 'done' : i === n - 1 ? 'active' : 'idle');
+  });
+}
 
-      let parsed = {};
-      try {
-        const fd = new FormData();
-        fd.append('resume', file);
-        const res = await fetch('https://jobmatch-ai-z19k.onrender.com/api/parse-resume', {
-          method: 'POST', body: fd
-        });
-        if (res.ok) parsed = await res.json();
-      } catch (_) { /* fallback to manual entry */ }
+/* ── Resume upload ── */
+const dropzone  = document.getElementById('dropzone');
+const fileInput = document.getElementById('resumeFile');
+const parsing   = document.getElementById('parsingState');
 
-      // Show done state
-      document.getElementById('uploadParsing').classList.add('hidden');
-      document.getElementById('uploadParsing').classList.remove('flex');
-      document.getElementById('uploadDone').classList.remove('hidden');
-      document.getElementById('uploadDone').classList.add('flex');
-      document.getElementById('uploadFileName').textContent = file.name;
-      document.getElementById('uploadNote').textContent = Object.keys(parsed).length
-        ? 'details extracted — please review'
-        : 'please fill in your details below';
+['dragenter','dragover'].forEach(e => dropzone.addEventListener(e, ev => { ev.preventDefault(); dropzone.classList.add('drag'); }));
+['dragleave','drop'].forEach(e => dropzone.addEventListener(e, ev => { ev.preventDefault(); dropzone.classList.remove('drag'); }));
+dropzone.addEventListener('drop', ev => { const f = ev.dataTransfer.files[0]; if (f) handleFile(f); });
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
 
-      // Pre-populate if we got data
+async function handleFile(file) {
+  dropzone.style.display = 'none';
+  parsing.style.display  = 'block';
+
+  try {
+    const fd = new FormData();
+    fd.append('resume', file);
+    const res = await fetch(`${API}/api/parse-resume`, { method: 'POST', body: fd });
+    if (res.ok) {
+      parsed = await res.json();
       if (parsed.firstName) document.getElementById('firstName').value = parsed.firstName;
       if (parsed.lastName)  document.getElementById('lastName').value  = parsed.lastName;
       if (parsed.email)     document.getElementById('email').value     = parsed.email;
-      if (parsed.phone)     document.getElementById('phone').value     = parsed.phone;
+    }
+  } catch {}
 
-      // Reveal step 2
-      document.getElementById('step2').classList.remove('hidden');
-      document.getElementById('step2').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  document.getElementById('resumeFilename').textContent = file.name;
+  showStep(2);
+}
+
+/* ── Form submit ── */
+async function submitForm() {
+  const firstName = document.getElementById('firstName').value.trim();
+  const lastName  = document.getElementById('lastName').value.trim();
+  const email     = document.getElementById('email').value.trim();
+  const industry  = document.getElementById('industry').value;
+  const location  = document.getElementById('location').value;
+  const consent   = document.getElementById('consent').checked;
+  const errEl     = document.getElementById('formErr');
+
+  errEl.style.display = 'none';
+
+  if (!firstName) return showErr('Please enter your first name.');
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showErr('Please enter a valid email address.');
+  if (!industry) return showErr('Please select your industry.');
+  if (!location) return showErr('Please select your preferred city.');
+  if (!consent) return showErr('Please accept the terms to continue.');
+
+  const btn = document.getElementById('submitBtn');
+  const lbl = document.getElementById('submitLabel');
+  btn.disabled = true;
+  lbl.textContent = 'Setting up your profile…';
+
+  try {
+    const res = await fetch(`${API}/api/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: `${firstName} ${lastName}`.trim(),
+        email,
+        industry,
+        location,
+        plan: selectedPlan,
+      }),
     });
 
-    // ── Submit ────────────────────────────────────────────────────────────────
-    async function submitForm() {
-      const errorMsg  = document.getElementById('errorMsg');
-      const successMsg = document.getElementById('successMsg');
-      const planErr   = document.getElementById('planError');
-      const consentErr = document.getElementById('consentError');
-      const btn       = document.getElementById('submitBtn');
-      const btnLabel  = document.getElementById('btnLabel');
-      const btnArrow  = document.getElementById('btnArrow');
-      const btnSpin   = document.getElementById('btnSpinner');
+    const data = await res.json();
 
-      errorMsg.classList.add('hidden');
-      planErr.classList.add('hidden');
-      consentErr.classList.add('hidden');
-
-      const firstName = document.getElementById('firstName').value.trim();
-      const lastName  = document.getElementById('lastName').value.trim();
-      const email     = document.getElementById('email').value.trim();
-      const location  = document.getElementById('location').value.trim();
-      const industry  = document.getElementById('industry').value.trim();
-      const consent   = document.getElementById('consentBox').checked;
-
-      // Validate
-      let valid = true;
-      if (!email || !location || !industry) {
-        errorMsg.textContent = 'Please fill in all required fields (marked with *).';
-        errorMsg.classList.remove('hidden');
-        valid = false;
-      }
-      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        errorMsg.textContent = 'Please enter a valid email address.';
-        errorMsg.classList.remove('hidden');
-        valid = false;
-      }
-      if (!selectedPlan) {
-        planErr.classList.remove('hidden');
-        valid = false;
-      }
-      if (!consent) {
-        consentErr.classList.remove('hidden');
-        valid = false;
-      }
-      if (!valid) return;
-
-      // Loading
-      btn.disabled = true;
-      btnLabel.textContent = 'Activating…';
-      btnArrow.classList.add('hidden');
-      btnSpin.classList.remove('hidden');
-
-      try {
-        const res = await fetch('https://jobmatch-ai-z19k.onrender.com/api/signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name:     `${firstName} ${lastName}`.trim() || email.split('@')[0],
-            email,
-            industry,
-            location,
-            plan: selectedPlan,
-          }),
-        });
-        const data = await res.json().catch(() => ({}));
-
-        if (res.ok && data.ok) {
-          document.getElementById('step2').querySelector('div.space-y-5, form')?.classList?.add('hidden');
-          // Hide form fields, show success
-          document.getElementById('firstName').closest('.grid').classList.add('hidden');
-          document.getElementById('email').closest('div').classList.add('hidden');
-          document.getElementById('phone').closest('.grid').classList.add('hidden');
-          document.getElementById('industry').closest('div').classList.add('hidden');
-          document.getElementById('planGrid').closest('div').classList.add('hidden');
-          document.querySelector('#step2 .bg-neutral-100\\/60').classList.add('hidden');
-          errorMsg.classList.add('hidden');
-          document.getElementById('consentError').classList.add('hidden');
-          btn.classList.add('hidden');
-          document.querySelector('#step2 .text-\\[11px\\].text-neutral-400').classList.add('hidden');
-          successMsg.classList.remove('hidden');
-          fetchStats(); // refresh user count
-        } else {
-          throw new Error(data.error || 'Something went wrong. Please try again.');
-        }
-      } catch (err) {
-        errorMsg.textContent = err.message;
-        errorMsg.classList.remove('hidden');
-        btn.disabled = false;
-        btnLabel.textContent = 'Begin Morning Match Streaming';
-        btnArrow.classList.remove('hidden');
-        btnSpin.classList.add('hidden');
-      }
+    if (res.ok && data.ok) {
+      document.getElementById('successMsg').textContent =
+        data.message || 'Your first digest lands tomorrow at 7AM. A welcome email is on its way.';
+      showStep(3);
+    } else {
+      showErr(data.error || 'Something went wrong. Please try again.');
+      btn.disabled = false;
+      lbl.textContent = 'Activate my digest →';
     }
-  </script>
+  } catch {
+    showErr('Network error — please check your connection and try again.');
+    btn.disabled = false;
+    lbl.textContent = 'Activate my digest →';
+  }
+}
+
+function showErr(msg) {
+  const el = document.getElementById('formErr');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+/* ── Keyboard submit ── */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('s2').style.display !== 'none') {
+    submitForm();
+  }
+});
+</script>
+
 </body>
 </html>
