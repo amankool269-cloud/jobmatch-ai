@@ -454,6 +454,46 @@
     #s3 h3 { font-size: 26px; font-weight: 800; margin-bottom: 10px; letter-spacing: -0.03em; }
     #s3 p  { font-size: 14px; color: var(--ink2); line-height: 1.7; }
 
+    /* ── Match polling status ── */
+    .match-status-bar {
+      display: flex; align-items: center; gap: 10px; justify-content: center;
+      font-size: 13px; font-weight: 600; color: var(--ink2);
+      margin: 20px 0 16px; min-height: 24px;
+    }
+    .match-spinner {
+      width: 16px; height: 16px; border: 2px solid var(--bg);
+      border-top-color: var(--orange); border-radius: 50%;
+      animation: spin .7s linear infinite; flex-shrink: 0;
+    }
+
+    /* ── Matched job cards (live preview) ── */
+    #matchCards { display: none; margin-top: 20px; text-align: left; }
+    .mc {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 14px; padding: 16px; margin-bottom: 10px;
+      transition: box-shadow .2s;
+    }
+    .mc:hover { box-shadow: var(--shadow); }
+    .mc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+    .mc-title   { font-size: 14px; font-weight: 700; color: var(--ink); }
+    .mc-company { font-size: 12px; color: var(--ink3); margin-top: 2px; }
+    .mc-score {
+      font-size: 13px; font-weight: 800; padding: 4px 10px;
+      border-radius: 99px; white-space: nowrap; flex-shrink: 0;
+    }
+    .mc-score.high   { background: rgba(0,184,122,0.12); color: #00875A; }
+    .mc-score.mid    { background: rgba(18,64,255,0.09); color: var(--blue); }
+    .mc-score.low    { background: rgba(0,0,0,0.06);     color: var(--ink3); }
+    .mc-reason { font-size: 12px; color: var(--ink2); line-height: 1.6; margin-bottom: 10px; }
+    .mc-apply {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 700; color: var(--ink);
+      background: var(--card); border: 1px solid var(--border);
+      padding: 5px 12px; border-radius: 8px; text-decoration: none;
+      transition: all .15s;
+    }
+    .mc-apply:hover { background: var(--ink); color: #fff; }
+
     /* ─── PLANS ───────────────────────────────── */
     .plans-section { max-width: 1200px; margin: 0 auto 100px; padding: 0 48px; }
     .plans-section .section-label { text-align: center; margin-bottom: 12px; }
@@ -951,12 +991,22 @@
         </button>
       </div>
 
-      <!-- ── Step 3: Success ── -->
+      <!-- ── Step 3: Success + live match preview ── -->
       <div id="s3">
         <div class="success-icon">🎉</div>
         <h3>You're all set!</h3>
-        <p id="successMsg">Your profile is live. Matched jobs are on their way.<br>Check your inbox — a welcome email is heading your way now.</p>
-        <p style="font-size:12px;color:var(--ink3);margin-top:16px;">Sit back — your AI job scout is already on the case. 🎯</p>
+        <p id="successMsg">Profile saved. We're scanning jobs for you right now.</p>
+
+        <!-- Live polling status -->
+        <div class="match-status-bar" id="matchStatusBar">
+          <div class="match-spinner" id="matchSpinner"></div>
+          <span id="matchStatusText">Finding your matches…</span>
+        </div>
+
+        <!-- Live job cards appear here -->
+        <div id="matchCards"></div>
+
+        <p style="font-size:12px;color:var(--ink3);margin-top:20px;">A welcome email is also on its way to your inbox. 📬</p>
       </div>
 
     </div>
@@ -1211,9 +1261,8 @@ async function submitForm() {
     const data = await res.json();
 
     if (res.ok && data.ok) {
-      document.getElementById('successMsg').textContent =
-        data.message || 'Your first digest lands tomorrow at 7AM. A welcome email is on its way.';
       showStep(3);
+      pollForMatches(email);
     } else {
       showErr(data.error || 'Something went wrong. Please try again.');
       btn.disabled = false;
@@ -1230,6 +1279,87 @@ function showErr(msg) {
   const el = document.getElementById('formErr');
   el.textContent = msg;
   el.style.display = 'block';
+}
+
+/* ── Live match polling (after signup) ── */
+async function pollForMatches(email) {
+  const statusText    = document.getElementById('matchStatusText');
+  const spinner       = document.getElementById('matchSpinner');
+  const matchCards    = document.getElementById('matchCards');
+  const statusBar     = document.getElementById('matchStatusBar');
+
+  const MAX_WAIT_MS   = 3 * 60 * 1000; // 3 minutes max
+  const POLL_INTERVAL = 6000;           // every 6 seconds
+  const startedAt     = Date.now();
+  let   lastCount     = 0;
+
+  const timer = setInterval(async () => {
+    try {
+      const r = await fetch(`${API}/api/matches?email=${encodeURIComponent(email)}`);
+      if (!r.ok) throw new Error('bad status');
+      const d = await r.json();
+
+      const matches = d.matches || [];
+      const elapsed = Math.round((Date.now() - startedAt) / 1000);
+
+      // New matches just arrived — render them
+      if (matches.length > lastCount) {
+        lastCount = matches.length;
+        renderMatchCards(matches, matchCards);
+        matchCards.style.display = 'block';
+      }
+
+      if (d.fresh && matches.length > 0) {
+        // All done — stop polling and update status
+        clearInterval(timer);
+        spinner.style.display = 'none';
+        statusText.textContent = `${matches.length} job${matches.length !== 1 ? 's' : ''} matched for you ✓`;
+        return;
+      }
+
+      // Still running — update status with elapsed time
+      const mins = Math.floor(elapsed / 60), secs = elapsed % 60;
+      const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+      statusText.textContent = matches.length > 0
+        ? `${matches.length} found so far · scanning more (${timeStr})`
+        : `Scanning 6 platforms… (${timeStr})`;
+
+      // Timeout — stop polling gracefully
+      if (Date.now() - startedAt > MAX_WAIT_MS) {
+        clearInterval(timer);
+        spinner.style.display = 'none';
+        if (matches.length === 0) {
+          statusBar.innerHTML = '<span style="color:var(--ink3)">No matches yet — your digest will arrive once jobs are scored. Check your inbox! 📬</span>';
+        } else {
+          statusText.textContent = `${matches.length} match${matches.length !== 1 ? 'es' : ''} found · more in your email digest`;
+          spinner.style.display = 'none';
+        }
+      }
+    } catch (_) {}
+  }, POLL_INTERVAL);
+}
+
+function renderMatchCards(matches, container) {
+  const scoreClass = s => s >= 80 ? 'high' : s >= 60 ? 'mid' : 'low';
+  container.innerHTML = matches.map(m => {
+    const title   = m.t || m.title   || '—';
+    const company = m.c || m.company || '';
+    const score   = m.s || m.score   || null;
+    const reason  = m.v || m.reason  || '';
+    const url     = m.u || m.url     || '';
+    return `
+      <div class="mc">
+        <div class="mc-head">
+          <div>
+            <div class="mc-title">${title}</div>
+            <div class="mc-company">${company}</div>
+          </div>
+          ${score !== null ? `<span class="mc-score ${scoreClass(score)}">${score}% match</span>` : ''}
+        </div>
+        ${reason ? `<div class="mc-reason">${reason}</div>` : ''}
+        ${url    ? `<a href="${url}" target="_blank" class="mc-apply">View job →</a>` : ''}
+      </div>`;
+  }).join('');
 }
 
 /* ── 3D interactive tilt on cards ── */
