@@ -94,6 +94,7 @@ app.get('/api/stats', async (_req, res) => {
         fetch(`${AT_API}?filterByFormula=${encodeURIComponent('AND({Status}="Active",NOT({LastRun}=""))')}&fields[]=LastRun&fields[]=LastMatches&maxRecords=1000`, { headers: atH() }),
       ]);
       const [ud, md] = await Promise.all([ur.json(), mr.json()]);
+      if (ud.error) throw new Error(`Airtable: ${ud.error.type || ud.error.message || JSON.stringify(ud.error)}`);
       const today = new Date().toISOString().slice(0, 10);
       let matchesToday = 0;
       for (const r of md.records || []) {
