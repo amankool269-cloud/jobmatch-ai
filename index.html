@@ -1103,7 +1103,10 @@
 
 <!-- ═══════════════ SCRIPTS ═══════════════ -->
 <script>
-const API = 'https://jobmatch-ai-z19k.onrender.com';
+// Use same-origin in production (page served by Express); absolute URL only in local dev
+const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'https://jobmatch-ai-z19k.onrender.com'
+  : '';
 
 /* ── Live user count ── */
 async function loadStats() {

@@ -90,8 +90,8 @@ app.get('/api/stats', async (_req, res) => {
     const now = Date.now();
     if (!_cache || now - _cacheAt > 5 * 60 * 1000) {
       const [ur, mr] = await Promise.all([
-        fetch(`${AT_API}?fields[]=Email&maxRecords=1000`, { headers: atH() }),
-        fetch(`${AT_API}?filterByFormula=${encodeURIComponent('AND({Status}="Active",NOT({LastRun}=""))')}&fields[]=LastRun&fields[]=LastMatches&maxRecords=1000`, { headers: atH() }),
+        fetch(`${AT_API}?fields%5B%5D=Email&maxRecords=1000`, { headers: atH() }),
+        fetch(`${AT_API}?filterByFormula=${encodeURIComponent('AND({Status}="Active",NOT({LastRun}=""))')}&fields%5B%5D=LastRun&fields%5B%5D=LastMatches&maxRecords=1000`, { headers: atH() }),
       ]);
       const [ud, md] = await Promise.all([ur.json(), mr.json()]);
       if (ud.error) throw new Error(`Airtable: ${ud.error.type || ud.error.message || JSON.stringify(ud.error)}`);
