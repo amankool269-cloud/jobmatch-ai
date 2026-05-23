@@ -155,8 +155,65 @@ app.post('/api/parse-resume', upload.single('resume'), async (req, res) => {
       }
     }
 
-    console.log(`[parse-resume] name="${firstName} ${lastName}" email=${email} phone=${phone}`);
-    res.json({ ok: true, firstName, lastName, email, phone });
+    // ── Claude-powered extraction (if ANTHROPIC_API_KEY is set) ──────────────
+    const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
+    if (ANTHROPIC_KEY && text.length > 100) {
+      try {
+        const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': ANTHROPIC_KEY,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-20240307',
+            max_tokens: 512,
+            messages: [{
+              role: 'user',
+              content: `Extract info from this resume. Reply ONLY with a single JSON object, no markdown, no explanation:
+{"firstName":"","lastName":"","email":"","phone":"","currentRole":"","targetRole":"","skills":[],"yearsExp":0,"location":""}
+
+Rules:
+- targetRole: what they want next (infer from profile summary / objective if present)
+- currentRole: their most recent job title
+- skills: top 8 skills as short strings
+- yearsExp: total years of work experience as a number
+- location: city they are based in (Indian city preferred)
+- phone: Indian mobile number if present
+
+Resume (first 3000 chars):
+${text.slice(0, 3000)}`
+            }],
+          }),
+        });
+        if (aiRes.ok) {
+          const aiData = await aiRes.json();
+          const raw = aiData.content?.[0]?.text?.trim() || '';
+          const jsonStr = raw.match(/\{[\s\S]*\}/)?.[0] || '{}';
+          const ex = JSON.parse(jsonStr);
+          console.log(`[parse-resume] Claude extracted: ${ex.firstName} ${ex.lastName} / ${ex.currentRole}`);
+          return res.json({
+            ok: true,
+            firstName:   ex.firstName   || firstName,
+            lastName:    ex.lastName    || lastName,
+            email:       ex.email       || email,
+            phone:       ex.phone       || phone,
+            currentRole: ex.currentRole || '',
+            targetRole:  ex.targetRole  || '',
+            skills:      Array.isArray(ex.skills) ? ex.skills : [],
+            yearsExp:    ex.yearsExp    || 0,
+            location:    ex.location    || '',
+            source: 'claude',
+          });
+        }
+      } catch (aiErr) {
+        console.log('[parse-resume] Claude failed, using regex fallback:', aiErr.message);
+      }
+    }
+
+    console.log(`[parse-resume] regex: name="${firstName} ${lastName}" email=${email} phone=${phone}`);
+    res.json({ ok: true, firstName, lastName, email, phone, source: 'regex' });
   } catch (err) {
     console.error('[parse-resume] error:', err.message);
     res.status(500).json({ ok: false, error: 'Could not parse resume' });
@@ -287,7 +344,7 @@ app.options('/api/signup', (req, res) => {
 
 app.post('/api/signup', async (req, res) => {
   cors(res);
-  const { name, email, industry, location } = req.body || {};
+  const { name, email, industry, location, targetRole, currentRole, skills, yearsExp } = req.body || {};
 
   // Basic validation
   if (!name || !email) {
@@ -311,6 +368,11 @@ app.post('/api/signup', async (req, res) => {
       'Location':     (location || 'Bengaluru').trim(),
       'Cities':       (location || 'Bengaluru').trim(),
       'Status':       'Active',
+      // Enriched from Claude resume parsing (empty string = don't overwrite if already set)
+      ...(targetRole  ? { 'Target role':  targetRole.trim()  } : {}),
+      ...(currentRole ? { 'Current role': currentRole.trim() } : {}),
+      ...(Array.isArray(skills) && skills.length ? { 'Skills': skills.slice(0, 8).join(', ') } : {}),
+      ...(yearsExp    ? { 'YearsExp':     yearsExp            } : {}),
     };
 
     if (existing) {
@@ -420,6 +482,154 @@ app.get('/api/matches', async (req, res) => {
   }
 });
 
+// ── POST /api/signal — record a job interaction (click / apply / dismiss) ────
+// Called silently from the frontend whenever a user interacts with a match card.
+// Signals accumulate on the user's Airtable row as a rolling JSON array (last 200).
+app.post('/api/signal', async (req, res) => {
+  cors(res);
+  const { email, jobTitle, jobScore, action } = req.body || {};
+  // action: 'click' | 'apply' | 'dismiss'
+  if (!email || !action) return res.status(400).json({ ok: false, error: 'email and action required' });
+
+  try {
+    const user = await findUser(email);
+    if (!user) return res.json({ ok: false, error: 'User not found' });
+
+    const signals = (() => { try { return JSON.parse(user.fields?.Signals || '[]'); } catch { return []; } })();
+    signals.push({ t: jobTitle || '', s: jobScore || 0, a: action, ts: Date.now() });
+    // Keep last 200 signals (rolling window)
+    if (signals.length > 200) signals.splice(0, signals.length - 200);
+
+    await patchUser(user.id, { Signals: JSON.stringify(signals) });
+    console.log(`[signal] ${email} → ${action} on "${jobTitle}" (score ${jobScore})`);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[signal] error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── GET /api/weights — personalized scoring weights for the Apify actor ──────
+// The Apify actor calls this before each scoring run (GET /api/weights?email=X).
+// Once a user has ≥10 click signals we shift away from defaults to learned weights.
+//
+// Default weights:  role 30 · skills 30 · exp 20 · domain 10 · loc 10
+// Broad user  (<65 avg click score):  more domain/loc, less role/skills
+// Precise user (>80 avg click score): tighten role+skills, relax loc
+app.get('/api/weights', async (req, res) => {
+  cors(res);
+  const { email } = req.query;
+  const defaults = { role: 30, skills: 30, exp: 20, domain: 10, loc: 10 };
+
+  if (!email) return res.json({ ok: true, weights: defaults, source: 'default' });
+
+  try {
+    const user = await findUser(email);
+    if (!user) return res.json({ ok: true, weights: defaults, source: 'default' });
+
+    const signals  = (() => { try { return JSON.parse(user.fields?.Signals || '[]'); } catch { return []; } })();
+    const positive = signals.filter(s => s.a === 'click' || s.a === 'apply');
+    const rating   = parseFloat(user.fields?.LastRating || '0');
+
+    // Not enough data yet
+    if (positive.length < 10) {
+      return res.json({
+        ok: true, weights: defaults, source: 'default',
+        signals: signals.length, positiveSignals: positive.length,
+        needed: Math.max(0, 10 - positive.length),
+      });
+    }
+
+    // Compute average score of jobs the user engaged with
+    const scores    = positive.map(s => s.s || 0).filter(s => s > 0);
+    const avgClick  = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 70;
+    const weights   = { ...defaults };
+
+    if (avgClick < 65) {
+      // User engages broadly — they care more about freshness/domain than exact title match
+      weights.role = 22; weights.skills = 25; weights.exp = 18; weights.domain = 20; weights.loc = 15;
+    } else if (avgClick > 82) {
+      // User only clicks very precise matches — tighten role+skills
+      weights.role = 35; weights.skills = 35; weights.exp = 15; weights.domain = 10; weights.loc = 5;
+    } else {
+      // Middle band — small nudge based on rating
+      if (rating >= 4) { weights.role = 32; weights.skills = 32; weights.exp = 18; weights.domain = 10; weights.loc = 8; }
+      if (rating <= 2) { weights.role = 28; weights.skills = 28; weights.exp = 18; weights.domain = 14; weights.loc = 12; }
+    }
+
+    // Normalise to 100
+    const sum = Object.values(weights).reduce((a, b) => a + b, 0);
+    if (sum !== 100) { const adj = 100 / sum; Object.keys(weights).forEach(k => { weights[k] = Math.round(weights[k] * adj); }); }
+
+    console.log(`[weights] ${email} → learned (avgClick=${avgClick.toFixed(1)}, signals=${signals.length})`);
+    res.json({
+      ok: true, weights, source: 'learned',
+      avgClickScore: Math.round(avgClick),
+      positiveSignals: positive.length,
+      totalSignals: signals.length,
+      rating: rating || null,
+    });
+  } catch (e) {
+    console.error('[weights] error:', e.message);
+    res.json({ ok: true, weights: defaults, source: 'default' });
+  }
+});
+
+// ── GET /api/insights — aggregate learning data across all users (admin) ─────
+// Visit: /api/insights?secret=<UNSUBSCRIBE_SECRET>
+app.get('/api/insights', async (req, res) => {
+  cors(res);
+  if (req.query.secret !== UNSUB_SECRET) return res.status(403).json({ ok: false, error: 'Forbidden' });
+
+  try {
+    const r  = await fetch(`${AT_API}?fields%5B%5D=Email&fields%5B%5D=Signals&fields%5B%5D=LastRating&fields%5B%5D=Domain&fields%5B%5D=Status&maxRecords=1000`, { headers: atH() });
+    const d  = await r.json();
+    if (d.error) throw new Error(JSON.stringify(d.error));
+
+    let totalSignals = 0, clicks = 0, applies = 0, dismisses = 0;
+    let ratingSum = 0, ratingCount = 0;
+    const scoreHistogram = {}; // '60': n, '70': n, etc.
+    const domainEngagement = {};
+
+    for (const rec of d.records || []) {
+      const sigs   = (() => { try { return JSON.parse(rec.fields?.Signals || '[]'); } catch { return []; } })();
+      const domain = rec.fields?.Domain || 'unknown';
+      totalSignals += sigs.length;
+      clicks       += sigs.filter(s => s.a === 'click').length;
+      applies      += sigs.filter(s => s.a === 'apply').length;
+      dismisses    += sigs.filter(s => s.a === 'dismiss').length;
+
+      for (const s of sigs.filter(s => s.a === 'click' || s.a === 'apply')) {
+        const bucket = String(Math.floor((s.s || 0) / 10) * 10);
+        scoreHistogram[bucket] = (scoreHistogram[bucket] || 0) + 1;
+      }
+      if (sigs.length > 0) domainEngagement[domain] = (domainEngagement[domain] || 0) + sigs.filter(s => s.a === 'click' || s.a === 'apply').length;
+
+      const rating = parseFloat(rec.fields?.LastRating || '');
+      if (!isNaN(rating) && rating > 0) { ratingSum += rating; ratingCount++; }
+    }
+
+    const activeUsers = (d.records || []).filter(r => r.fields?.Status === 'Active').length;
+    const usersWithSignals = (d.records || []).filter(r => r.fields?.Signals).length;
+
+    res.json({
+      ok: true,
+      totalUsers: (d.records || []).length,
+      activeUsers,
+      usersWithSignals,
+      signals: { total: totalSignals, clicks, applies, dismisses },
+      engagementRate: (clicks + applies + dismisses) > 0 ? ((clicks + applies) / (clicks + applies + dismisses) * 100).toFixed(1) + '%' : '—',
+      rating: ratingCount ? { avg: (ratingSum / ratingCount).toFixed(2), count: ratingCount } : null,
+      clicksByScore: scoreHistogram,      // which score buckets users actually click
+      clicksByDomain: domainEngagement,   // which industries engage most
+      asOf: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error('[insights] error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ── GET /health ───────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ ok: true, uptime: Math.round(process.uptime()) }));
 
@@ -450,15 +660,21 @@ app.listen(PORT, () => {
   console.log('  JobMatch AI server running on port', PORT);
   console.log('  ----------------------------------------');
   console.log('  GET  /              → index.html from repo root');
-  console.log('  GET  /api/ping      → always 200 (deployment test)');
-  console.log('  GET  /api/stats     → Airtable live counter');
-  console.log('  POST /api/signup    → create / update user in Airtable + welcome email');
-  console.log('  GET  /feedback      → email rating handler');
+  console.log('  GET  /api/ping      → health check');
+  console.log('  GET  /api/stats     → live user count');
+  console.log('  POST /api/parse-resume → PDF/DOCX extraction (Claude if key set)');
+  console.log('  POST /api/signup    → create/update user + welcome email + trigger actor');
+  console.log('  GET  /api/matches   → poll for user matches after signup');
+  console.log('  POST /api/signal    → record job click/apply/dismiss (self-learning)');
+  console.log('  GET  /api/weights   → personalized scoring weights for Apify actor');
+  console.log('  GET  /api/insights  → admin: aggregate signal + rating data');
+  console.log('  GET  /feedback      → star rating from email link');
   console.log('  GET  /unsubscribe   → unsubscribe handler');
   console.log('  GET  /dashboard     → user match dashboard');
   console.log('  GET  /profile       → profile edit form');
   console.log('  ----------------------------------------');
   console.log('  Airtable base :', AT_BASE  || '✗ MISSING — set AIRTABLE_BASE_ID');
   console.log('  Airtable token:', AT_TOKEN ? AT_TOKEN.slice(0,12)+'...' : '✗ MISSING — set AIRTABLE_TOKEN');
+  console.log('  Claude API    :', process.env.ANTHROPIC_API_KEY ? '✓ set (smart resume parsing)' : '— not set (using regex fallback)');
   console.log('');
 });

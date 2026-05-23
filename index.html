@@ -1146,6 +1146,7 @@ function selectPlan(el) {
 
 /* ── Form state ── */
 let parsed = null;
+let _signedInEmail = ''; // set after signup — used for signal tracking
 
 function showStep(n) {
   ['s1','s2','s3'].forEach((id, i) => {
@@ -1204,6 +1205,13 @@ async function handleFile(file) {
         if (parsed.lastName)  document.getElementById('lastName').value  = parsed.lastName;
         if (parsed.email)     document.getElementById('email').value     = parsed.email;
         if (parsed.phone)     document.getElementById('phone').value     = parsed.phone;
+        // Auto-select location dropdown if Claude found an Indian city
+        if (parsed.location) {
+          const locSel  = document.getElementById('location');
+          const locLow  = parsed.location.toLowerCase();
+          const matched = [...locSel.options].find(o => o.value && locLow.includes(o.value.toLowerCase().split(' ')[0]));
+          if (matched) locSel.value = matched.value;
+        }
         statusEl.textContent = 'Details extracted ✓';
       }
     }
@@ -1254,17 +1262,23 @@ async function submitForm() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: `${firstName} ${lastName}`.trim(),
+        name:        `${firstName} ${lastName}`.trim(),
         email,
         industry,
         location,
-        plan: selectedPlan,
+        plan:        selectedPlan,
+        // Extra fields from Claude resume parsing (ignored if not present)
+        targetRole:  parsed?.targetRole  || '',
+        currentRole: parsed?.currentRole || '',
+        skills:      parsed?.skills      || [],
+        yearsExp:    parsed?.yearsExp    || 0,
       }),
     });
 
     const data = await res.json();
 
     if (res.ok && data.ok) {
+      _signedInEmail = email;
       showStep(3);
       pollForMatches(email);
     } else {
@@ -1345,25 +1359,53 @@ async function pollForMatches(email) {
 
 function renderMatchCards(matches, container) {
   const scoreClass = s => s >= 80 ? 'high' : s >= 60 ? 'mid' : 'low';
-  container.innerHTML = matches.map(m => {
+  container.innerHTML = matches.map((m, idx) => {
     const title   = m.t || m.title   || '—';
     const company = m.c || m.company || '';
     const score   = m.s || m.score   || null;
     const reason  = m.v || m.reason  || '';
     const url     = m.u || m.url     || '';
+    const safeTitle = title.replace(/'/g, "\\'");
     return `
-      <div class="mc">
+      <div class="mc" id="mc-${idx}">
         <div class="mc-head">
           <div>
             <div class="mc-title">${title}</div>
             <div class="mc-company">${company}</div>
           </div>
-          ${score !== null ? `<span class="mc-score ${scoreClass(score)}">${score}% match</span>` : ''}
+          <div style="display:flex;align-items:center;gap:8px">
+            ${score !== null ? `<span class="mc-score ${scoreClass(score)}">${score}%</span>` : ''}
+            <button onclick="dismissCard(${idx},'${safeTitle}',${score||0})" title="Not for me"
+              style="background:none;border:1px solid var(--border);border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:11px;color:var(--ink3);line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s"
+              onmouseover="this.style.borderColor='var(--orange)';this.style.color='var(--orange)'"
+              onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--ink3)'">✕</button>
+          </div>
         </div>
         ${reason ? `<div class="mc-reason">${reason}</div>` : ''}
-        ${url    ? `<a href="${url}" target="_blank" class="mc-apply">View job →</a>` : ''}
+        ${url    ? `<a href="${url}" target="_blank" class="mc-apply"
+                      onclick="fireSignal('click','${safeTitle}',${score||0})">View job →</a>` : ''}
       </div>`;
   }).join('');
+}
+
+/* ── Signal helpers ── */
+function fireSignal(action, jobTitle, jobScore) {
+  if (!_signedInEmail) return;
+  fetch(`${API}/api/signal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: _signedInEmail, jobTitle, jobScore, action }),
+  }).catch(() => {});
+}
+
+function dismissCard(idx, title, score) {
+  const card = document.getElementById(`mc-${idx}`);
+  if (!card) return;
+  fireSignal('dismiss', title, score);
+  card.style.transition = 'opacity .25s, transform .25s';
+  card.style.opacity = '0';
+  card.style.transform = 'translateX(20px)';
+  setTimeout(() => card.remove(), 260);
 }
 
 /* ── 3D interactive tilt on cards ── */
