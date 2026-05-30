@@ -499,7 +499,16 @@ app.post('/api/signup', signupLimiter, async (req, res) => {
       fetch(`https://api.apify.com/v2/acts/${encodeURIComponent(ACTOR_ID)}/runs?token=${APIFY_TOKEN}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filterEmail: email, inlineProfile: { name, email, domain: industry, location, cities: [location] } }),
+        body: JSON.stringify({ filterEmail: email, inlineProfile: {
+          name, email,
+          targetRole:  targetRole  || currentRole || '',
+          currentRole: currentRole || targetRole  || '',
+          domain:      industry || '',
+          skills:      Array.isArray(skills) ? skills.join(', ') : (skills || ''),
+          experience:  yearsExp ? String(yearsExp) : '',
+          location,
+          cities:      [location],
+        } }),
       }).then(() => console.log('[signup] actor triggered for:', email))
         .catch(e => console.error('[signup] actor trigger failed:', e.message));
     }
