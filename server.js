@@ -83,12 +83,12 @@ function applyCors(req, res) {
 
 // ── Rate limiters (FIX #3: protect the money-spending routes) ─────────────────
 const signupLimiter = rateLimit({
-  windowMs: 60 * 1000, max: 5,                       // 5 signups/min/IP
+  windowMs: 60 * 1000, limit: 5,                     // 5 signups/min/IP (v8: `limit` replaces `max`)
   standardHeaders: true, legacyHeaders: false,
   message: { ok: false, error: 'Too many requests. Please wait a minute and try again.' },
 });
 const parseLimiter = rateLimit({
-  windowMs: 60 * 1000, max: 8,                       // 8 resume parses/min/IP
+  windowMs: 60 * 1000, limit: 8,                     // 8 resume parses/min/IP
   standardHeaders: true, legacyHeaders: false,
   message: { ok: false, error: 'Too many uploads. Please wait a minute.' },
 });
