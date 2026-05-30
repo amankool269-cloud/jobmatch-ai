@@ -126,7 +126,16 @@ async function findUser(email) {
 }
 async function patchUser(id, fields) {
   const clean = Object.fromEntries(Object.entries(fields).filter(([, v]) => v != null && v !== ''));
-  await atFetch(`${AT_API}/${id}`, { method: 'PATCH', headers: atH(), body: JSON.stringify({ fields: clean }) });
+  // typecast: let Airtable coerce values to the field's type and auto-create
+  // a missing singleSelect option (e.g. Plan "Basic"). Without this, ONE bad
+  // field 422s the WHOLE atomic PATCH and silently drops every other field too.
+  const r = await atFetch(`${AT_API}/${id}`, { method: 'PATCH', headers: atH(), body: JSON.stringify({ fields: clean, typecast: true }) });
+  if (!r.ok) {
+    // No longer swallow the error — surface it so the caller can react/log.
+    const err = await r.json().catch(() => ({}));
+    throw new Error(`Airtable PATCH ${r.status}: ${JSON.stringify(err)}`);
+  }
+  return r;
 }
 
 // ── Multer (memory storage, 5 MB cap) ────────────────────────────────────────
@@ -445,7 +454,7 @@ app.post('/api/signup', signupLimiter, async (req, res) => {
       await patchUser(existing.id, { ...fields, 'Notes': 'Re-signup ' + nowIso.slice(0, 10) });
       console.log('[signup] updated existing user:', email);
     } else {
-      const r = await atFetch(AT_API, { method: 'POST', headers: atH(), body: JSON.stringify({ fields }) });
+      const r = await atFetch(AT_API, { method: 'POST', headers: atH(), body: JSON.stringify({ fields, typecast: true }) });
       if (!r.ok) {
         const err = await r.json().catch(() => ({}));
         console.error('[signup] Airtable create error:', JSON.stringify(err));
