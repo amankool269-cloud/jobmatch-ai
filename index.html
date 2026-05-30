@@ -686,7 +686,7 @@
       <span class="muted">your next role.</span>
     </h1>
     <p class="hero-sub">
-      Upload your resume once. Our AI searches 6 job platforms daily, filters every role for fit, and delivers only the ones genuinely worth your time — straight to your inbox.
+      Upload your resume once. Our AI searches top job platforms daily, filters every role for fit, and delivers only the ones genuinely worth your time — straight to your inbox.
     </p>
     <div class="hero-actions">
       <a href="#signup" class="btn-primary">
@@ -756,7 +756,7 @@
       <div class="step-num">02</div>
       <div class="step-icon">🤖</div>
       <div class="step-title">AI searches for you</div>
-      <div class="step-desc">We search 6 major job platforms daily — covering startups, MNCs, and everything in between. Every listing is filtered against your profile by AI before it reaches you.</div>
+      <div class="step-desc">We search top job platforms daily — covering startups, MNCs, and everything in between. Every listing is filtered against your profile by AI before it reaches you.</div>
     </div>
     <div class="step tilt-card">
       <div class="step-num">03</div>
@@ -785,7 +785,7 @@
       <div class="feat-icon" style="background:rgba(0,184,122,0.1);">⚡</div>
       <div class="feat-text">
         <div class="feat-title">Fresh jobs every day</div>
-        <div class="feat-desc">We scan 6 platforms daily so you never miss a new listing — even the ones posted at midnight.</div>
+        <div class="feat-desc">We scan top platforms daily so you never miss a new listing — even the ones posted at midnight.</div>
       </div>
     </div>
 
@@ -808,8 +808,8 @@
     <div class="feat-item tilt-card">
       <div class="feat-icon" style="background:rgba(0,184,169,0.1);">📱</div>
       <div class="feat-text">
-        <div class="feat-title">Email + WhatsApp delivery</div>
-        <div class="feat-desc">Get your digest where you check first. Pro users receive alerts on WhatsApp the moment jobs are found.</div>
+        <div class="feat-title">Delivered to your inbox</div>
+        <div class="feat-desc">Get your curated digest every morning, wherever you check first. WhatsApp delivery coming soon.</div>
       </div>
     </div>
 
@@ -981,7 +981,7 @@
 
         <div class="consent-row">
           <input type="checkbox" id="consent" />
-          <label for="consent">I agree to receive daily job digest emails from JobMatch AI. I can unsubscribe at any time from any email.</label>
+          <label for="consent">I agree to JobMatch AI storing my resume and profile to match me with relevant jobs, and sending me job digest emails. I can update or delete my data, or unsubscribe, at any time.</label>
         </div>
 
         <div class="form-err" id="formErr"></div>
@@ -1028,7 +1028,7 @@
       <ul class="plan-features">
         <li class="plan-feature">2 AI-matched jobs per day</li>
         <li class="plan-feature">Daily email digest</li>
-        <li class="plan-feature">All 6 job platforms</li>
+        <li class="plan-feature">All major job platforms</li>
         <li class="plan-feature">Zero duplicate listings</li>
       </ul>
       <a href="#signup" class="plan-btn">Get started free</a>
@@ -1042,9 +1042,9 @@
       <div class="plan-divider" style="background:rgba(255,255,255,0.1)"></div>
       <ul class="plan-features">
         <li class="plan-feature">8 AI-matched jobs per day</li>
-        <li class="plan-feature">Email + WhatsApp alerts</li>
+        <li class="plan-feature">WhatsApp alerts (coming soon)</li>
         <li class="plan-feature">Priority processing</li>
-        <li class="plan-feature">All 6 job platforms</li>
+        <li class="plan-feature">All major job platforms</li>
         <li class="plan-feature">Zero duplicate listings</li>
       </ul>
       <a href="#signup" class="plan-btn">Start with Pro</a>
@@ -1059,7 +1059,7 @@
         <li class="plan-feature">5 AI-matched jobs per day</li>
         <li class="plan-feature">Daily email digest</li>
         <li class="plan-feature">Priority processing</li>
-        <li class="plan-feature">All 6 job platforms</li>
+        <li class="plan-feature">All major job platforms</li>
         <li class="plan-feature">Zero duplicate listings</li>
       </ul>
       <a href="#signup" class="plan-btn">Start with Starter</a>
@@ -1267,6 +1267,7 @@ async function submitForm() {
         industry,
         location,
         plan:        selectedPlan,
+        consent:     consent,
         // Extra fields from Claude resume parsing (ignored if not present)
         targetRole:  parsed?.targetRole  || '',
         currentRole: parsed?.currentRole || '',
@@ -1340,7 +1341,7 @@ async function pollForMatches(email) {
       const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
       statusText.textContent = matches.length > 0
         ? `${matches.length} found so far · scanning more (${timeStr})`
-        : `Scanning 6 platforms… (${timeStr})`;
+        : `Scanning job platforms… (${timeStr})`;
 
       // Timeout — stop polling gracefully
       if (Date.now() - startedAt > MAX_WAIT_MS) {
