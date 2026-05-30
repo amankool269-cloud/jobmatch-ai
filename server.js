@@ -447,7 +447,7 @@ app.post('/api/signup', signupLimiter, async (req, res) => {
       ...(targetRole  ? { 'Target role':  targetRole.trim()  } : {}),
       ...(currentRole ? { 'Current role': currentRole.trim() } : {}),
       ...(Array.isArray(skills) && skills.length ? { 'Skills': skills.slice(0, 8).join(', ') } : {}),
-      ...(yearsExp    ? { 'YearsExp':     yearsExp            } : {}),
+      ...(yearsExp    ? { 'Experience':   String(yearsExp)    } : {}),
     };
 
     if (existing) {
