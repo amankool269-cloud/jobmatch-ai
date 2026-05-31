@@ -15,14 +15,28 @@
  *  4. DPDP: consent is now captured with version + timestamp + scope, and the
  *     `plan` field is actually persisted (was silently dropped).
  *
+ * ── PHASE 1 MONETIZATION (2026-05) ─────────────────────────────────────────
+ *  5. Plan model: Free = instant signup digest + weekly (Sunday). Pro (₹99) = daily.
+ *     - inlineProfile now carries seniority/education/companyType (were dropped,
+ *       which forced every new user's FIRST digest — the conversion pitch — into
+ *       low_confidence and killed CA/CFA anchoring).
+ *     - Razorpay one-time Payment Link (/api/create-payment-link) + signature-
+ *       verified webhook (/api/razorpay-webhook) that flips Plan=Pro, PlanExpiry
+ *       =+30d, idempotent on LastPaymentId.
+ *     - /upgrade page is the user-facing entry that mints the link and redirects.
+ *
  * Required env vars (Render → Environment):
  *   AIRTABLE_TOKEN, AIRTABLE_BASE_ID, BREVO_API_KEY
  *   UNSUBSCRIBE_SECRET   ← MUST match Apify actor exactly
  *   ANTHROPIC_API_KEY
- *   ADMIN_SECRET         ← NEW: separate from UNSUBSCRIBE_SECRET, for /api/insights
+ *   ADMIN_SECRET         ← separate from UNSUBSCRIBE_SECRET, for /api/insights
+ *   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET  ← NEW (Phase 1)
  * Optional:
  *   PARSE_MODEL (default claude-haiku-4-5-20251001), APIFY_TOKEN, APIFY_ACTOR_ID,
  *   ALLOWED_ORIGINS (comma-separated)
+ *
+ * Airtable columns required for Phase 1: Plan (singleSelect Basic/Pro),
+ *   PlanExpiry (date as YYYY-MM-DD text/date), LastPaymentId (text).
  */
 
 import express   from 'express';
@@ -32,14 +46,19 @@ import crypto    from 'crypto';
 import { fileURLToPath } from 'url';
 import multer    from 'multer';
 import pdfParse  from 'pdf-parse/lib/pdf-parse.js';
-import mammoth   from 'mammoth';                    // NEW — proper DOCX extraction
-import rateLimit from 'express-rate-limit';         // NEW — abuse protection
+import mammoth   from 'mammoth';                    // proper DOCX extraction
+import rateLimit from 'express-rate-limit';         // abuse protection
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
 const app = express();
 app.set('trust proxy', 1);                          // Render sits behind a proxy; needed for rate-limit IPs
+
+// IMPORTANT: the Razorpay webhook needs the RAW body for signature verification.
+// We register that route's raw parser BEFORE express.json() so the global JSON
+// parser never consumes the webhook body. All other routes still get JSON.
+app.use('/api/razorpay-webhook', express.raw({ type: '*/*' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -62,6 +81,15 @@ if (!UNSUB_SECRET) {
 }
 // FIX #3: admin auth is its own secret, never the token-signing secret.
 const ADMIN_SECRET = process.env.ADMIN_SECRET || '';
+
+// Phase 1: Razorpay. Routes degrade gracefully (return "unavailable") if unset,
+// so the server still boots in environments without payment configured.
+const RAZORPAY_KEY_ID         = process.env.RAZORPAY_KEY_ID         || '';
+const RAZORPAY_KEY_SECRET     = process.env.RAZORPAY_KEY_SECRET     || '';
+const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
+const PRO_PRICE_PAISE = 9900;          // ₹99
+const PRO_DAYS        = 30;            // one-time link grants 30 days of Pro
+const SERVER_URL      = process.env.SERVER_URL || 'https://jobmatch-ai-z19k.onrender.com';
 
 // Current consent text version — bump this string whenever the consent wording changes.
 // Stored per user so you can prove WHAT they agreed to and WHEN (DPDP requirement).
@@ -91,6 +119,11 @@ const parseLimiter = rateLimit({
   windowMs: 60 * 1000, limit: 8,                     // 8 resume parses/min/IP
   standardHeaders: true, legacyHeaders: false,
   message: { ok: false, error: 'Too many uploads. Please wait a minute.' },
+});
+const payLimiter = rateLimit({
+  windowMs: 60 * 1000, limit: 6,                     // 6 link-creations/min/IP
+  standardHeaders: true, legacyHeaders: false,
+  message: { ok: false, error: 'Too many requests. Please wait a minute.' },
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -223,6 +256,8 @@ app.post('/api/parse-resume', parseLimiter, upload.single('resume'), async (req,
     }
 
     // ── Claude extraction (FIX #1: valid, env-configurable model) ─────────────
+    // Phase 1 note: also asks for seniority + education so the signup form can
+    // forward them to inlineProfile. Falls back gracefully if absent.
     const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
     if (ANTHROPIC_KEY && text.length > 100) {
       try {
@@ -239,7 +274,7 @@ app.post('/api/parse-resume', parseLimiter, upload.single('resume'), async (req,
             messages: [{
               role: 'user',
               content: `Extract info from this resume. Reply ONLY with a single JSON object, no markdown, no explanation:
-{"firstName":"","lastName":"","email":"","phone":"","currentRole":"","targetRole":"","skills":[],"yearsExp":0,"location":""}
+{"firstName":"","lastName":"","email":"","phone":"","currentRole":"","targetRole":"","skills":[],"yearsExp":0,"location":"","seniority":"","education":""}
 
 Rules:
 - targetRole: what they want next (infer from profile summary / objective if present)
@@ -247,6 +282,8 @@ Rules:
 - skills: top 8 skills as short strings
 - yearsExp: total years of work experience as a number
 - location: city they are based in (Indian city preferred)
+- seniority: one of fresher/junior/mid-level/senior/lead/head/director/vp/c-suite
+- education: highest qualification, include CA/CFA/MBA/PGDM if present
 - phone: Indian mobile number if present
 
 Resume (first 3000 chars):
@@ -272,6 +309,8 @@ ${text.slice(0, 3000)}`,
             skills:      Array.isArray(ex.skills) ? ex.skills : [],
             yearsExp:    ex.yearsExp    || 0,
             location:    ex.location    || '',
+            seniority:   ex.seniority   || '',
+            education:   ex.education   || '',
             source: 'claude',
           });
         } else {
@@ -325,7 +364,7 @@ app.get('/resubscribe', async (req, res) => {
     const u = await findUser(email);
     if (u) await patchUser(u.id, { Status: 'Active', Notes: 'Resubscribed ' + new Date().toISOString().slice(0, 10) });
     if (BREVO_KEY) await fetch(`https://api.brevo.com/v3/contacts/${encodeURIComponent(email)}`, { method: 'PUT', headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ emailBlacklisted: false }) }).catch(() => {});
-    res.send(page('Welcome back!', '<div class="big-emoji">🎉</div><h2>You\'re back on.</h2><p>Matches resume tomorrow morning.</p>'));
+    res.send(page('Welcome back!', '<div class="big-emoji">🎉</div><h2>You\'re back on.</h2><p>Matches resume on your next scheduled digest.</p>'));
   } catch (e) { res.status(500).send(page('Error', '<p>Something went wrong.</p>')); }
 });
 
@@ -338,6 +377,9 @@ app.get('/dashboard', async (req, res) => {
     if (!u) return res.status(404).send(page('Not found', '<p>No account found.</p>'));
     const f = u.fields || {};
     let jobs = []; try { jobs = JSON.parse(f.LastMatches || '[]'); } catch {}
+    const planNow = (f.Plan || 'Basic');
+    const isPro = planNow.toLowerCase() === 'pro' &&
+      f.PlanExpiry && String(f.PlanExpiry).slice(0, 10) >= new Date().toISOString().slice(0, 10);
     const sc = s => s >= 85 ? '#059669' : s >= 70 ? '#4F46E5' : '#888';
     const cards = jobs.length
       ? jobs.map(j => `<div style="border:1px solid #E6E6E2;border-radius:12px;padding:16px;margin-bottom:10px;background:#fff">
@@ -348,7 +390,14 @@ app.get('/dashboard', async (req, res) => {
           ${j.v ? `<p style="font-size:13px;color:#555;line-height:1.6;background:#f8f8f6;padding:10px;border-radius:8px;border-left:3px solid ${sc(j.s)}">${j.v}</p>` : ''}
           ${j.u ? `<a href="${j.u}" target="_blank" style="display:inline-block;margin-top:10px;padding:6px 16px;background:#0C0C10;color:#fff;border-radius:999px;font-size:12px;font-weight:700;text-decoration:none">Apply →</a>` : ''}
         </div>`).join('')
-      : '<p style="color:#888;padding:32px 0;text-align:center">No matches yet — check back after your next morning digest.</p>';
+      : '<p style="color:#888;padding:32px 0;text-align:center">No matches yet — check back after your next digest.</p>';
+    const upsell = isPro
+      ? `<div style="background:#ecfdf5;border:1px solid rgba(5,150,105,.25);border-radius:12px;padding:14px 16px;margin-bottom:18px;font-size:13px;color:#065f46;font-weight:600">★ Pro — daily digests active until ${String(f.PlanExpiry).slice(0,10)}.</div>`
+      : `<div style="background:linear-gradient(135deg,#4F46E5,#0055FF);border-radius:12px;padding:16px 18px;margin-bottom:18px;text-align:center">
+           <div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:4px">Get matches every morning</div>
+           <div style="font-size:12px;color:rgba(255,255,255,.85);margin-bottom:12px">You're on the free weekly digest. Pro members get daily matches.</div>
+           <a href="/upgrade?email=${encodeURIComponent(email)}&token=${token}" style="display:inline-block;background:#fff;color:#4F46E5;padding:9px 20px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:800">Upgrade to Pro — ₹99</a>
+         </div>`;
     res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Your matches</title>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
       <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;background:#f8f8f6;padding:0 0 60px}
@@ -356,6 +405,7 @@ app.get('/dashboard', async (req, res) => {
       .inner{max-width:600px;margin:0 auto;padding:28px 20px}h1{font-size:20px;font-weight:700;margin-bottom:4px}p.sub{font-size:13px;color:#888;margin-bottom:20px}</style></head>
       <body><div class="top"><strong>JobMatch AI</strong><span style="font-size:12px;color:#888">${email}</span></div>
       <div class="inner"><h1>Your matches</h1><p class="sub">${jobs.length} job${jobs.length !== 1 ? 's' : ''} in this digest · <a href="/unsubscribe?email=${encodeURIComponent(email)}&token=${token}" style="color:#888">Unsubscribe</a></p>
+      ${upsell}
       ${cards}</div></body></html>`);
   } catch (e) { res.status(500).send(page('Error', '<p>Something went wrong.</p>')); }
 });
@@ -377,7 +427,7 @@ app.get('/profile', async (req, res) => {
       input:focus{border-color:#4F46E5}
       button{width:100%;margin-top:20px;padding:12px;background:#0C0C10;color:#fff;border:none;border-radius:999px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}
       #ok{display:none;background:#ecfdf5;color:#059669;border:1px solid rgba(5,150,105,.2);border-radius:8px;padding:12px;text-align:center;margin-bottom:16px;font-weight:600}</style></head>
-      <body><div class="wrap"><h1>Update your profile</h1><p class="sub">Changes apply from your next morning digest.</p>
+      <body><div class="wrap"><h1>Update your profile</h1><p class="sub">Changes apply from your next digest.</p>
       <div id="ok">✓ Profile saved.</div>
       <form id="pf"><input type="hidden" name="email" value="${email}"><input type="hidden" name="token" value="${token}">
       <label>Target role</label><input name="targetRole" value="${f['Target role'] || ''}">
@@ -415,8 +465,10 @@ app.options('/api/signup', (req, res) => {
 
 app.post('/api/signup', signupLimiter, async (req, res) => {
   applyCors(req, res);
-  // FIX #4: `plan` and `consent` are now read and persisted (were dropped).
-  const { name, email, industry, location, targetRole, currentRole, skills, yearsExp, plan, consent } = req.body || {};
+  // FIX #4: `plan` and `consent` are read and persisted.
+  // Phase 1: also read seniority/education/companyType so the FIRST digest
+  // (the conversion pitch) isn't forced into low_confidence by missing fields.
+  const { name, email, industry, location, targetRole, currentRole, skills, yearsExp, plan, consent, seniority, education, companyType } = req.body || {};
 
   if (!name || !email) return res.status(400).json({ ok: false, error: 'Name and email are required.' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ ok: false, error: 'Invalid email address.' });
@@ -438,7 +490,8 @@ app.post('/api/signup', signupLimiter, async (req, res) => {
       'Location': (location || 'Bengaluru').trim(),
       'Cities':   (location || 'Bengaluru').trim(),
       'Status':   'Active',
-      // FIX #4: persist the chosen plan (default Basic) so we can measure intent + gate features.
+      // FIX #4: persist the chosen plan (default Basic). New signups are free
+      // by default — Pro is granted only by the Razorpay webhook after payment.
       'Plan':     (plan || 'Basic').trim(),
       // DPDP consent record — what + when + which version.
       'Consent':         true,
@@ -448,6 +501,9 @@ app.post('/api/signup', signupLimiter, async (req, res) => {
       ...(currentRole ? { 'Current role': currentRole.trim() } : {}),
       ...(Array.isArray(skills) && skills.length ? { 'Skills': skills.slice(0, 8).join(', ') } : {}),
       ...(yearsExp    ? { 'Experience':   String(yearsExp)    } : {}),
+      ...(seniority   ? { 'Seniority':    String(seniority).trim()   } : {}),
+      ...(education   ? { 'Education':     String(education).trim()    } : {}),
+      ...(companyType ? { 'Company type': String(companyType).trim()  } : {}),
     };
 
     if (existing) {
@@ -470,7 +526,10 @@ app.post('/api/signup', signupLimiter, async (req, res) => {
         body: JSON.stringify({
           sender:  { name: 'JobMatch AI', email: 'hello@jobmatchai.co.in' },
           to:      [{ email, name }],
-          subject: `Welcome to JobMatch AI — first digest tomorrow at 7AM`,
+          // Phase 1 copy fix: no fixed "7AM" promise — the daily schedule is the
+          // dependency. "Shortly" matches the instant signup-triggered digest;
+          // ongoing cadence is described honestly as weekly (free) below.
+          subject: `Welcome to JobMatch AI — your first matches are on the way`,
           htmlContent: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
             <div style="background:#F97316;border-radius:14px;padding:20px 24px;margin-bottom:24px">
               <div style="font-size:18px;font-weight:800;color:#fff">JobMatch AI</div>
@@ -478,10 +537,10 @@ app.post('/api/signup', signupLimiter, async (req, res) => {
             </div>
             <h2 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:10px">Hi ${name}! 🎉</h2>
             <p style="font-size:14px;color:#6B7280;line-height:1.7;margin-bottom:14px">
-              Your profile is live. Your first job digest will arrive <strong style="color:#111827">tomorrow morning at 7AM</strong>.
+              Your profile is live and we're matching your first set of jobs right now — they'll land in your inbox <strong style="color:#111827">shortly</strong>.
             </p>
             <p style="font-size:14px;color:#6B7280;line-height:1.7;margin-bottom:14px">
-              Every morning we search top job platforms — LinkedIn, Naukri, Google Jobs, Adzuna and more — and send you only the roles that actually match your profile, with a score and a plain-English reason.
+              We search top job platforms — LinkedIn, Naukri, Google Jobs, Adzuna and more — and send only the roles that actually match your profile, with a score and a plain-English reason. On the free plan you'll get a fresh digest <strong style="color:#111827">every week</strong>; upgrade to Pro for daily matches.
             </p>
             <div style="background:#FFF7ED;border:1px solid rgba(249,115,22,0.2);border-radius:10px;padding:14px 16px;margin-bottom:20px">
               <strong style="font-size:13px;color:#92400E">Your search profile</strong><br>
@@ -506,14 +565,19 @@ app.post('/api/signup', signupLimiter, async (req, res) => {
           domain:      industry || '',
           skills:      Array.isArray(skills) ? skills.join(', ') : (skills || ''),
           experience:  yearsExp ? String(yearsExp) : '',
+          seniority:   seniority   || '',     // was dropped → forced low_confidence on first run
+          education:   education   || '',     // was dropped → killed CA/CFA anchoring
+          companyType: companyType || '',     // was dropped
           location,
           cities:      [location],
+          plan:        (plan || 'Basic'),      // signup run sends regardless, but keep consistent
+          planExpiry:  '',
         } }),
       }).then(() => console.log('[signup] actor triggered for:', email))
         .catch(e => console.error('[signup] actor trigger failed:', e.message));
     }
 
-    res.json({ ok: true, message: existing ? 'Profile updated! Changes apply from your next morning digest.' : 'You\'re all set! First digest on its way shortly.' });
+    res.json({ ok: true, message: existing ? 'Profile updated! Changes apply from your next digest.' : 'You\'re all set! Your first matches are on the way.' });
   } catch (e) {
     console.error('[signup] error:', e.message);
     res.status(500).json({ ok: false, error: 'Something went wrong. Please try again.' });
@@ -560,6 +624,132 @@ app.post('/api/signal', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 1 — MONETIZATION ROUTES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── GET /upgrade — user-facing entry. Mints a Razorpay link and redirects. ─────
+// Token-gated so only the real user (via their email link) can start checkout.
+app.get('/upgrade', payLimiter, async (req, res) => {
+  const { email, token } = req.query;
+  if (!email || !validToken(email, token)) return res.status(400).send(page('Invalid', '<p>Invalid link.</p>'));
+  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+    return res.send(page('Coming soon', '<div class="big-emoji">⏳</div><h2>Pro is almost ready</h2><p>Daily matching is being switched on. We\'ll email you the moment you can upgrade.</p>'));
+  }
+  try {
+    const u = await findUser(email);
+    if (!u) return res.status(404).send(page('Not found', '<p>No account found.</p>'));
+
+    // Already Pro and not expired → don't double-charge; send to dashboard.
+    const f = u.fields || {};
+    const isPro = (f.Plan || '').toLowerCase() === 'pro' &&
+      f.PlanExpiry && String(f.PlanExpiry).slice(0, 10) >= new Date().toISOString().slice(0, 10);
+    if (isPro) {
+      return res.send(page('Already Pro', `<div class="big-emoji">★</div><h2>You're already Pro</h2><p>Daily matches are active until ${String(f.PlanExpiry).slice(0,10)}.</p><a href="/dashboard?email=${encodeURIComponent(email)}&token=${token}" class="btn">View matches →</a>`));
+    }
+
+    const auth = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
+    const r = await fetch('https://api.razorpay.com/v1/payment_links', {
+      method: 'POST',
+      headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount: PRO_PRICE_PAISE, currency: 'INR',
+        description: 'JobMatch AI Pro — daily digest, 30 days',
+        customer: { email },
+        notify: { email: false, sms: false },
+        notes: { email: email.toLowerCase() },               // ← webhook maps payment→user from this
+        reminder_enable: false,
+        callback_url: `${SERVER_URL}/dashboard?email=${encodeURIComponent(email)}&token=${token}`,
+        callback_method: 'get',
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.short_url) {
+      console.error('[upgrade] razorpay link create failed:', JSON.stringify(data).slice(0, 300));
+      return res.status(502).send(page('Error', '<p>Could not start checkout. Please try again in a minute.</p>'));
+    }
+    // Redirect the user straight to Razorpay's hosted payment page.
+    res.redirect(302, data.short_url);
+  } catch (e) {
+    console.error('[upgrade] error:', e.message);
+    res.status(500).send(page('Error', '<p>Something went wrong. Please try again.</p>'));
+  }
+});
+
+// ── POST /api/create-payment-link — JSON variant (for in-page / dashboard JS) ──
+app.post('/api/create-payment-link', payLimiter, async (req, res) => {
+  applyCors(req, res);
+  const { email } = req.body || {};
+  if (!email || !RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) return res.status(400).json({ ok: false, error: 'Unavailable' });
+  try {
+    const auth = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
+    const r = await fetch('https://api.razorpay.com/v1/payment_links', {
+      method: 'POST',
+      headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount: PRO_PRICE_PAISE, currency: 'INR',
+        description: 'JobMatch AI Pro — daily digest, 30 days',
+        customer: { email },
+        notify: { email: false, sms: false },
+        notes: { email: email.toLowerCase() },
+        reminder_enable: false,
+        callback_url: `${SERVER_URL}/dashboard`,
+        callback_method: 'get',
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.short_url) { console.error('[create-payment-link]', JSON.stringify(data).slice(0, 300)); return res.status(502).json({ ok: false }); }
+    res.json({ ok: true, url: data.short_url });
+  } catch (e) { console.error('[create-payment-link] error:', e.message); res.status(500).json({ ok: false }); }
+});
+
+// ── POST /api/razorpay-webhook — flip user to Pro on payment ───────────────────
+// Uses RAW body (registered at top, before express.json) for signature verify.
+// Idempotent: Razorpay retries on non-2xx, so we skip already-processed payments.
+app.post('/api/razorpay-webhook', async (req, res) => {
+  try {
+    if (!RAZORPAY_WEBHOOK_SECRET) { console.error('[webhook] no secret configured'); return res.status(503).json({ ok: false }); }
+    // req.body is a Buffer here because of express.raw registered above.
+    const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body || {}));
+    const sig = String(req.headers['x-razorpay-signature'] || '');
+    const expected = crypto.createHmac('sha256', RAZORPAY_WEBHOOK_SECRET).update(rawBody).digest('hex');
+    const sigBuf = Buffer.from(sig);
+    const expBuf = Buffer.from(expected);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      console.error('[webhook] bad signature');
+      return res.status(400).json({ ok: false });
+    }
+
+    const event = JSON.parse(rawBody.toString());
+    // Accept the payment-link-paid event. (Order.paid / payment.captured could be
+    // added later; for one-time links, payment_link.paid is the authoritative one.)
+    if (event.event !== 'payment_link.paid') return res.json({ ok: true, ignored: event.event });
+
+    const linkEntity = event.payload?.payment_link?.entity || {};
+    const payEntity  = event.payload?.payment?.entity || {};
+    const email = (linkEntity.notes?.email || '').toLowerCase();
+    const paymentId = payEntity.id || linkEntity.id;
+    if (!email) { console.error('[webhook] no email in notes'); return res.json({ ok: true }); }
+
+    const u = await findUser(email);
+    if (!u) { console.error('[webhook] user not found:', email); return res.json({ ok: true }); }
+
+    // Idempotency — skip if we already recorded this payment.
+    if (u.fields?.LastPaymentId && u.fields.LastPaymentId === paymentId) {
+      console.log('[webhook] duplicate payment, skipping:', paymentId);
+      return res.json({ ok: true, duplicate: true });
+    }
+
+    const expiry = new Date(Date.now() + PRO_DAYS * 86400 * 1000).toISOString().slice(0, 10);
+    await patchUser(u.id, { Plan: 'Pro', PlanExpiry: expiry, LastPaymentId: paymentId, Status: 'Active' });
+    console.log(`[webhook] ${email} → Pro until ${expiry} (payment ${paymentId})`);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[webhook] error:', e.message);
+    res.status(500).json({ ok: false });
+  }
+});
+
 // ── GET /api/insights (FIX #3: admin secret in header, not query string) ──────
 app.get('/api/insights', async (req, res) => {
   applyCors(req, res);
@@ -567,16 +757,19 @@ app.get('/api/insights', async (req, res) => {
     return res.status(403).json({ ok: false, error: 'Forbidden' });
   }
   try {
-    const r = await atFetch(`${AT_API}?fields%5B%5D=Email&fields%5B%5D=Signals&fields%5B%5D=LastRating&fields%5B%5D=Domain&fields%5B%5D=Status&fields%5B%5D=Plan&maxRecords=1000`, { headers: atH() });
+    const r = await atFetch(`${AT_API}?fields%5B%5D=Email&fields%5B%5D=Signals&fields%5B%5D=LastRating&fields%5B%5D=Domain&fields%5B%5D=Status&fields%5B%5D=Plan&fields%5B%5D=PlanExpiry&maxRecords=1000`, { headers: atH() });
     const d = await r.json();
     if (d.error) throw new Error(JSON.stringify(d.error));
     let totalSignals = 0, clicks = 0, applies = 0, dismisses = 0, ratingSum = 0, ratingCount = 0;
     const scoreHistogram = {}, domainEngagement = {}, planCounts = {};
+    const today = new Date().toISOString().slice(0, 10);
+    let activePro = 0;
     for (const rec of d.records || []) {
       const sigs = (() => { try { return JSON.parse(rec.fields?.Signals || '[]'); } catch { return []; } })();
       const domain = rec.fields?.Domain || 'unknown';
       const plan = rec.fields?.Plan || 'Basic';
       planCounts[plan] = (planCounts[plan] || 0) + 1;
+      if (plan.toLowerCase() === 'pro' && rec.fields?.PlanExpiry && String(rec.fields.PlanExpiry).slice(0,10) >= today) activePro++;
       totalSignals += sigs.length;
       clicks    += sigs.filter(s => s.a === 'click').length;
       applies   += sigs.filter(s => s.a === 'apply').length;
@@ -595,6 +788,7 @@ app.get('/api/insights', async (req, res) => {
       totalUsers: (d.records || []).length, activeUsers,
       usersWithSignals: (d.records || []).filter(r => r.fields?.Signals).length,
       planBreakdown: planCounts,
+      activeProUsers: activePro,
       signals: { total: totalSignals, clicks, applies, dismisses },
       engagementRate: (clicks + applies + dismisses) > 0 ? ((clicks + applies) / (clicks + applies + dismisses) * 100).toFixed(1) + '%' : '—',
       rating: ratingCount ? { avg: (ratingSum / ratingCount).toFixed(2), count: ratingCount } : null,
@@ -641,6 +835,8 @@ app.listen(PORT, () => {
   console.log('  Airtable token:', AT_TOKEN ? AT_TOKEN.slice(0, 12) + '...' : '✗ MISSING');
   console.log('  Unsub secret  :', UNSUB_SECRET ? '✓ set' : '✗ MISSING');
   console.log('  Admin secret  :', ADMIN_SECRET ? '✓ set' : '— not set (/api/insights disabled)');
+  console.log('  Razorpay      :', RAZORPAY_KEY_ID ? '✓ keys set' : '— not set (/upgrade shows "coming soon")');
+  console.log('  RZP webhook   :', RAZORPAY_WEBHOOK_SECRET ? '✓ secret set' : '— not set (webhook will 503)');
   console.log('  Claude key    :', process.env.ANTHROPIC_API_KEY ? '✓ set' : '— not set (regex fallback)');
   console.log('');
 });
